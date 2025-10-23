@@ -10,6 +10,8 @@ pub mod json;
 pub mod yaml;
 pub mod markdown;
 pub mod xml;
+pub mod toml;
+pub mod csv;
 pub mod traits;
 
 pub use error::{RepairError, Result};
@@ -26,6 +28,10 @@ pub fn repair(content: &str) -> Result<String> {
         yaml::YamlRepairer::new().repair(trimmed)
     } else if is_xml_like(trimmed) {
         xml::XmlRepairer::new().repair(trimmed)
+    } else if is_toml_like(trimmed) {
+        toml::TomlRepairer::new().repair(trimmed)
+    } else if is_csv_like(trimmed) {
+        csv::CsvRepairer::new().repair(trimmed)
     } else if is_markdown_like(trimmed) {
         markdown::MarkdownRepairer::new().repair(trimmed)
     } else {
@@ -52,6 +58,24 @@ fn is_xml_like(content: &str) -> bool {
     trimmed.starts_with("<?xml") ||
     (trimmed.starts_with('<') && trimmed.contains('>') && !trimmed.starts_with('#')) ||
     (trimmed.contains('<') && trimmed.contains('>') && trimmed.contains("</"))
+}
+
+fn is_toml_like(content: &str) -> bool {
+    let trimmed = content.trim();
+    trimmed.starts_with('[') ||
+    (trimmed.contains('=') && !trimmed.starts_with('{') && !trimmed.starts_with('<') && !trimmed.starts_with('#')) ||
+    trimmed.lines().any(|line| line.trim().starts_with('[') && line.trim().ends_with(']'))
+}
+
+fn is_csv_like(content: &str) -> bool {
+    let trimmed = content.trim();
+    trimmed.contains(',') &&
+    !trimmed.starts_with('{') &&
+    !trimmed.starts_with('[') &&
+    !trimmed.starts_with('<') &&
+    !trimmed.starts_with('#') &&
+    !trimmed.starts_with("<?xml") &&
+    trimmed.lines().count() > 1
 }
 
 fn is_markdown_like(content: &str) -> bool {
@@ -81,6 +105,14 @@ mod tests {
         assert!(is_xml_like("<root><item>value</item></root>"));
         assert!(!is_xml_like(r#"{"key": "value"}"#));
         
+        assert!(is_toml_like("[user]\nname = \"John\""));
+        assert!(is_toml_like("name = John"));
+        assert!(!is_toml_like(r#"{"key": "value"}"#));
+        
+        assert!(is_csv_like("name,age\nJohn,30"));
+        assert!(is_csv_like("John,30,Engineer\nJane,25,Designer"));
+        assert!(!is_csv_like(r#"{"key": "value"}"#));
+        
         assert!(is_markdown_like("# Header"));
         assert!(is_markdown_like("**bold**"));
         assert!(is_markdown_like("```code```"));
@@ -105,6 +137,16 @@ mod tests {
         let result = repair(xml_input).unwrap();
         assert!(result.contains("<root>"));
         assert!(result.contains("<item>value</item>"));
+
+        // Test TOML repair
+        let toml_input = "name = John\nage = 30";
+        let result = repair(toml_input).unwrap();
+        assert!(result.contains("name = John"));
+
+        // Test CSV repair
+        let csv_input = "John,30,Engineer\nJane,25,Designer";
+        let result = repair(csv_input).unwrap();
+        assert!(result.contains("John,30,Engineer"));
 
         // Test Markdown repair
         let markdown_input = "#Header\nSome **bold** text";

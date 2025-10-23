@@ -20,10 +20,12 @@
 - [x] XML repair support implementation with comprehensive strategies
 - [x] Technical debt cleanup and code optimization
 - [x] Publication to crates.io (v0.1.0) - Successfully published!
+- [x] TOML repair support implementation
+- [x] CSV repair support implementation
 
 ## In Progress 🔄
 
-- [ ] Additional format support (TOML, CSV, INI)
+- [ ] Additional format support (INI)
 - [ ] Advanced repair strategies
 
 ## Planned 📋

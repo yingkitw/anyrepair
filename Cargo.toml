@@ -6,7 +6,7 @@ authors = ["Your Name <your.email@example.com>"]
 description = "A Rust crate for repairing LLM responses including JSON, YAML, Markdown, and XML"
 license = "MIT"
 repository = "https://github.com/yourusername/anyrepair"
-keywords = ["llm", "repair", "json", "yaml", "markdown", "xml", "parser"]
+keywords = ["llm", "repair", "json", "yaml", "markdown"]
 categories = ["text-processing", "parser-implementations"]
 
 [dependencies]

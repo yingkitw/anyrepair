@@ -1,6 +1,18 @@
 # Rust
 /target/
 **/*.rs.bk
+*.rlib
+*.rmeta
+*.d
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Cargo.lock should be committed for binaries but not for libraries
+# Since this is primarily a library, we ignore it
+# Uncomment the next line if you want to track it:
 Cargo.lock
 
 # IDE

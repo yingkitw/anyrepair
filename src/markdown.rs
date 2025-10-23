@@ -3,6 +3,34 @@
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
+use std::sync::OnceLock;
+
+/// Cached regex patterns for Markdown performance optimization
+struct MarkdownRegexCache {
+    header_spacing: Regex,
+    code_block_fences: Regex,
+    list_items: Regex,
+    link_formatting: Regex,
+    bold_italic: Regex,
+}
+
+impl MarkdownRegexCache {
+    fn new() -> Result<Self> {
+        Ok(Self {
+            header_spacing: Regex::new(r#"^(#{1,6})([^#\s])"#)?,
+            code_block_fences: Regex::new(r#"^```(\w+)?$"#)?,
+            list_items: Regex::new(r#"^(\s*)(\d+\.)([^ ])"#)?,
+            link_formatting: Regex::new(r#"\[([^\]]+)\]\(([^)]+)\)"#)?,
+            bold_italic: Regex::new(r#"\*\*([^*]+)\*\*|\*([^*]+)\*"#)?,
+        })
+    }
+}
+
+static MARKDOWN_REGEX_CACHE: OnceLock<MarkdownRegexCache> = OnceLock::new();
+
+fn get_markdown_regex_cache() -> &'static MarkdownRegexCache {
+    MARKDOWN_REGEX_CACHE.get_or_init(|| MarkdownRegexCache::new().expect("Failed to initialize Markdown regex cache"))
+}
 
 /// Markdown repairer that can fix common Markdown issues
 pub struct MarkdownRepairer {
@@ -20,6 +48,9 @@ impl MarkdownRepairer {
             Box::new(FixLinkFormattingStrategy),
             Box::new(FixBoldItalicStrategy),
             Box::new(AddMissingNewlinesStrategy),
+            Box::new(FixTableFormattingStrategy),
+            Box::new(FixNestedListsStrategy),
+            Box::new(FixImageSyntaxStrategy),
         ];
         
         // Sort strategies by priority (higher priority first)
@@ -173,13 +204,13 @@ struct FixHeaderSpacingStrategy;
 
 impl RepairStrategy for FixHeaderSpacingStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let re = Regex::new(r"^(#{1,6})([^#\s].*)$")?;
+        let cache = get_markdown_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
         
         for line in lines {
-            if re.is_match(line) {
-                let fixed = re.replace(line, "$1 $2");
+            if cache.header_spacing.is_match(line) {
+                let fixed = cache.header_spacing.replace(line, "$1 $2");
                 result.push(fixed.to_string());
             } else {
                 result.push(line.to_string());
@@ -241,6 +272,7 @@ struct FixListFormattingStrategy;
 
 impl RepairStrategy for FixListFormattingStrategy {
     fn apply(&self, content: &str) -> Result<String> {
+        let cache = get_markdown_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
         
@@ -252,13 +284,9 @@ impl RepairStrategy for FixListFormattingStrategy {
             } else if trimmed.starts_with("*") && !trimmed.starts_with("* ") {
                 let fixed = format!("* {}", trimmed[1..].trim());
                 result.push(fixed);
-            } else if Regex::new(r"^\d+\.").unwrap().is_match(trimmed) && !trimmed.contains(" ") {
-                let parts: Vec<&str> = trimmed.splitn(2, '.').collect();
-                if parts.len() == 2 {
-                    result.push(format!("{}. {}", parts[0], parts[1]));
-                } else {
-                    result.push(line.to_string());
-                }
+            } else if cache.list_items.is_match(line) {
+                let fixed = cache.list_items.replace(line, "$1$2 $3");
+                result.push(fixed.to_string());
             } else {
                 result.push(line.to_string());
             }
@@ -302,13 +330,18 @@ struct FixBoldItalicStrategy;
 
 impl RepairStrategy for FixBoldItalicStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        // Fix unmatched bold markers
-        let bold_re = Regex::new(r"\*\*([^*]+)\*\*")?;
-        let result = bold_re.replace_all(content, "**$1**");
+        let cache = get_markdown_regex_cache();
         
-        // Fix unmatched italic markers (simplified approach)
-        let italic_re = Regex::new(r"\*([^*]+)\*")?;
-        let result = italic_re.replace_all(&result, "*$1*");
+        // Fix unmatched bold and italic markers
+        let result = cache.bold_italic.replace_all(content, |caps: &regex::Captures| {
+            if let Some(bold) = caps.get(1) {
+                format!("**{}**", bold.as_str())
+            } else if let Some(italic) = caps.get(2) {
+                format!("*{}*", italic.as_str())
+            } else {
+                caps[0].to_string()
+            }
+        });
         
         Ok(result.to_string())
     }
@@ -349,6 +382,166 @@ impl RepairStrategy for AddMissingNewlinesStrategy {
     
     fn priority(&self) -> u8 {
         1
+    }
+}
+
+/// Strategy to fix table formatting
+struct FixTableFormattingStrategy;
+
+impl RepairStrategy for FixTableFormattingStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        let lines: Vec<&str> = content.lines().collect();
+        let mut result: Vec<String> = Vec::new();
+        let mut in_table = false;
+        let mut table_lines: Vec<String> = Vec::new();
+        
+        for line in lines {
+            let trimmed = line.trim();
+            
+            // Detect table rows (contain |)
+            if trimmed.contains('|') && !trimmed.starts_with('|') && !trimmed.ends_with('|') {
+                if !in_table {
+                    in_table = true;
+                    // Add empty line before table
+                    if !result.is_empty() && !result.last().unwrap().trim().is_empty() {
+                        result.push(String::new());
+                    }
+                }
+                
+                // Fix table row formatting
+                let fixed = format!("|{}|", trimmed);
+                table_lines.push(fixed);
+            } else if trimmed.starts_with('|') && trimmed.ends_with('|') {
+                // Already formatted table row
+                if !in_table {
+                    in_table = true;
+                    if !result.is_empty() && !result.last().unwrap().trim().is_empty() {
+                        result.push(String::new());
+                    }
+                }
+                table_lines.push(line.to_string());
+            } else if trimmed.starts_with("|---") {
+                // Table separator
+                if in_table {
+                    table_lines.push(line.to_string());
+                } else {
+                    result.push(line.to_string());
+                }
+            } else {
+                // End of table
+                if in_table {
+                    // Add table to result
+                    result.extend(table_lines.clone());
+                    result.push(String::new()); // Empty line after table
+                    table_lines.clear();
+                    in_table = false;
+                }
+                result.push(line.to_string());
+            }
+        }
+        
+        // Add any remaining table lines
+        if in_table {
+            result.extend(table_lines.clone());
+        }
+        
+        Ok(result.join("\n"))
+    }
+    
+    fn priority(&self) -> u8 {
+        3
+    }
+}
+
+/// Strategy to fix nested lists
+struct FixNestedListsStrategy;
+
+impl RepairStrategy for FixNestedListsStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        let lines: Vec<&str> = content.lines().collect();
+        let mut result: Vec<String> = Vec::new();
+        let mut list_stack: Vec<char> = Vec::new();
+        
+        for line in lines {
+            if line.trim().is_empty() {
+                result.push(line.to_string());
+                continue;
+            }
+            
+            let trimmed = line.trim();
+            let indent = line.chars().take_while(|c| c.is_whitespace()).count();
+            
+            if trimmed.starts_with('-') || trimmed.starts_with('*') || trimmed.starts_with('+') {
+                // List item
+                let list_char = trimmed.chars().next().unwrap();
+                let content = trimmed[1..].trim();
+                
+                // Determine nesting level
+                let expected_indent = list_stack.len() * 2;
+                let actual_indent = indent;
+                
+                if actual_indent < expected_indent {
+                    // Reduce nesting
+                    while list_stack.len() > actual_indent / 2 {
+                        list_stack.pop();
+                    }
+                } else if actual_indent > expected_indent {
+                    // Increase nesting
+                    while list_stack.len() < actual_indent / 2 {
+                        list_stack.push(list_char);
+                    }
+                }
+                
+                let fixed_indent = list_stack.len() * 2;
+                let fixed = format!("{}{} {}", " ".repeat(fixed_indent), list_char, content);
+                result.push(fixed);
+            } else if trimmed.starts_with("1.") || trimmed.starts_with("2.") || trimmed.starts_with("3.") {
+                // Numbered list item
+                let parts: Vec<&str> = trimmed.splitn(2, '.').collect();
+                if parts.len() == 2 {
+                    let number = parts[0].trim();
+                    let content = parts[1].trim();
+                    let fixed_indent = list_stack.len() * 2;
+                    let fixed = format!("{}{}. {}", " ".repeat(fixed_indent), number, content);
+                    result.push(fixed);
+                } else {
+                    result.push(line.to_string());
+                }
+            } else {
+                // Non-list content - reset list stack
+                list_stack.clear();
+                result.push(line.to_string());
+            }
+        }
+        
+        Ok(result.join("\n"))
+    }
+    
+    fn priority(&self) -> u8 {
+        4
+    }
+}
+
+/// Strategy to fix image syntax
+struct FixImageSyntaxStrategy;
+
+impl RepairStrategy for FixImageSyntaxStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        let mut result = content.to_string();
+        
+        // Fix image syntax: ![alt](url)
+        let image_re = Regex::new(r"!\[([^\]]*)\]\(([^)]*)\)")?;
+        result = image_re.replace_all(&result, |caps: &regex::Captures| {
+            let alt = caps.get(1).map_or("", |m| m.as_str());
+            let url = caps.get(2).map_or("", |m| m.as_str());
+            format!("![{}]({})", alt, url)
+        }).to_string();
+        
+        Ok(result)
+    }
+    
+    fn priority(&self) -> u8 {
+        2
     }
 }
 

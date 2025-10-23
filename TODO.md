@@ -30,14 +30,14 @@
   - [x] Fix nested object/array issues
   - [x] Handle malformed numbers
   - [x] Fix boolean/null value issues
-- [ ] Improve YAML repair accuracy
-  - [ ] Better indentation detection
-  - [ ] Handle complex nested structures
-  - [ ] Fix multi-line string formatting
-- [ ] Enhanced Markdown repair
-  - [ ] Fix table formatting
-  - [ ] Handle nested lists
-  - [ ] Fix image syntax
+- [x] Improve YAML repair accuracy
+  - [x] Better indentation detection
+  - [x] Handle complex nested structures
+  - [x] Fix multi-line string formatting
+- [x] Enhanced Markdown repair
+  - [x] Fix table formatting
+  - [x] Handle nested lists
+  - [x] Fix image syntax
 - [x] CLI improvements
   - [x] Add progress indicators
   - [x] Better error messages

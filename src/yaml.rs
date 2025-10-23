@@ -4,6 +4,30 @@ use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use serde_yaml::Value;
+use std::sync::OnceLock;
+
+/// Cached regex patterns for YAML performance optimization
+struct YamlRegexCache {
+    missing_colons: Regex,
+    list_items: Regex,
+    quoted_strings: Regex,
+}
+
+impl YamlRegexCache {
+    fn new() -> Result<Self> {
+        Ok(Self {
+            missing_colons: Regex::new(r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*$"#)?,
+            list_items: Regex::new(r#"^\s*-\s*(.+)$"#)?,
+            quoted_strings: Regex::new(r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([^'"].*[^'"])\s*$"#)?,
+        })
+    }
+}
+
+static YAML_REGEX_CACHE: OnceLock<YamlRegexCache> = OnceLock::new();
+
+fn get_yaml_regex_cache() -> &'static YamlRegexCache {
+    YAML_REGEX_CACHE.get_or_init(|| YamlRegexCache::new().expect("Failed to initialize YAML regex cache"))
+}
 
 /// YAML repairer that can fix common YAML issues
 pub struct YamlRepairer {
@@ -20,6 +44,8 @@ impl YamlRepairer {
             Box::new(FixListFormattingStrategy),
             Box::new(AddDocumentSeparatorStrategy),
             Box::new(FixQuotedStringsStrategy),
+            Box::new(AdvancedIndentationStrategy),
+            Box::new(ComplexStructureStrategy),
         ];
         
         // Sort strategies by priority (higher priority first)
@@ -196,13 +222,13 @@ struct AddMissingColonsStrategy;
 
 impl RepairStrategy for AddMissingColonsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let re = Regex::new(r#"^(\s*[a-zA-Z_][a-zA-Z0-9_]*)\s*$"#)?;
+        let cache = get_yaml_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
         
         for line in lines {
-            if re.is_match(line) {
-                let fixed = re.replace(line, "$1:");
+            if cache.missing_colons.is_match(line) {
+                let fixed = cache.missing_colons.replace(line, "$1$2:");
                 result.push(fixed.to_string());
             } else {
                 result.push(line.to_string());
@@ -222,14 +248,14 @@ struct FixListFormattingStrategy;
 
 impl RepairStrategy for FixListFormattingStrategy {
     fn apply(&self, content: &str) -> Result<String> {
+        let cache = get_yaml_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
         
         for line in lines {
-            let trimmed = line.trim();
-            if trimmed.starts_with('-') && !trimmed.starts_with("- ") {
-                let fixed = format!("- {}", trimmed[1..].trim());
-                result.push(fixed);
+            if cache.list_items.is_match(line) {
+                let fixed = cache.list_items.replace(line, "- $1");
+                result.push(fixed.to_string());
             } else {
                 result.push(line.to_string());
             }
@@ -266,14 +292,148 @@ struct FixQuotedStringsStrategy;
 
 impl RepairStrategy for FixQuotedStringsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        // This is a simplified version - in practice, you'd need more sophisticated parsing
-        let re = Regex::new(r#"'([^']*)'"#)?;
-        let result = re.replace_all(content, r#""$1""#);
+        // Convert single quotes to double quotes
+        let single_quote_re = Regex::new(r"'([^']*)'")?;
+        let result = single_quote_re.replace_all(content, r#""$1""#);
         Ok(result.to_string())
     }
     
     fn priority(&self) -> u8 {
         1
+    }
+}
+
+/// Strategy for advanced indentation detection and fixing
+struct AdvancedIndentationStrategy;
+
+impl RepairStrategy for AdvancedIndentationStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        let lines: Vec<&str> = content.lines().collect();
+        let mut result = Vec::new();
+        let mut indent_stack: Vec<usize> = Vec::new();
+        let mut current_indent = 0;
+        
+        for line in lines {
+            if line.trim().is_empty() || line.starts_with('#') {
+                result.push(line.to_string());
+                continue;
+            }
+            
+            let line_indent = line.chars().take_while(|c| c.is_whitespace()).count();
+            let trimmed = line.trim();
+            
+            // Detect list items
+            if trimmed.starts_with('-') {
+                // List items should be indented 2 spaces more than their parent
+                let expected_indent = current_indent + 2;
+                if line_indent != expected_indent {
+                    let fixed = format!("{}- {}", " ".repeat(expected_indent), trimmed[1..].trim());
+                    result.push(fixed);
+                    current_indent = expected_indent;
+                } else {
+                    result.push(line.to_string());
+                    current_indent = line_indent;
+                }
+            } else if trimmed.contains(':') {
+                // Key-value pairs
+                let expected_indent = current_indent;
+                if line_indent != expected_indent {
+                    let fixed = format!("{}{}", " ".repeat(expected_indent), trimmed);
+                    result.push(fixed);
+                    current_indent = expected_indent;
+                } else {
+                    result.push(line.to_string());
+                    current_indent = line_indent;
+                }
+            } else {
+                // Other content - maintain relative indentation
+                result.push(line.to_string());
+                current_indent = line_indent;
+            }
+        }
+        
+        Ok(result.join("\n"))
+    }
+    
+    fn priority(&self) -> u8 {
+        6
+    }
+}
+
+/// Strategy for handling complex nested structures
+struct ComplexStructureStrategy;
+
+impl RepairStrategy for ComplexStructureStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        let lines: Vec<&str> = content.lines().collect();
+        let mut result = Vec::new();
+        let mut in_multiline_string = false;
+        let mut multiline_indent = 0;
+        
+        for (_i, line) in lines.iter().enumerate() {
+            if line.trim().is_empty() || line.starts_with('#') {
+                result.push(line.to_string());
+                continue;
+            }
+            
+            let trimmed = line.trim();
+            
+            // Handle multiline strings
+            if trimmed.starts_with('|') || trimmed.starts_with('>') {
+                in_multiline_string = true;
+                multiline_indent = line.chars().take_while(|c| c.is_whitespace()).count();
+                result.push(line.to_string());
+                continue;
+            }
+            
+            if in_multiline_string {
+                let line_indent = line.chars().take_while(|c| c.is_whitespace()).count();
+                if line_indent > multiline_indent || line.trim().is_empty() {
+                    result.push(line.to_string());
+                    continue;
+                } else {
+                    in_multiline_string = false;
+                }
+            }
+            
+            // Fix nested object/array structures
+            if trimmed.starts_with('-') && trimmed.contains(':') {
+                // List item with key-value pair
+                let parts: Vec<&str> = trimmed.splitn(2, ':').collect();
+                if parts.len() == 2 {
+                    let key = parts[0].trim();
+                    let value = parts[1].trim();
+                    let fixed = format!("- {}: {}", key, value);
+                    result.push(fixed);
+                } else {
+                    result.push(line.to_string());
+                }
+            } else if trimmed.contains(':') && !trimmed.ends_with(':') {
+                // Key-value pair
+                let parts: Vec<&str> = trimmed.splitn(2, ':').collect();
+                if parts.len() == 2 {
+                    let key = parts[0].trim();
+                    let value = parts[1].trim();
+                    if value.is_empty() {
+                        // Key with no value - might be a parent object
+                        result.push(line.to_string());
+                    } else {
+                        let fixed = format!("{}: {}", key, value);
+                        result.push(fixed);
+                    }
+                } else {
+                    result.push(line.to_string());
+                }
+            } else {
+                result.push(line.to_string());
+            }
+        }
+        
+        Ok(result.join("\n"))
+    }
+    
+    fn priority(&self) -> u8 {
+        5
     }
 }
 

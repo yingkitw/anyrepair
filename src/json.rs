@@ -66,7 +66,7 @@ impl JsonRepairer {
         ];
         
         // Sort strategies by priority (higher priority first)
-        strategies.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         
         Self {
             strategies,
@@ -85,6 +85,12 @@ impl JsonRepairer {
         }
         
         Ok(repaired)
+    }
+}
+
+impl Default for JsonRepairer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -262,6 +268,70 @@ impl RepairStrategy for FixSingleQuotesStrategy {
     
     fn priority(&self) -> u8 {
         1
+    }
+}
+
+/// Strategy to fix malformed numbers
+struct FixMalformedNumbersStrategy;
+
+impl RepairStrategy for FixMalformedNumbersStrategy {
+    fn priority(&self) -> u8 {
+        3
+    }
+    
+    fn apply(&self, content: &str) -> Result<String> {
+        let cache = get_regex_cache();
+        let mut result = content.to_string();
+        
+        // Fix numbers with leading zeros (except 0)
+        result = cache.malformed_numbers_leading_zeros.replace_all(&result, "$1").to_string();
+        
+        // Fix numbers with trailing decimal points
+        result = cache.malformed_numbers_trailing_dots.replace_all(&result, "$1$2").to_string();
+        
+        // Fix numbers with multiple decimal points
+        result = cache.malformed_numbers_multiple_dots.replace_all(&result, "$1$2").to_string();
+        
+        // Fix scientific notation without 'e' or 'E'
+        result = cache.malformed_numbers_scientific.replace_all(&result, "$1e$2$3").to_string();
+        
+        Ok(result)
+    }
+}
+
+/// Strategy to fix boolean and null values
+struct FixBooleanNullStrategy;
+
+impl RepairStrategy for FixBooleanNullStrategy {
+    fn priority(&self) -> u8 {
+        2
+    }
+    
+    fn apply(&self, content: &str) -> Result<String> {
+        let cache = get_regex_cache();
+        let mut result = content.to_string();
+        
+        // Fix boolean values (case insensitive)
+        result = cache.boolean_values.replace_all(&result, |caps: &regex::Captures| {
+            match &caps[1] {
+                "True" | "TRUE" | "true" => "true",
+                "False" | "FALSE" | "false" => "false",
+                _ => "true", // fallback
+            }
+        }).to_string();
+        
+        // Fix null values (case insensitive)
+        result = cache.null_values.replace_all(&result, |caps: &regex::Captures| {
+            match &caps[1] {
+                "Null" | "NULL" | "null" | "None" | "NONE" | "none" | "nil" | "NIL" => "null",
+                _ => "null", // fallback
+            }
+        }).to_string();
+        
+        // Fix undefined values
+        result = cache.undefined_values.replace_all(&result, "null").to_string();
+        
+        Ok(result)
     }
 }
 
@@ -1371,64 +1441,5 @@ mod tests {
                     "undefined_variants": [null, null, null],
                     "mixed_case": [true, false, null, null]}
         "#);
-    }
-}
-
-/// Strategy to fix malformed numbers
-struct FixMalformedNumbersStrategy;
-
-impl RepairStrategy for FixMalformedNumbersStrategy {
-    fn priority(&self) -> u8 {
-        3
-    }
-    
-    fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        let mut result = content.to_string();
-        
-        // Fix numbers with leading zeros (except 0)
-        result = cache.malformed_numbers_leading_zeros.replace_all(&result, "$1").to_string();
-        
-        // Fix numbers with trailing decimal points
-        result = cache.malformed_numbers_trailing_dots.replace_all(&result, "$1$2").to_string();
-        
-        // Fix numbers with multiple decimal points
-        result = cache.malformed_numbers_multiple_dots.replace_all(&result, "$1$2").to_string();
-        
-        // Fix scientific notation without 'e' or 'E'
-        result = cache.malformed_numbers_scientific.replace_all(&result, "$1e$2$3").to_string();
-        
-        Ok(result)
-    }
-}
-
-/// Strategy to fix boolean and null values
-struct FixBooleanNullStrategy;
-
-impl RepairStrategy for FixBooleanNullStrategy {
-    fn priority(&self) -> u8 {
-        2
-    }
-    
-    fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        let mut result = content.to_string();
-        
-        // Fix boolean values (case insensitive)
-        result = cache.boolean_values.replace_all(&result, |caps: &regex::Captures| {
-            match &caps[1] {
-                "True" | "TRUE" | "true" => "true",
-                "False" | "FALSE" | "false" => "false",
-                _ => "true", // fallback
-            }
-        }).to_string();
-        
-        // Fix null values (case insensitive)
-        result = cache.null_values.replace_all(&result, "null").to_string();
-        
-        // Fix undefined values
-        result = cache.undefined_values.replace_all(&result, "null").to_string();
-        
-        Ok(result)
     }
 }

@@ -52,7 +52,7 @@ impl XmlRepairer {
         ];
         
         // Sort strategies by priority (higher priority first)
-        strategies.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         
         Self {
             strategies,
@@ -71,6 +71,12 @@ impl XmlRepairer {
         }
         
         Ok(repaired)
+    }
+}
+
+impl Default for XmlRepairer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -170,7 +176,7 @@ impl Validator for XmlValidator {
                 Ok(quick_xml::events::Event::Eof) => break,
                 Ok(_) => continue,
                 Err(e) => {
-                    errors.push(format!("XML parsing error: {}", e));
+                    errors.push(format!("XML parsing error: {e}"));
                     break;
                 }
             }
@@ -214,7 +220,7 @@ impl RepairStrategy for FixUnclosedTagsStrategy {
         
         // Close any remaining open tags
         for tag in open_tags.iter().rev() {
-            result.push_str(&format!("</{}>", tag));
+            result.push_str(&format!("</{tag}>"));
         }
         
         Ok(result)
@@ -234,7 +240,7 @@ impl RepairStrategy for FixMalformedAttributesStrategy {
         let result = cache.malformed_attributes.replace_all(content, |caps: &regex::Captures| {
             let attr_name = &caps[1];
             let attr_value = &caps[2];
-            format!("{}=\"{}\"", attr_name, attr_value)
+            format!("{attr_name}=\"{attr_value}\"")
         });
         
         Ok(result.to_string())
@@ -278,7 +284,7 @@ impl RepairStrategy for FixMissingQuotesStrategy {
         let result = cache.missing_quotes.replace_all(content, |caps: &regex::Captures| {
             let attr_name = &caps[1];
             let attr_value = &caps[2];
-            format!("{}=\"{}\"", attr_name, attr_value)
+            format!("{attr_name}=\"{attr_value}\"")
         });
         
         Ok(result.to_string())
@@ -298,7 +304,7 @@ impl RepairStrategy for FixSelfClosingTagsStrategy {
         let result = cache.self_closing_tags.replace_all(content, |caps: &regex::Captures| {
             let tag_name = &caps[1];
             let attributes = &caps[2];
-            format!("<{}{}/>", tag_name, attributes)
+            format!("<{tag_name}{attributes}/>")
         });
         
         Ok(result.to_string())
@@ -317,7 +323,7 @@ impl RepairStrategy for AddXmlDeclarationStrategy {
         let trimmed = content.trim();
         
         if !trimmed.starts_with("<?xml") {
-            Ok(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n{}", trimmed))
+            Ok(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n{trimmed}"))
         } else {
             Ok(trimmed.to_string())
         }
@@ -391,9 +397,9 @@ mod tests {
         assert!(!validator.is_valid(""));
         
         // Simple validation check
-        let valid_errors = validator.validate("<root></root>");
+        let _valid_errors = validator.validate("<root></root>");
         let invalid_errors = validator.validate("");
-        assert!(invalid_errors.len() > 0);
+        assert!(!invalid_errors.is_empty());
     }
     
     #[test]

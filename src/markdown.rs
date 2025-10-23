@@ -55,7 +55,7 @@ impl MarkdownRepairer {
         ];
         
         // Sort strategies by priority (higher priority first)
-        strategies.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         
         Self {
             strategies,
@@ -74,6 +74,12 @@ impl MarkdownRepairer {
         }
         
         Ok(repaired)
+    }
+}
+
+impl Default for MarkdownRepairer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

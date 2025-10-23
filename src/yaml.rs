@@ -50,7 +50,7 @@ impl YamlRepairer {
         ];
         
         // Sort strategies by priority (higher priority first)
-        strategies.sort_by(|a, b| b.priority().cmp(&a.priority()));
+        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         
         Self {
             strategies,
@@ -69,6 +69,12 @@ impl YamlRepairer {
         }
         
         Ok(repaired)
+    }
+}
+
+impl Default for YamlRepairer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

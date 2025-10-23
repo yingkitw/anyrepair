@@ -1,6 +1,6 @@
 # AnyRepair
 
-A Rust crate for repairing LLM responses including JSON, YAML, and Markdown.
+A Rust crate for repairing LLM responses including JSON, YAML, Markdown, and XML.
 
 ## Features
 
@@ -23,6 +23,12 @@ A Rust crate for repairing LLM responses including JSON, YAML, and Markdown.
   - List formatting and nesting
   - Link and image syntax
   - Bold and italic formatting
+  - Table formatting
+- **XML Repair**: Repairs XML formatting issues including:
+  - Unclosed tags and malformed attributes
+  - Missing quotes around attribute values
+  - Invalid characters and self-closing tags
+  - XML declaration
 - **Auto-detection**: Automatically detects the format and applies appropriate repairs
 - **Confidence scoring**: Provides confidence scores for repair quality assessment
 - **CLI interface**: Command-line tool for easy usage
@@ -42,7 +48,7 @@ anyrepair = "0.1.0"
 ### Library Usage
 
 ```rust
-use anyrepair::{repair, json, yaml, markdown};
+use anyrepair::{repair, json, yaml, markdown, xml};
 
 // Auto-detect format and repair
 let content = r#"{"name": "John", "age": 30,}"#;

@@ -50,8 +50,8 @@
   - [x] Performance guide
 
 ### Medium Term
-- [ ] Additional format support
-  - [ ] XML repair
+- [x] Additional format support
+  - [x] XML repair
   - [ ] TOML repair
   - [ ] CSV repair
   - [ ] INI file repair
@@ -80,11 +80,11 @@
 
 ## Technical Debt
 
-- [ ] Remove unused imports and dependencies
-- [ ] Improve error messages with more context
-- [ ] Add more comprehensive input validation
-- [ ] Optimize regex patterns for better performance
-- [ ] Add more edge case handling
+- [x] Remove unused imports and dependencies
+- [x] Improve error messages with more context
+- [x] Add more comprehensive input validation
+- [x] Optimize regex patterns for better performance
+- [x] Add more edge case handling
 - [ ] Improve confidence scoring algorithms
 
 ## Testing

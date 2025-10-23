@@ -6,6 +6,7 @@ use regex::Regex;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for Markdown performance optimization
+#[allow(dead_code)]
 struct MarkdownRegexCache {
     header_spacing: Regex,
     code_block_fences: Regex,

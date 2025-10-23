@@ -7,6 +7,7 @@ use serde_json::Value;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for performance optimization
+#[allow(dead_code)]
 struct RegexCache {
     missing_quotes: Regex,
     trailing_commas: Regex,
@@ -198,6 +199,7 @@ impl RepairStrategy for FixTrailingCommasStrategy {
 }
 
 /// Strategy to fix unescaped quotes
+#[allow(dead_code)]
 struct FixUnescapedQuotesStrategy;
 
 impl RepairStrategy for FixUnescapedQuotesStrategy {

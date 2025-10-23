@@ -272,7 +272,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             // Get list of files to process
             let entries = fs::read_dir(&input_dir)?;
-            let mut files: Vec<_> = entries
+            let files: Vec<_> = entries
                 .filter_map(|entry| entry.ok())
                 .filter(|entry| {
                     if let Some(name) = entry.file_name().to_str() {

@@ -7,6 +7,7 @@ use serde_yaml::Value;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for YAML performance optimization
+#[allow(dead_code)]
 struct YamlRegexCache {
     missing_colons: Regex,
     list_items: Regex,
@@ -310,7 +311,7 @@ impl RepairStrategy for AdvancedIndentationStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
-        let mut indent_stack: Vec<usize> = Vec::new();
+        let _indent_stack: Vec<usize> = Vec::new();
         let mut current_indent = 0;
         
         for line in lines {

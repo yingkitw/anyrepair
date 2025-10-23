@@ -9,6 +9,7 @@ pub mod error;
 pub mod json;
 pub mod yaml;
 pub mod markdown;
+pub mod xml;
 pub mod traits;
 
 pub use error::{RepairError, Result};
@@ -23,6 +24,8 @@ pub fn repair(content: &str) -> Result<String> {
         json::JsonRepairer::new().repair(trimmed)
     } else if is_yaml_like(trimmed) {
         yaml::YamlRepairer::new().repair(trimmed)
+    } else if is_xml_like(trimmed) {
+        xml::XmlRepairer::new().repair(trimmed)
     } else if is_markdown_like(trimmed) {
         markdown::MarkdownRepairer::new().repair(trimmed)
     } else {
@@ -42,6 +45,13 @@ fn is_yaml_like(content: &str) -> bool {
     trimmed.contains("---") || 
     (trimmed.contains(":") && !trimmed.starts_with('{') && !trimmed.starts_with('[')) ||
     trimmed.lines().any(|line| line.contains(":") && !line.trim().starts_with('"') && !line.trim().starts_with('{'))
+}
+
+fn is_xml_like(content: &str) -> bool {
+    let trimmed = content.trim();
+    trimmed.starts_with("<?xml") ||
+    (trimmed.starts_with('<') && trimmed.contains('>') && !trimmed.starts_with('#')) ||
+    (trimmed.contains('<') && trimmed.contains('>') && trimmed.contains("</"))
 }
 
 fn is_markdown_like(content: &str) -> bool {
@@ -67,6 +77,10 @@ mod tests {
         assert!(is_yaml_like("---\nkey: value"));
         assert!(!is_yaml_like(r#"{"key": "value"}"#));
         
+        assert!(is_xml_like("<?xml version=\"1.0\"?><root></root>"));
+        assert!(is_xml_like("<root><item>value</item></root>"));
+        assert!(!is_xml_like(r#"{"key": "value"}"#));
+        
         assert!(is_markdown_like("# Header"));
         assert!(is_markdown_like("**bold**"));
         assert!(is_markdown_like("```code```"));
@@ -85,6 +99,12 @@ mod tests {
         let yaml_input = "name: John\nage: 30";
         let result = repair(yaml_input).unwrap();
         assert!(result.contains("name: John"));
+
+        // Test XML repair
+        let xml_input = "<root><item>value</item></root>";
+        let result = repair(xml_input).unwrap();
+        assert!(result.contains("<root>"));
+        assert!(result.contains("<item>value</item>"));
 
         // Test Markdown repair
         let markdown_input = "#Header\nSome **bold** text";

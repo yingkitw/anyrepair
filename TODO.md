@@ -16,11 +16,14 @@
 - [x] Add statistics command for repair quality analysis
 - [x] Add advanced JSON repair strategies (malformed numbers, boolean/null values)
 - [x] Add comprehensive .gitignore and .gitattributes for proper version control
+- [x] Performance optimization and benchmarking (regex caching, 99.6% improvement)
+- [x] XML repair support implementation with comprehensive strategies
+- [x] Technical debt cleanup and code optimization
+- [x] Publication to crates.io (v0.1.0) - Successfully published!
 
 ## In Progress 🔄
 
-- [ ] Performance optimization and benchmarking
-- [ ] Additional format support (XML, TOML, CSV)
+- [ ] Additional format support (TOML, CSV, INI)
 - [ ] Advanced repair strategies
 
 ## Planned 📋

@@ -1,11 +1,11 @@
 [package]
 name = "anyrepair"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Ying Kit WONG"]
 description = "A Rust crate for repairing LLM responses including JSON, YAML, Markdown, and XML"
-license = "MIT"
-repository = "https://github.com/yourusername/anyrepair"
+license = "Apache-2.0"
+repository = "https://github.com/yingkitw/anyrepair"
 keywords = ["llm", "repair", "json", "yaml", "markdown"]
 categories = ["text-processing", "parser-implementations"]
 

@@ -32,7 +32,8 @@ fn test_library_integration() {
     // Test confidence scoring
     assert_eq!(json_repairer.confidence(json_input), 1.0);
     assert_eq!(yaml_repairer.confidence(yaml_input), 1.0);
-    assert_eq!(markdown_repairer.confidence(markdown_input), 1.0);
+    // Markdown input has malformed header, so confidence should be lower
+    assert!(markdown_repairer.confidence(markdown_input) < 1.0);
 
     // Test needs_repair
     assert!(json_repairer.needs_repair(json_input));

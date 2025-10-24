@@ -2,7 +2,7 @@
 
 ## Overview
 
-AnyRepair is designed as a modular, extensible system for repairing LLM-generated content. The architecture follows Rust best practices with clear separation of concerns and trait-based design for testability.
+AnyRepair is designed as a modular, extensible system for repairing LLM-generated content. The architecture follows Rust best practices with clear separation of concerns and trait-based design for testability. 
 
 ## Core Components
 
@@ -109,7 +109,42 @@ Command-line interface using `clap` with subcommands:
 - `json` - Repair JSON specifically
 - `yaml` - Repair YAML specifically
 - `markdown` - Repair Markdown specifically
+- `xml` - Repair XML specifically
+- `toml` - Repair TOML specifically
+- `csv` - Repair CSV specifically
+- `ini` - Repair INI specifically
 - `validate` - Validate content without repair
+- `batch` - Batch process multiple files
+- `stats` - Show repair statistics
+- `rules` - Manage custom repair rules
+- `plugins` - Manage plugins
+
+### 6. Plugin System (`src/plugin.rs`, `src/plugin_config.rs`, `src/plugin_integration.rs`)
+
+Extensible plugin architecture:
+
+- **Plugin Trait**: Core interface for custom repair strategies
+- **Plugin Registry**: Manages loaded plugins
+- **Plugin Manager**: Handles plugin lifecycle and statistics
+- **Plugin Configuration**: TOML-based plugin settings
+- **Plugin Integration**: Seamless integration with repair system
+
+### 7. Custom Rules System (`src/config.rs`, `src/custom_rules.rs`)
+
+User-defined repair rules:
+
+- **RepairConfig**: Global and format-specific settings
+- **CustomRule**: Regex-based repair patterns
+- **CustomRuleEngine**: Applies custom rules with conditions
+- **Rule Templates**: Pre-built rule templates
+- **CLI Management**: Full command-line rule management
+
+### 8. Advanced Features
+
+- **Parallel Processing**: Multi-threaded strategy application
+- **Fuzz Testing**: Property-based testing for robustness
+- **Configuration Management**: TOML-based configuration
+- **Performance Optimization**: Regex caching and memory management
 
 ## Design Patterns
 
@@ -138,6 +173,81 @@ Uses `insta` for snapshot testing to ensure:
 - Regression prevention
 - Easy test maintenance
 
+## System Architecture
+
+```mermaid
+graph TB
+    subgraph "User Interface"
+        CLI[CLI Interface]
+        CONFIG[Configuration Files]
+    end
+    
+    subgraph "Core System"
+        DETECTOR[Format Detector]
+        ROUTER[Repair Router]
+    end
+    
+    subgraph "Repair Engines"
+        JSON[JSON Repairer]
+        YAML[YAML Repairer]
+        MD[Markdown Repairer]
+        XML[XML Repairer]
+        TOML[TOML Repairer]
+        CSV[CSV Repairer]
+        INI[INI Repairer]
+    end
+    
+    subgraph "Strategy System"
+        STRATEGIES[Repair Strategies]
+        PARALLEL[Parallel Processor]
+        CUSTOM[Custom Rules Engine]
+    end
+    
+    subgraph "Plugin System"
+        PLUGIN_MGR[Plugin Manager]
+        PLUGIN_REG[Plugin Registry]
+        PLUGINS[Custom Plugins]
+    end
+    
+    subgraph "Validation & Testing"
+        VALIDATORS[Validators]
+        FUZZ[Fuzz Testing]
+        SNAPSHOT[Snapshot Tests]
+    end
+    
+    CLI --> DETECTOR
+    CONFIG --> CUSTOM
+    CONFIG --> PLUGIN_MGR
+    
+    DETECTOR --> ROUTER
+    ROUTER --> JSON
+    ROUTER --> YAML
+    ROUTER --> MD
+    ROUTER --> XML
+    ROUTER --> TOML
+    ROUTER --> CSV
+    ROUTER --> INI
+    
+    JSON --> STRATEGIES
+    YAML --> STRATEGIES
+    MD --> STRATEGIES
+    XML --> STRATEGIES
+    TOML --> STRATEGIES
+    CSV --> STRATEGIES
+    INI --> STRATEGIES
+    
+    STRATEGIES --> PARALLEL
+    PARALLEL --> CUSTOM
+    CUSTOM --> VALIDATORS
+    
+    PLUGIN_MGR --> PLUGIN_REG
+    PLUGIN_REG --> PLUGINS
+    PLUGINS --> STRATEGIES
+    
+    VALIDATORS --> FUZZ
+    VALIDATORS --> SNAPSHOT
+```
+
 ## Data Flow
 
 ```mermaid
@@ -147,6 +257,8 @@ sequenceDiagram
     participant FormatDetector
     participant Repairer
     participant Strategies
+    participant CustomRules
+    participant Plugins
     participant Validator
 
     User->>CLI: Input content
@@ -154,8 +266,10 @@ sequenceDiagram
     FormatDetector->>Repairer: Route to appropriate repairer
     Repairer->>Validator: Check if repair needed
     alt Needs repair
-        Repairer->>Strategies: Apply repair strategies
-        Strategies->>Repairer: Return repaired content
+        Repairer->>Strategies: Apply built-in strategies
+        Strategies->>CustomRules: Apply custom rules
+        CustomRules->>Plugins: Apply plugin strategies
+        Plugins->>Repairer: Return repaired content
         Repairer->>Validator: Validate repaired content
     end
     Repairer->>CLI: Return repaired content
@@ -212,7 +326,7 @@ Validation is performed:
 
 ### Test Coverage
 
-The project includes comprehensive test coverage with **60+ test cases**:
+The project includes comprehensive test coverage with **116+ test cases**:
 
 #### JSON Tests (28 test cases)
 - **Basic repair tests**: Core functionality validation
@@ -249,6 +363,19 @@ The project includes comprehensive test coverage with **60+ test cases**:
 - Confidence scoring
 - Individual strategy testing
 
+#### Additional Format Tests (40+ test cases)
+- **XML Tests**: Basic repair, invalid characters, unclosed tags, malformed attributes
+- **TOML Tests**: Basic repair, malformed arrays, missing quotes, malformed numbers
+- **CSV Tests**: Basic repair, unquoted strings, malformed quotes, extra commas
+- **INI Tests**: Basic repair, missing equals, malformed sections, unquoted values
+
+#### Advanced Tests (20+ test cases)
+- **Fuzz Tests**: Property-based testing for all formats
+- **Plugin Tests**: Plugin system functionality
+- **Custom Rules Tests**: Rule engine and configuration
+- **Parallel Processing Tests**: Multi-threaded strategy application
+- **Configuration Tests**: TOML configuration management
+
 #### Integration Tests (4 test cases)
 - Library integration
 - Performance testing
@@ -268,10 +395,16 @@ Uses `insta` for snapshot testing:
 ```
 tests/
 ├── integration_tests.rs    # Integration tests
+├── damage_scenarios.rs     # Comprehensive damage scenario tests
+├── fuzz_tests.rs          # Property-based fuzz testing
 └── snapshots/              # Snapshot files
     ├── json_repair_*.snap
     ├── yaml_repair_*.snap
-    └── markdown_repair_*.snap
+    ├── markdown_repair_*.snap
+    ├── xml_repair_*.snap
+    ├── toml_repair_*.snap
+    ├── csv_repair_*.snap
+    └── ini_repair_*.snap
 ```
 
 ## Extensibility
@@ -319,12 +452,18 @@ tests/
 - `insta` - Snapshot testing
 - `criterion` - Benchmarking
 - `tempfile` - Temporary file handling
+- `proptest` - Property-based testing
+- `arbitrary` - Fuzz testing support
 
 ## Future Enhancements
 
-1. **Additional Formats**: XML, TOML, CSV support
-2. **Advanced Strategies**: Machine learning-based repair
-3. **Performance**: Parallel strategy application
-4. **Configuration**: User-configurable repair rules
-5. **Plugins**: External strategy loading
-6. **Metrics**: Repair success rate tracking
+1. **Additional Formats**: ✅ XML, TOML, CSV, INI support completed
+2. **Advanced Strategies**: ✅ Parallel strategy application completed
+3. **Configuration**: ✅ User-configurable repair rules completed
+4. **Plugins**: ✅ External strategy loading completed
+5. **Fuzz Testing**: ✅ Comprehensive property-based testing completed
+6. **Web Interface**: Create a simple web interface for online repair
+7. **REST API**: Add REST API for programmatic access
+8. **Docker Container**: Create Docker image for easy deployment
+9. **Advanced Analytics**: Repair success rate tracking and performance monitoring
+10. **Machine Learning**: ML-based repair strategies for complex cases

@@ -17,6 +17,11 @@ pub mod parallel;
 pub mod parallel_strategy;
 pub mod advanced;
 pub mod traits;
+pub mod config;
+pub mod custom_rules;
+pub mod plugin;
+pub mod plugin_config;
+pub mod plugin_integration;
 
 pub use error::{RepairError, Result};
 pub use traits::Repair;

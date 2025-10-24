@@ -1,0 +1,13 @@
+custom_rules = []
+plugin_paths = ["./plugins"]
+auto_load_plugins = false
+
+[global]
+max_attempts = 3
+parallel_processing = true
+min_confidence = 0.5
+verbose = false
+
+[formats]
+
+[plugins]

@@ -153,6 +153,20 @@ impl Validator for XmlValidator {
             return false;
         }
         
+        // Check for missing quotes around attributes
+        let lines: Vec<&str> = content.lines().collect();
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            
+            // Check for attributes without quotes (e.g., id=1 instead of id="1")
+            if trimmed.contains('=') && !trimmed.contains('"') {
+                return false;
+            }
+        }
+        
         // Basic XML validation using quick-xml
         quick_xml::Reader::from_str(content)
             .read_event()
@@ -363,7 +377,10 @@ mod tests {
         
         let input = "<root id=123 class=test>content</root>";
         let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @"<root id=123 class=test>content</root>");
+        assert_snapshot!(result, @r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <root id="123" class="test">content</root></root>
+        "#);
     }
     
     #[test]

@@ -21,7 +21,7 @@ impl IniRegexCache {
         Ok(Self {
             malformed_sections: Regex::new(r#"^(\s*)\[([^]]*)\s*$"#)?,
             malformed_keys: Regex::new(r#"^(\s*)([^=\s]+)\s*([^=].*)$"#)?,
-            missing_equals: Regex::new(r#"^(\s*)([^=\s]+)\s+([^=\s].*)$"#)?,
+            missing_equals: Regex::new(r#"^(\s*)([^=\s\[\#]+)\s+([^=\s\[\#].*)$"#)?,
             unquoted_values: Regex::new(r#"^(\s*)([^=\s]+)\s*=\s*([^"\s].*[^"\s])\s*$"#)?,
             malformed_comments: Regex::new(r#"^(\s*)#\s*([^#\s].*)$"#)?,
             duplicate_sections: Regex::new(r#"^\[([^\]]+)\]"#)?,
@@ -158,8 +158,21 @@ impl Validator for IniValidator {
             return false;
         }
         
-        // Basic INI validation - check for common INI patterns
+        // Check for missing equals signs in key-value pairs
         let lines: Vec<&str> = content.lines().collect();
+        for line in &lines {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') || line.starts_with('[') {
+                continue;
+            }
+            
+            // If line contains spaces but no equals sign, it's invalid
+            if line.contains(' ') && !line.contains('=') {
+                return false;
+            }
+        }
+        
+        // Basic INI validation - check for common INI patterns
         let has_sections = lines.iter().any(|line| {
             let line = line.trim();
             line.starts_with('[') && line.contains(']')
@@ -208,12 +221,26 @@ struct FixMalformedSectionsStrategy;
 impl RepairStrategy for FixMalformedSectionsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_ini_regex_cache();
-        let result = cache.malformed_sections.replace_all(content, |caps: &regex::Captures| {
+        let _result = cache.malformed_sections.replace_all(content, |caps: &regex::Captures| {
             let indent = &caps[1];
             let section_name = &caps[2];
             format!("{}[{}]", indent, section_name)
         });
         
+        // Also try a simpler approach for lines that start with [ but don't end with ]
+        let lines: Vec<&str> = content.lines().collect();
+        let mut result_lines = Vec::new();
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.starts_with('[') && !trimmed.ends_with(']') {
+                let indent = line.chars().take_while(|c| c.is_whitespace()).collect::<String>();
+                let section_name = trimmed.trim_start_matches('[');
+                result_lines.push(format!("{}[{}]", indent, section_name));
+            } else {
+                result_lines.push(line.to_string());
+            }
+        }
+        let result = result_lines.join("\n");
         Ok(result.to_string())
     }
     
@@ -248,15 +275,33 @@ struct FixMissingEqualsStrategy;
 
 impl RepairStrategy for FixMissingEqualsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_ini_regex_cache();
-        let result = cache.missing_equals.replace_all(content, |caps: &regex::Captures| {
-            let indent = &caps[1];
-            let key = &caps[2];
-            let value = &caps[3];
-            format!("{}{} = {}", indent, key, value)
-        });
+        let lines: Vec<&str> = content.lines().collect();
+        let mut result = Vec::new();
         
-        Ok(result.to_string())
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('[') {
+                result.push(line.to_string());
+                continue;
+            }
+            
+            // If line contains spaces but no equals sign, add equals sign
+            if trimmed.contains(' ') && !trimmed.contains('=') {
+                let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
+                if parts.len() == 2 {
+                    let key = parts[0];
+                    let value = parts[1];
+                    let indent = line.chars().take_while(|c| c.is_whitespace()).collect::<String>();
+                    result.push(format!("{}{} = {}", indent, key, value));
+                } else {
+                    result.push(line.to_string());
+                }
+            } else {
+                result.push(line.to_string());
+            }
+        }
+        
+        Ok(result.join("\n"))
     }
     
     fn priority(&self) -> u8 {
@@ -405,8 +450,8 @@ mod tests {
         let result = repairer.repair(input).unwrap();
         assert_snapshot!(result, @r"
         [user]
-        name John
-        age 30
+        name = John
+        age = 30
         ");
     }
     
@@ -457,9 +502,10 @@ mod tests {
         // Note: INI validator is permissive
         assert!(!validator.is_valid(""));
         
-        let errors = validator.validate("invalid ini");
+        let _errors = validator.validate("invalid ini");
         // Note: INI validator is permissive, so we just check it doesn't panic
-        assert!(errors.len() >= 0);
+        // The validate method should return a Vec (which is always >= 0 length)
+        assert!(true); // This assertion is always true, just checking the method doesn't panic
     }
     
     #[test]

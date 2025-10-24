@@ -1,0 +1,106 @@
+[global]
+max_attempts = 3
+parallel_processing = true
+min_confidence = 0.5
+verbose = false
+
+[formats]
+
+[[custom_rules]]
+id = "add_quotes_json"
+name = "Add quotes around unquoted strings (json)"
+description = "Automatically add quotes around unquoted string values"
+target_format = "json"
+priority = 5
+enabled = true
+pattern = '(\w+)\s*:\s*([^",\s][^,]*[^",\s])\s*([,\n])'
+replacement = '$1: "$2"$3'
+conditions = []
+
+[[custom_rules]]
+id = "add_quotes_yaml"
+name = "Add quotes around unquoted strings (yaml)"
+description = "Automatically add quotes around unquoted string values"
+target_format = "yaml"
+priority = 5
+enabled = true
+pattern = '(\w+)\s*:\s*([^",\s][^,]*[^",\s])\s*([,\n])'
+replacement = '$1: "$2"$3'
+conditions = []
+
+[[custom_rules]]
+id = "add_quotes_toml"
+name = "Add quotes around unquoted strings (toml)"
+description = "Automatically add quotes around unquoted string values"
+target_format = "toml"
+priority = 5
+enabled = true
+pattern = '(\w+)\s*:\s*([^",\s][^,]*[^",\s])\s*([,\n])'
+replacement = '$1: "$2"$3'
+conditions = []
+
+[[custom_rules]]
+id = "add_colons_yaml"
+name = "Add missing colons (yaml)"
+description = "Add missing colons in key-value pairs"
+target_format = "yaml"
+priority = 6
+enabled = true
+pattern = '^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s+([^:\s].*)$'
+replacement = "$1$2: $3"
+conditions = []
+
+[[custom_rules]]
+id = "add_colons_json"
+name = "Add missing colons (json)"
+description = "Add missing colons in key-value pairs"
+target_format = "json"
+priority = 6
+enabled = true
+pattern = '^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s+([^:\s].*)$'
+replacement = "$1$2: $3"
+conditions = []
+
+[[custom_rules]]
+id = "fix_malformed_headers"
+name = "Fix malformed headers"
+description = "Add spaces after hash symbols in headers"
+target_format = "markdown"
+priority = 7
+enabled = true
+pattern = '^(#{1,6})([^\s#])'
+replacement = "$1 $2"
+conditions = []
+
+[[custom_rules]]
+id = "add_missing_equals"
+name = "Add missing equals signs"
+description = "Add missing equals signs in key-value pairs"
+target_format = "ini"
+priority = 6
+enabled = true
+pattern = '^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s+([^=\s].*)$'
+replacement = "$1$2 = $3"
+conditions = []
+
+[[custom_rules]]
+id = "fix_csv_quotes"
+name = "Fix missing quotes in CSV"
+description = "Add quotes around fields containing spaces or commas"
+target_format = "csv"
+priority = 5
+enabled = true
+pattern = '([^",\n]*[,\s][^",\n]*)'
+replacement = '"$1"'
+conditions = []
+
+[[custom_rules]]
+id = "simple_test"
+name = "Simple Test"
+description = "Custom rule: Simple Test"
+target_format = "json"
+priority = 5
+enabled = true
+pattern = "hello"
+replacement = "HELLO"
+conditions = []

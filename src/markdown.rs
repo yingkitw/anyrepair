@@ -168,6 +168,15 @@ impl Validator for MarkdownValidator {
             return false;
         }
         
+        // Check for malformed headers (hash without space)
+        let lines: Vec<&str> = content.lines().collect();
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.starts_with('#') && !trimmed.starts_with("# ") {
+                return false;
+            }
+        }
+        
         // Additional checks for common Markdown issues
         self.validate(content).is_empty()
     }
@@ -564,8 +573,9 @@ mod tests {
         let input = "#Header\n##Subheader";
         let result = repairer.repair(input).unwrap();
         assert_snapshot!(result, @r"
-        #Header
-        ##Subheader
+        # Header
+
+        ## Subheader
         ");
     }
     
@@ -637,8 +647,9 @@ mod tests {
         let input = "#Header\n##Subheader";
         let result = repairer.repair(input).unwrap();
         assert_snapshot!(result, @r"
-        #Header
-        ##Subheader
+        # Header
+
+        ## Subheader
         ");
     }
 
@@ -650,16 +661,17 @@ mod tests {
         let input = "#Title\n\nSome **bold** and *italic* text.\n\n##Subsection\n\n- item1\n- item2\n\n```code\nblock\n```";
         let result = repairer.repair(input).unwrap();
         assert_snapshot!(result, @r"
-        #Title
+        # Title
 
         Some **bold** and *italic* text.
 
-        ##Subsection
+        ## Subsection
 
         - item1
         - item2
 
         ```code
+
         block
         ```
         ");
@@ -805,8 +817,9 @@ mod tests {
         let input = "##Header without space\n###Another header";
         let result = repairer.repair(input).unwrap();
         assert_snapshot!(result, @r"
-        ##Header without space
-        ###Another header
+        ## Header without space
+
+        ### Another header
         ");
     }
 

@@ -1,6 +1,6 @@
 //! CLI application for anyrepair
 
-use anyrepair::{repair, json, yaml, markdown, traits::{Repair, Validator}};
+use anyrepair::{repair, json, yaml, markdown, traits::{Repair, Validator}, config::{RepairConfig, CustomRule}, custom_rules::{CustomRuleEngine, RuleTemplates}, plugin_config::ExtendedRepairConfig, plugin_integration::PluginRegistryManager};
 use clap::{Parser, Subcommand};
 use std::fs;
 use std::io::{self, Read};
@@ -118,6 +118,144 @@ enum Commands {
         /// Input file (stdin if not provided)
         #[arg(short, long)]
         input: Option<String>,
+    },
+    /// Manage custom repair rules
+    Rules {
+        #[command(subcommand)]
+        command: RuleCommands,
+    },
+    /// Manage plugins
+    Plugins {
+        #[command(subcommand)]
+        command: PluginCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum RuleCommands {
+    /// List all custom rules
+    List {
+        /// Show rules for specific format only
+        #[arg(short, long)]
+        format: Option<String>,
+    },
+    /// Add a new custom rule
+    Add {
+        /// Rule ID
+        #[arg(short, long)]
+        id: String,
+        
+        /// Rule name
+        #[arg(short, long)]
+        name: String,
+        
+        /// Target format (json, yaml, markdown, etc.)
+        #[arg(short, long)]
+        format: String,
+        
+        /// Pattern to match
+        #[arg(short, long)]
+        pattern: String,
+        
+        /// Replacement pattern
+        #[arg(short, long)]
+        replacement: String,
+        
+        /// Priority (0-10, higher = more priority)
+        #[arg(long, default_value = "5")]
+        priority: u8,
+        
+        /// Configuration file to update
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        config: String,
+    },
+    /// Remove a custom rule
+    Remove {
+        /// Rule ID to remove
+        #[arg(short, long)]
+        id: String,
+        
+        /// Configuration file to update
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        config: String,
+    },
+    /// Enable/disable a custom rule
+    Toggle {
+        /// Rule ID to toggle
+        #[arg(short, long)]
+        id: String,
+        
+        /// Configuration file to update
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        config: String,
+    },
+    /// Initialize configuration file with templates
+    Init {
+        /// Output configuration file
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        output: String,
+    },
+    /// Test a custom rule
+    Test {
+        /// Rule ID to test
+        #[arg(short, long)]
+        id: String,
+        
+        /// Input content to test
+        #[arg(long)]
+        input: String,
+        
+        /// Configuration file
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        config: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum PluginCommands {
+    /// List all available plugins
+    List {
+        /// Show only enabled plugins
+        #[arg(long)]
+        enabled_only: bool,
+        
+        /// Show plugins for specific format
+        #[arg(short, long)]
+        format: Option<String>,
+    },
+    /// Enable/disable a plugin
+    Toggle {
+        /// Plugin ID to toggle
+        #[arg(short, long)]
+        id: String,
+        
+        /// Enable (true) or disable (false)
+        #[arg(long)]
+        enable: bool,
+        
+        /// Configuration file
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        config: String,
+    },
+    /// Show plugin information
+    Info {
+        /// Plugin ID
+        #[arg(short, long)]
+        id: String,
+    },
+    /// Show plugin statistics
+    Stats,
+    /// Initialize plugin configuration
+    Init {
+        /// Output configuration file
+        #[arg(short, long, default_value = "anyrepair.toml")]
+        output: String,
+    },
+    /// Discover plugins in search paths
+    Discover {
+        /// Plugin search paths (comma-separated)
+        #[arg(short, long)]
+        paths: Option<String>,
     },
 }
 
@@ -374,6 +512,241 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("  Repair time: {:?}", repair_time);
             }
         }
+        Commands::Rules { command } => {
+            match command {
+                RuleCommands::List { format } => {
+                    let config = load_or_create_config(&cli.config)?;
+                    let engine = create_rule_engine(&config)?;
+                    
+                    if let Some(target_format) = format {
+                        let rules = engine.get_rules_for_format(&target_format);
+                        if rules.is_empty() {
+                            println!("No custom rules found for format: {}", target_format);
+                        } else {
+                            println!("Custom rules for {}:", target_format);
+                            for rule in rules {
+                                println!("  {} ({}): {}", rule.id, rule.priority, rule.name);
+                                println!("    Pattern: {}", rule.pattern);
+                                println!("    Replacement: {}", rule.replacement);
+                                println!("    Enabled: {}", rule.enabled);
+                                println!();
+                            }
+                        }
+                    } else {
+                        let stats = engine.get_statistics();
+                        println!("Custom Rules Summary:");
+                        println!("  Total rules: {}", stats.total_rules);
+                        println!("  Enabled rules: {}", stats.enabled_rules);
+                        println!("  Formats: {}", stats.format_count);
+                        println!();
+                        
+                        for (format, rules) in &engine.rules {
+                            if !rules.is_empty() {
+                                println!("{} ({} rules):", format, rules.len());
+                                for rule in rules {
+                                    println!("  {} ({}): {} - {}", rule.id, rule.priority, rule.name, if rule.enabled { "enabled" } else { "disabled" });
+                                }
+                                println!();
+                            }
+                        }
+                    }
+                }
+                RuleCommands::Add { id, name, format, pattern, replacement, priority, config } => {
+                    let mut config_data = load_or_create_config(&Some(config.clone()))?;
+                    
+                    let rule = CustomRule {
+                        id: id.clone(),
+                        name: name.clone(),
+                        description: format!("Custom rule: {}", name),
+                        target_format: format.clone(),
+                        priority,
+                        enabled: true,
+                        pattern: pattern.clone(),
+                        replacement: replacement.clone(),
+                        conditions: vec![],
+                    };
+                    
+                    // Remove existing rule with same ID
+                    config_data.custom_rules.retain(|r| r.id != id);
+                    config_data.add_custom_rule(rule);
+                    
+                    config_data.to_file(&config)?;
+                    println!("Added custom rule '{}' for format '{}'", name, format);
+                }
+                RuleCommands::Remove { id, config } => {
+                    let mut config_data = load_or_create_config(&Some(config.clone()))?;
+                    let original_count = config_data.custom_rules.len();
+                    config_data.custom_rules.retain(|r| r.id != id);
+                    
+                    if config_data.custom_rules.len() < original_count {
+                        config_data.to_file(&config)?;
+                        println!("Removed custom rule '{}'", id);
+                    } else {
+                        eprintln!("Rule '{}' not found", id);
+                        std::process::exit(1);
+                    }
+                }
+                RuleCommands::Toggle { id, config } => {
+                    let mut config_data = load_or_create_config(&Some(config.clone()))?;
+                    
+                    if let Some(rule) = config_data.custom_rules.iter_mut().find(|r| r.id == id) {
+                        let _was_enabled = rule.enabled;
+                        rule.enabled = !rule.enabled;
+                        let new_state = rule.enabled;
+                        config_data.to_file(&config)?;
+                        println!("{} custom rule '{}'", if new_state { "Enabled" } else { "Disabled" }, id);
+                    } else {
+                        eprintln!("Rule '{}' not found", id);
+                        std::process::exit(1);
+                    }
+                }
+                RuleCommands::Init { output } => {
+                    let mut config = RepairConfig::new();
+                    
+                    // Add template rules
+                    let templates = RuleTemplates::get_all_templates();
+                    for template in templates {
+                        config.add_custom_rule(template);
+                    }
+                    
+                    config.to_file(&output)?;
+                    println!("Initialized configuration file: {}", output);
+                    println!("Added {} template rules", config.custom_rules.len());
+                }
+                RuleCommands::Test { id, input, config } => {
+                    let config_data = load_or_create_config(&Some(config))?;
+                    let engine = create_rule_engine(&config_data)?;
+                    
+                    if let Some(rule) = config_data.custom_rules.iter().find(|r| r.id == id) {
+                        println!("Testing rule: {} ({})", rule.name, rule.id);
+                        println!("Pattern: {}", rule.pattern);
+                        println!("Replacement: {}", rule.replacement);
+                        println!("Input: {}", input);
+                        
+                        let result = engine.apply_rules(&input, &rule.target_format)?;
+                        println!("Output: {}", result);
+                        
+                        if result != input {
+                            println!("✓ Rule applied successfully");
+                        } else {
+                            println!("⚠ Rule did not modify input");
+                        }
+                    } else {
+                        eprintln!("Rule '{}' not found", id);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Commands::Plugins { command } => {
+            let mut plugin_manager = PluginRegistryManager::new();
+            
+            // Load configuration if available
+            if let Some(config_path) = &cli.config {
+                if std::path::Path::new(config_path).exists() {
+                    let config = ExtendedRepairConfig::from_file(config_path)?;
+                    plugin_manager.load_config(config)?;
+                }
+            }
+            
+            match command {
+                PluginCommands::List { enabled_only, format } => {
+                    let plugins = plugin_manager.list_plugins();
+                    let filtered_plugins: Vec<_> = plugins.into_iter()
+                        .filter(|p| {
+                            if enabled_only && !p.enabled {
+                                return false;
+                            }
+                            if let Some(ref fmt) = format {
+                                return p.supported_formats.contains(fmt) || p.supported_formats.contains(&"*".to_string());
+                            }
+                            true
+                        })
+                        .collect();
+                    
+                    if filtered_plugins.is_empty() {
+                        println!("No plugins found");
+                    } else {
+                        println!("Available Plugins:");
+                        for plugin in filtered_plugins {
+                            println!("  {} ({}): {}", plugin.id, plugin.version, plugin.name);
+                            println!("    Description: {}", plugin.description);
+                            println!("    Author: {}", plugin.author);
+                            println!("    Enabled: {}", plugin.enabled);
+                            println!("    Loaded: {}", plugin.loaded);
+                            println!("    Supported formats: {}", plugin.supported_formats.join(", "));
+                            println!();
+                        }
+                    }
+                }
+                PluginCommands::Toggle { id, enable, config: _ } => {
+                    plugin_manager.toggle_plugin(&id, enable)?;
+                    println!("{} plugin '{}'", if enable { "Enabled" } else { "Disabled" }, id);
+                }
+                PluginCommands::Info { id } => {
+                    let plugins = plugin_manager.list_plugins();
+                    if let Some(plugin) = plugins.iter().find(|p| p.id == id) {
+                        println!("Plugin Information:");
+                        println!("  ID: {}", plugin.id);
+                        println!("  Name: {}", plugin.name);
+                        println!("  Version: {}", plugin.version);
+                        println!("  Description: {}", plugin.description);
+                        println!("  Author: {}", plugin.author);
+                        println!("  Enabled: {}", plugin.enabled);
+                        println!("  Loaded: {}", plugin.loaded);
+                        println!("  Supported formats: {}", plugin.supported_formats.join(", "));
+                    } else {
+                        eprintln!("Plugin '{}' not found", id);
+                        std::process::exit(1);
+                    }
+                }
+                PluginCommands::Stats => {
+                    let stats = plugin_manager.get_statistics();
+                    println!("Plugin Statistics:");
+                    println!("  Total plugins: {}", stats.total_plugins);
+                    println!("  Enabled plugins: {}", stats.enabled_plugins);
+                    println!("  Loaded plugins: {}", stats.loaded_plugins);
+                    println!("  Total strategies: {}", stats.total_strategies);
+                    println!("  Total validators: {}", stats.total_validators);
+                    println!("  Total repairers: {}", stats.total_repairers);
+                }
+                PluginCommands::Init { output } => {
+                    let config = ExtendedRepairConfig::new();
+                    config.to_file(&output)?;
+                    println!("Initialized plugin configuration file: {}", output);
+                }
+                PluginCommands::Discover { paths } => {
+                    let search_paths = if let Some(paths_str) = paths {
+                        paths_str.split(',').map(|s| s.trim().to_string()).collect()
+                    } else {
+                        vec!["./plugins".to_string()]
+                    };
+                    
+                    let discovery = anyrepair::plugin_config::PluginDiscovery::new(search_paths);
+                    match discovery.discover_plugins() {
+                        Ok(discovered) => {
+                            if discovered.is_empty() {
+                                println!("No plugins discovered in search paths");
+                            } else {
+                                println!("Discovered Plugins:");
+                                for plugin in discovered {
+                                    println!("  {} ({}): {}", plugin.metadata.id, plugin.metadata.version, plugin.metadata.name);
+                                    println!("    Path: {}", plugin.path);
+                                    println!("    Description: {}", plugin.metadata.description);
+                                    println!("    Author: {}", plugin.metadata.author);
+                                    println!("    Supported formats: {}", plugin.metadata.supported_formats.join(", "));
+                                    println!();
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error discovering plugins: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
     }
     
     Ok(())
@@ -408,4 +781,25 @@ fn process_file(input_path: &std::path::Path, output_path: &std::path::Path) -> 
     let repaired = repair(&content)?;
     fs::write(output_path, repaired)?;
     Ok(())
+}
+
+fn load_or_create_config(config_path: &Option<String>) -> Result<RepairConfig, Box<dyn std::error::Error>> {
+    match config_path {
+        Some(path) => {
+            if std::path::Path::new(path).exists() {
+                RepairConfig::from_file(path)
+            } else {
+                let config = RepairConfig::new();
+                config.to_file(path)?;
+                Ok(config)
+            }
+        }
+        None => Ok(RepairConfig::new()),
+    }
+}
+
+fn create_rule_engine(config: &RepairConfig) -> Result<CustomRuleEngine, Box<dyn std::error::Error>> {
+    let mut engine = CustomRuleEngine::new();
+    engine.load_from_config(config)?;
+    Ok(engine)
 }

@@ -29,6 +29,15 @@ pub enum RepairError {
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
     
+    #[error("CSV error: {0}")]
+    Csv(#[from] csv::Error),
+    
+    #[error("CSV writer error: {0}")]
+    CsvWriter(#[from] csv::IntoInnerError<csv::Writer<Vec<u8>>>),
+    
+    #[error("UTF-8 error: {0}")]
+    Utf8(#[from] std::string::FromUtf8Error),
+    
     #[error("Generic error: {0}")]
     Generic(String),
 }

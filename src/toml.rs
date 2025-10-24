@@ -154,6 +154,30 @@ impl Validator for TomlValidator {
             return false;
         }
         
+        // Check for missing quotes around string values
+        let lines: Vec<&str> = content.lines().collect();
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('[') {
+                continue;
+            }
+            
+            // Check for key-value pairs where the value should be quoted
+            if trimmed.contains('=') {
+                let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+                if parts.len() == 2 {
+                    let value = parts[1].trim();
+                    // If value looks like a string but is not quoted, it's invalid
+                    if !value.starts_with('"') && !value.starts_with('\'') && 
+                       !value.starts_with('[') && !value.starts_with('{') &&
+                       !value.parse::<i64>().is_ok() && !value.parse::<f64>().is_ok() &&
+                       value != "true" && value != "false" {
+                        return false;
+                    }
+                }
+            }
+        }
+        
         // Basic TOML validation using toml crate
         toml::from_str::<toml::Value>(content).is_ok()
     }

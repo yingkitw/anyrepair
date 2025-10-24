@@ -23,6 +23,14 @@ pub trait RepairStrategy {
     fn priority(&self) -> u8;
 }
 
+/// Trait for parallel-safe repair strategies
+pub trait ParallelRepairStrategy: RepairStrategy + Send + Sync {
+    /// Apply the repair strategy to the content (parallel-safe version)
+    fn apply_parallel(&self, content: &str) -> Result<String> {
+        self.apply(content)
+    }
+}
+
 /// Trait for content validation
 pub trait Validator {
     /// Validate the content and return true if valid

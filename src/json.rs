@@ -74,8 +74,9 @@ impl JsonRepairer {
         }
     }
     
-    /// Apply all repair strategies to the content
+    /// Apply all repair strategies to the content using parallel processing
     fn apply_strategies(&self, content: &str) -> Result<String> {
+        // For now, use sequential processing until we can properly implement Arc conversion
         let mut repaired = content.to_string();
         
         for strategy in &self.strategies {

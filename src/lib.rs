@@ -12,6 +12,10 @@ pub mod markdown;
 pub mod xml;
 pub mod toml;
 pub mod csv;
+pub mod ini;
+pub mod parallel;
+pub mod parallel_strategy;
+pub mod advanced;
 pub mod traits;
 
 pub use error::{RepairError, Result};
@@ -32,6 +36,8 @@ pub fn repair(content: &str) -> Result<String> {
         toml::TomlRepairer::new().repair(trimmed)
     } else if is_csv_like(trimmed) {
         csv::CsvRepairer::new().repair(trimmed)
+    } else if is_ini_like(trimmed) {
+        ini::IniRepairer::new().repair(trimmed)
     } else if is_markdown_like(trimmed) {
         markdown::MarkdownRepairer::new().repair(trimmed)
     } else {
@@ -78,6 +84,18 @@ fn is_csv_like(content: &str) -> bool {
     trimmed.lines().count() > 1
 }
 
+fn is_ini_like(content: &str) -> bool {
+    let trimmed = content.trim();
+    (trimmed.starts_with('[') && trimmed.contains(']')) ||
+    (trimmed.contains('=') && !trimmed.starts_with('{') && !trimmed.starts_with('<') && 
+     !trimmed.starts_with('#') && !trimmed.starts_with("<?xml") && 
+     !trimmed.contains(',') && !trimmed.contains(':')) ||
+    trimmed.lines().any(|line| {
+        let line = line.trim();
+        line.starts_with('[') && line.contains(']') && !line.contains(',')
+    })
+}
+
 fn is_markdown_like(content: &str) -> bool {
     let trimmed = content.trim();
     trimmed.starts_with('#') ||
@@ -113,6 +131,10 @@ mod tests {
         assert!(is_csv_like("John,30,Engineer\nJane,25,Designer"));
         assert!(!is_csv_like(r#"{"key": "value"}"#));
         
+        assert!(is_ini_like("[user]\nname = John"));
+        assert!(is_ini_like("name = John\nage = 30"));
+        assert!(!is_ini_like(r#"{"key": "value"}"#));
+        
         assert!(is_markdown_like("# Header"));
         assert!(is_markdown_like("**bold**"));
         assert!(is_markdown_like("```code```"));
@@ -147,6 +169,11 @@ mod tests {
         let csv_input = "John,30,Engineer\nJane,25,Designer";
         let result = repair(csv_input).unwrap();
         assert!(result.contains("John,30,Engineer"));
+
+        // Test INI repair
+        let ini_input = "name = John\nage = 30";
+        let result = repair(ini_input).unwrap();
+        assert!(result.contains("name = John"));
 
         // Test Markdown repair
         let markdown_input = "#Header\nSome **bold** text";

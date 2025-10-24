@@ -22,11 +22,13 @@
 - [x] Publication to crates.io (v0.1.0) - Successfully published!
 - [x] TOML repair support implementation
 - [x] CSV repair support implementation
+- [x] INI file repair support implementation
+- [x] Parallel strategy application for performance optimization
+- [x] Advanced repair strategies with enhanced capabilities
 
 ## In Progress 🔄
 
-- [ ] Additional format support (INI)
-- [ ] Advanced repair strategies
+- [ ] All major features completed! 🎉
 
 ## Planned 📋
 

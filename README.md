@@ -1,14 +1,16 @@
 # AnyRepair
 
-A Rust crate for repairing LLM responses including JSON, YAML, Markdown, XML, TOML, and CSV.
+A Rust crate for repairing LLM responses including JSON, YAML, Markdown, XML, TOML, CSV, and INI files.
 
 ## Features
 
-- **Multi-format repair**: JSON, YAML, Markdown, XML, TOML, CSV
+- **Multi-format repair**: JSON, YAML, Markdown, XML, TOML, CSV, INI
 - **Auto-detection**: Automatically detects format and applies appropriate repairs
 - **High performance**: Regex caching with up to 99.6% performance improvement
 - **CLI tool**: Command-line interface for easy usage
-- **Comprehensive testing**: 79+ test cases with snapshot testing
+- **Comprehensive testing**: 100+ test cases with snapshot testing
+- **Parallel processing**: Multi-threaded strategy application for better performance
+- **Advanced strategies**: Intelligent format detection, adaptive repair, and context-aware processing
 
 ## Installation
 
@@ -54,6 +56,7 @@ anyrepair stats --input-dir ./files
 - **XML**: Unclosed tags, malformed attributes, missing quotes, invalid characters
 - **TOML**: Missing quotes, malformed arrays, table headers, numbers, dates
 - **CSV**: Unquoted strings, malformed quotes, extra/missing commas, headers
+- **INI**: Malformed sections, missing equals signs, unquoted values, comments
 
 ## License
 

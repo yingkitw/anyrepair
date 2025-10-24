@@ -1,6 +1,6 @@
 [package]
 name = "anyrepair"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 authors = ["Ying Kit WONG"]
 description = "A Rust crate for repairing LLM responses including JSON, YAML, Markdown, and XML"
@@ -20,9 +20,11 @@ anyhow = "1.0"
 clap = { version = "4.4", features = ["derive"] }
 tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
+rayon = "1.8"
 quick-xml = "0.36"
 toml = "0.8"
 csv = "1.3"
+ini = "1.3"
 
 [dev-dependencies]
 insta = "1.34"

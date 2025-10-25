@@ -81,7 +81,7 @@ impl Default for XmlRepairer {
 }
 
 impl Repair for XmlRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // Handle empty content
@@ -243,6 +243,10 @@ impl RepairStrategy for FixUnclosedTagsStrategy {
     fn priority(&self) -> u8 {
         6
     }
+
+    fn name(&self) -> &str {
+        "FixUnclosedTagsStrategy"
+    }
 }
 
 /// Strategy to fix malformed attributes
@@ -262,6 +266,10 @@ impl RepairStrategy for FixMalformedAttributesStrategy {
     
     fn priority(&self) -> u8 {
         5
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedAttributesStrategy"
     }
 }
 
@@ -287,6 +295,10 @@ impl RepairStrategy for FixInvalidCharactersStrategy {
     fn priority(&self) -> u8 {
         4
     }
+
+    fn name(&self) -> &str {
+        "FixInvalidCharactersStrategy"
+    }
 }
 
 /// Strategy to fix missing quotes around attribute values
@@ -306,6 +318,10 @@ impl RepairStrategy for FixMissingQuotesStrategy {
     
     fn priority(&self) -> u8 {
         3
+    }
+
+    fn name(&self) -> &str {
+        "FixMissingQuotesStrategy"
     }
 }
 
@@ -327,6 +343,10 @@ impl RepairStrategy for FixSelfClosingTagsStrategy {
     fn priority(&self) -> u8 {
         2
     }
+
+    fn name(&self) -> &str {
+        "FixSelfClosingTagsStrategy"
+    }
 }
 
 /// Strategy to add XML declaration
@@ -346,6 +366,10 @@ impl RepairStrategy for AddXmlDeclarationStrategy {
     fn priority(&self) -> u8 {
         1
     }
+
+    fn name(&self) -> &str {
+        "AddXmlDeclarationStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -355,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_xml_repair_basic() {
-        let repairer = XmlRepairer::new();
+        let mut repairer = XmlRepairer::new();
         
         let input = "<root><item>value</item></root>";
         let result = repairer.repair(input).unwrap();
@@ -364,7 +388,7 @@ mod tests {
     
     #[test]
     fn test_xml_repair_unclosed_tags() {
-        let repairer = XmlRepairer::new();
+        let mut repairer = XmlRepairer::new();
         
         let input = "<root><item>value</item>";
         let result = repairer.repair(input).unwrap();
@@ -373,7 +397,7 @@ mod tests {
     
     #[test]
     fn test_xml_repair_malformed_attributes() {
-        let repairer = XmlRepairer::new();
+        let mut repairer = XmlRepairer::new();
         
         let input = "<root id=123 class=test>content</root>";
         let result = repairer.repair(input).unwrap();
@@ -385,7 +409,7 @@ mod tests {
     
     #[test]
     fn test_xml_repair_invalid_characters() {
-        let repairer = XmlRepairer::new();
+        let mut repairer = XmlRepairer::new();
         
         let input = "<root>value & < ></root>";
         let result = repairer.repair(input).unwrap();
@@ -394,7 +418,7 @@ mod tests {
     
     #[test]
     fn test_xml_confidence() {
-        let repairer = XmlRepairer::new();
+        let mut repairer = XmlRepairer::new();
         
         let valid_xml = "<?xml version=\"1.0\"?><root><item>value</item></root>";
         let conf = repairer.confidence(valid_xml);

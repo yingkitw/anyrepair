@@ -25,7 +25,7 @@ struct RegexCache {
 impl RegexCache {
     fn new() -> Result<Self> {
         Ok(Self {
-            missing_quotes: Regex::new(r#"(\w+):"#)?,
+            missing_quotes: Regex::new(r#"(^|\s|,|\{)\s*(\w+)\s*:"#)?,
             trailing_commas: Regex::new(r#",(\s*[}\]])"#)?,
             unescaped_quotes: Regex::new(r#""([^"\\]|\\.)*"[^,}\]]*"#)?,
             single_quotes: Regex::new(r#"'([^']*)'"#)?,
@@ -50,6 +50,8 @@ fn get_regex_cache() -> &'static RegexCache {
 pub struct JsonRepairer {
     strategies: Vec<Box<dyn RepairStrategy>>,
     validator: JsonValidator,
+    logging: bool,
+    repair_log: Vec<String>,
 }
 
 impl JsonRepairer {
@@ -63,6 +65,7 @@ impl JsonRepairer {
             Box::new(FixSingleQuotesStrategy),
             Box::new(FixMalformedNumbersStrategy),
             Box::new(FixBooleanNullStrategy),
+            Box::new(FixAgenticAiResponseStrategy),
         ];
         
         // Sort strategies by priority (higher priority first)
@@ -71,16 +74,47 @@ impl JsonRepairer {
         Self {
             strategies,
             validator: JsonValidator,
+            logging: false,
+            repair_log: Vec::new(),
+        }
+    }
+
+    /// Create a new JSON repairer with logging enabled
+    pub fn with_logging(logging: bool) -> Self {
+        let mut repairer = Self::new();
+        repairer.logging = logging;
+        repairer
+    }
+
+    /// Get the repair log
+    pub fn get_repair_log(&self) -> &[String] {
+        &self.repair_log
+    }
+
+    /// Clear the repair log
+    pub fn clear_log(&mut self) {
+        self.repair_log.clear();
+    }
+
+    /// Log a repair action
+    fn log(&mut self, message: &str) {
+        if self.logging {
+            self.repair_log.push(message.to_string());
         }
     }
     
     /// Apply all repair strategies to the content using parallel processing
-    fn apply_strategies(&self, content: &str) -> Result<String> {
+    fn apply_strategies(&mut self, content: &str) -> Result<String> {
         // For now, use sequential processing until we can properly implement Arc conversion
         let mut repaired = content.to_string();
+        let logging = self.logging;
         
         for strategy in &self.strategies {
             if let Ok(result) = strategy.apply(&repaired) {
+                if result != repaired && logging {
+                    let strategy_name = strategy.name().to_string();
+                    self.repair_log.push(format!("Applied strategy: {}", strategy_name));
+                }
                 repaired = result;
             }
         }
@@ -96,16 +130,24 @@ impl Default for JsonRepairer {
 }
 
 impl Repair for JsonRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
+        
+        // Clear previous log
+        self.repair_log.clear();
         
         // If already valid, return as-is
         if self.validator.is_valid(trimmed) {
+            self.log("JSON was already valid, no repairs needed");
             return Ok(trimmed.to_string());
         }
         
+        self.log("Starting JSON repair process");
+        
         // Apply repair strategies
         let repaired = self.apply_strategies(trimmed)?;
+        
+        self.log("JSON repair completed");
         
         // Return the repaired content even if validation fails
         // (some repairs might not be perfect but are still improvements)
@@ -181,12 +223,16 @@ struct AddMissingQuotesStrategy;
 impl RepairStrategy for AddMissingQuotesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_regex_cache();
-        let result = cache.missing_quotes.replace_all(content, r#""$1":"#);
+        let result = cache.missing_quotes.replace_all(content, r#"$1"$2":"#);
         Ok(result.to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         5
+    }
+
+    fn name(&self) -> &str {
+        "AddMissingQuotesStrategy"
     }
 }
 
@@ -199,9 +245,13 @@ impl RepairStrategy for FixTrailingCommasStrategy {
         let result = cache.trailing_commas.replace_all(content, r#"$1"#);
         Ok(result.to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         4
+    }
+
+    fn name(&self) -> &str {
+        "FixTrailingCommasStrategy"
     }
 }
 
@@ -216,9 +266,13 @@ impl RepairStrategy for FixUnescapedQuotesStrategy {
         let result = cache.unescaped_quotes.replace_all(content, r#"\""#);
         Ok(result.to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         3
+    }
+
+    fn name(&self) -> &str {
+        "FixUnescapedQuotesStrategy"
     }
 }
 
@@ -251,9 +305,13 @@ impl RepairStrategy for AddMissingBracesStrategy {
         
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         2
+    }
+
+    fn name(&self) -> &str {
+        "AddMissingBracesStrategy"
     }
 }
 
@@ -266,9 +324,13 @@ impl RepairStrategy for FixSingleQuotesStrategy {
         let result = cache.single_quotes.replace_all(content, r#""$1""#);
         Ok(result.to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         1
+    }
+
+    fn name(&self) -> &str {
+        "FixSingleQuotesStrategy"
     }
 }
 
@@ -297,6 +359,10 @@ impl RepairStrategy for FixMalformedNumbersStrategy {
         result = cache.malformed_numbers_scientific.replace_all(&result, "$1e$2$3").to_string();
         
         Ok(result)
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedNumbersStrategy"
     }
 }
 
@@ -334,6 +400,161 @@ impl RepairStrategy for FixBooleanNullStrategy {
         
         Ok(result)
     }
+
+    fn name(&self) -> &str {
+        "FixBooleanNullStrategy"
+    }
+}
+
+/// Strategy for fixing agentic AI response patterns
+struct FixAgenticAiResponseStrategy;
+
+impl RepairStrategy for FixAgenticAiResponseStrategy {
+    fn priority(&self) -> u8 {
+        1 // High priority for agentic AI responses
+    }
+    
+    fn apply(&self, content: &str) -> Result<String> {
+        let mut result = content.to_string();
+        
+        // Fix common agentic AI response issues
+        
+        // 1. Fix missing quotes around common agentic AI field names
+        let agentic_fields = [
+            "goal", "steps", "step_number", "description", "tool_call", 
+            "tool_name", "parameters", "command", "working_folder", 
+            "working_dir", "file_path", "search", "replacement", "code",
+            "feedback", "timeout", "prompt", "project_type", "project_name"
+        ];
+        
+        for field in &agentic_fields {
+            // Fix unquoted field names - only match at the beginning of lines or after whitespace/commas/braces
+            // Use word boundary to ensure we don't match partial words
+            let pattern = format!(r#"(^|\s|,|\{{)\s*{}\b\s*:"#, field);
+            let replacement = format!(r#"$1"{}":"#, field);
+            if let Ok(regex) = Regex::new(&pattern) {
+                result = regex.replace_all(&result, &replacement).to_string();
+            }
+        }
+        
+        // 2. Fix nested object structure issues
+        // Fix missing closing braces in tool_call objects
+        result = self.fix_nested_objects(&result);
+        
+        // 3. Fix array structure issues
+        result = self.fix_array_structures(&result);
+        
+        // 4. Fix string escaping in parameters
+        result = self.fix_parameter_strings(&result);
+        
+        Ok(result)
+    }
+
+    fn name(&self) -> &str {
+        "FixAgenticAiResponseStrategy"
+    }
+}
+
+impl FixAgenticAiResponseStrategy {
+    /// Fix nested object structures common in agentic AI responses
+    fn fix_nested_objects(&self, content: &str) -> String {
+        let mut result = content.to_string();
+        let mut brace_count = 0;
+        let mut bracket_count = 0;
+        let mut in_string = false;
+        let mut escape_next = false;
+        
+        for (_i, ch) in content.char_indices() {
+            if escape_next {
+                escape_next = false;
+                continue;
+            }
+            
+            match ch {
+                '\\' if in_string => {
+                    escape_next = true;
+                }
+                '"' => {
+                    in_string = !in_string;
+                }
+                '{' if !in_string => {
+                    brace_count += 1;
+                }
+                '}' if !in_string => {
+                    brace_count -= 1;
+                }
+                '[' if !in_string => {
+                    bracket_count += 1;
+                }
+                ']' if !in_string => {
+                    bracket_count -= 1;
+                }
+                _ => {}
+            }
+        }
+        
+        // Add missing closing braces
+        while brace_count > 0 {
+            result.push('}');
+            brace_count -= 1;
+        }
+        
+        // Add missing closing brackets
+        while bracket_count > 0 {
+            result.push(']');
+            bracket_count -= 1;
+        }
+        
+        result
+    }
+    
+    /// Fix array structures
+    fn fix_array_structures(&self, content: &str) -> String {
+        let mut result = content.to_string();
+        
+        // Fix missing commas between array elements
+        let array_comma_pattern = r#"(\])\s*(\[)"#;
+        if let Ok(regex) = Regex::new(array_comma_pattern) {
+            result = regex.replace_all(&result, "$1,$2").to_string();
+        }
+        
+        // Fix missing commas between object elements in arrays
+        let object_comma_pattern = r#"(\})\s*(\{)"#;
+        if let Ok(regex) = Regex::new(object_comma_pattern) {
+            result = regex.replace_all(&result, "$1,$2").to_string();
+        }
+        
+        result
+    }
+    
+    /// Fix string escaping in parameters
+    fn fix_parameter_strings(&self, content: &str) -> String {
+        // Use regex to find and fix unescaped quotes in string values
+        let mut result = content.to_string();
+        
+        // Pattern to match: "key": "value with "quotes" inside"
+        // This regex looks for a quoted string value that contains unescaped quotes
+        let pattern = r#""([^"]*)"([^"]*)"([^"]*)"#;
+        
+        if let Ok(regex) = Regex::new(pattern) {
+            result = regex.replace_all(&result, |caps: &regex::Captures| {
+                let part1 = &caps[1];
+                let part2 = &caps[2];
+                let part3 = &caps[3];
+                
+                // If part2 contains quotes, escape them
+                if part2.contains("\"") {
+                    let escaped_part2 = part2.replace("\"", "\\\"");
+                    format!("\"{}\"{}\"{}", part1, escaped_part2, part3)
+                } else {
+                    // No quotes to escape, return as-is
+                    format!("\"{}\"{}\"{}", part1, part2, part3)
+                }
+            }).to_string();
+        }
+        
+        result
+    }
 }
 
 #[cfg(test)]
@@ -343,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_basic() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test missing quotes
         let input = r#"{key: "value"}"#;
@@ -358,16 +579,16 @@ mod tests {
     
     #[test]
     fn test_json_repair_complex() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         let input = r#"{name: "John", age: 30, city: "New York",}"#;
         let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r#"{"name": "John", "age": 30, "city": "New York"}"#);
+        assert_snapshot!(result, @r#"{"name": "John","age": 30,"city": "New York"}"#);
     }
     
     #[test]
     fn test_json_confidence() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Valid JSON should have confidence 1.0
         let valid = r#"{"key": "value"}"#;
@@ -380,7 +601,7 @@ mod tests {
     
     #[test]
     fn test_needs_repair() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         assert!(!repairer.needs_repair(r#"{"key": "value"}"#));
         assert!(repairer.needs_repair(r#"{key: "value"}"#));
@@ -388,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_edge_cases() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test empty object
         let input = "{}";
@@ -423,12 +644,12 @@ mod tests {
 
     #[test]
     fn test_json_repair_nested_structures() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test nested objects
         let input = r#"{outer: {inner: "value", nested: {deep: true}}}"#;
         let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r#"{"outer": {"inner": "value", "nested": {"deep": true}}}"#);
+        assert_snapshot!(result, @r#"{"outer": {"inner": "value","nested": {"deep": true}}}"#);
         
         // Test arrays with objects
         let input = r#"[{name: "John"}, {name: "Jane"}]"#;
@@ -443,7 +664,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_string_escaping() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test quotes in strings
         let input = r#"{"message": "He said \"Hello\""}"#;
@@ -463,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_malformed_cases() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test missing opening brace
         let input = r#""key": "value"}"#;
@@ -488,7 +709,7 @@ mod tests {
 
     #[test]
     fn test_json_confidence_edge_cases() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test empty string
         assert!(repairer.confidence("") < 1.0);
@@ -530,7 +751,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_complex_nested_objects() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test deeply nested objects with missing braces
         let input = r#"{
@@ -585,7 +806,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_complex_string_handling() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test strings with various escape sequences
         let input = r#"{
@@ -599,7 +820,7 @@ mod tests {
         assert_snapshot!(result, @r#"
         {
                     "text": "Line 1\nLine 2\tTabbed\r\nWindows",
-                    "path": ""C":\\Users\\John\\Documents",
+                    "path": "C:\\Users\\John\\Documents",
                     "regex": "pattern\\d+",
                     "unicode": "Hello \u0041\u0042\u0043",
                     "quotes": "He said \"Hello\" and "Goodbye""}
@@ -628,7 +849,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_complex_array_structures() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test mixed array types
         let input = r#"[
@@ -681,7 +902,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_complex_error_scenarios() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test multiple syntax errors in one JSON
         let input = r#"{
@@ -728,7 +949,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_large_document() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test large JSON document with many fields
         let input = r#"{
@@ -787,7 +1008,7 @@ mod tests {
                     "isActive": true,
                     "profile": {
                         "bio": "Software developer",
-                        "avatar": ""https"://example.com/avatar.jpg",
+                        "avatar": "https://example.com/avatar.jpg",
                         "preferences": {
                             "theme": "dark",
                             "language": "en",
@@ -820,8 +1041,8 @@ mod tests {
                         }
                     ],
                     "metadata": {
-                        "createdAt": "-1-"01T00":"0":00Z",
-                        "updatedAt": "-12-"01T12":"0":00Z",
+                        "createdAt": "-1-01T00:0:00Z",
+                        "updatedAt": "-12-01T12:0:00Z",
                         "version": 1.2
                     }}
         "#);
@@ -829,7 +1050,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_edge_case_combinations() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test combination of all error types
         let input = r#"{
@@ -878,7 +1099,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_unicode_and_special_characters() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test unicode characters and special symbols
         let input = r#"{
@@ -894,7 +1115,7 @@ mod tests {
         {
                     "emoji": "Hello 🌍 World! 🚀",
                     "unicode": "Café naïve résumé",
-                    "symbols": ""Price": $100.50 @ 10% off",
+                    "symbols": "Price: $100.50 @ 10% off",
                     "math": "x² + y² = z²",
                     "arrows": "← → ↑ ↓",
                     "currency": "€ £ ¥ ₹"}
@@ -914,14 +1135,14 @@ mod tests {
                     "multiline": "Line 1\nLine 2\r\nLine 3",
                     "tabs": "Column1\tColumn2\tColumn3",
                     "quotes": "He said \"Hello\" and "Goodbye"",
-                    "backslashes": ""Path": "C":\\Users\\Name\\Documents",
+                    "backslashes": "Path: "C":\\Users\\Name\\Documents",
                     "mixed_quotes": "It's a \"beautiful\" day"}
         "#);
     }
 
     #[test]
     fn test_json_repair_numeric_edge_cases() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test various number formats
         let input = r#"{
@@ -958,7 +1179,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_whitespace_and_formatting() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test various whitespace issues
         let input = r#"{
@@ -989,7 +1210,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_malformed_structures() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test various malformed structures
         let input = r#"{
@@ -1020,7 +1241,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_comments_and_metadata() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test JSON with comments (should be removed)
         let input = r#"{
@@ -1065,7 +1286,7 @@ mod tests {
         assert_snapshot!(result, @r#"
         {
                     "version": "1.0",
-                    "timestamp": "-12-"01T12":"0":00Z",
+                    "timestamp": "-12-01T12:0:00Z",
                     "data": {
                         "id": 123,
                         "name": "Test"
@@ -1079,7 +1300,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_api_response_scenarios() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test common API response patterns
         let input = r#"{
@@ -1168,13 +1389,13 @@ mod tests {
                             "message": "Password too short"
                         }
                     ],
-                    "timestamp": "-12-"01T12":"0":00Z"}
+                    "timestamp": "-12-01T12:0:00Z"}
         "#);
     }
 
     #[test]
     fn test_json_repair_configuration_files() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test configuration file patterns
         let input = r#"{
@@ -1235,7 +1456,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_extreme_damage_scenarios() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test extremely damaged JSON
         let input = r#"{
@@ -1278,7 +1499,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_partial_and_truncated() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test partial JSON (missing closing braces)
         let input = r#"{
@@ -1329,7 +1550,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_nested_arrays_and_objects() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test deeply nested structures
         let input = r#"{
@@ -1396,7 +1617,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_malformed_numbers() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test malformed numbers
         let input = r#"{
@@ -1423,7 +1644,7 @@ mod tests {
 
     #[test]
     fn test_json_repair_boolean_null_values() {
-        let repairer = JsonRepairer::new();
+        let mut repairer = JsonRepairer::new();
         
         // Test boolean and null value fixes
         let input = r#"{
@@ -1442,5 +1663,180 @@ mod tests {
                     "undefined_variants": [null, null, null],
                     "mixed_case": [true, false, null, null]}
         "#);
+    }
+
+    #[test]
+    fn test_json_repair_agentic_ai_responses() {
+        let mut repairer = JsonRepairer::new();
+        
+        // Test agentic AI response format
+        let input = r#"{
+"goal": "generate java springboot",
+"steps": [
+  {
+"step_number": 1,
+"description": "Scaffold Spring Boot project structure",
+"tool_call": {
+"tool_name": "scaffold_project",
+"parameters": {
+"project_type": "java",
+"project_name": "springboot_app"
+  }
+  }
+  },
+  {
+"step_number": 2,
+"description": "Generate Spring Boot application code",
+"tool_call": {
+"tool_name": "generate_code",
+"parameters": {
+"prompt": "Create a simple Spring Boot REST API application with a HelloController that responds with \"Hello, World!\" on GET /hello",
+"working_folder": "springboot_app"
+  }
+  }
+  }
+  ]
+  }"#;
+        let result = repairer.repair(input).unwrap();
+        assert!(result.contains("\"goal\""));
+        assert!(result.contains("\"steps\""));
+        assert!(result.contains("\"step_number\""));
+        assert!(result.contains("\"tool_call\""));
+    }
+
+    #[test]
+    fn test_json_repair_complex_agentic_ai_response() {
+        let mut repairer = JsonRepairer::new();
+        
+        // Test the exact JSON from the user's example
+        let input = r#"  {
+"goal": "generate java springboot",
+"steps": [
+  {
+"step_number": 1,
+"description": "Scaffold Spring Boot project structure",
+"tool_call": {
+"tool_name": "scaffold_project",
+"parameters": {
+"project_type": "java",
+"project_name": "springboot_app"
+  }
+  }
+  },
+  {
+"step_number": 2,
+"description": "Generate Spring Boot application code",
+"tool_call": {
+"tool_name": "generate_code",
+"parameters": {
+"prompt": "Create a simple Spring Boot REST API application with a HelloController that responds with \\\"Hello, World!\\\" on GET /hello",
+"working_folder": "springboot_app"
+  }
+  }
+  },
+  {
+"step_number": 3,
+"description": "Add Maven dependencies for web functionality",
+"tool_call": {
+"tool_name": "sed_edit",
+"parameters": {
+"file_path": "springboot_app/pom.xml",
+"search": "<dependencies>",
+"replacement": "<dependencies>\n  <dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-web</artifactId>\n  </dependency>\n"
+  }
+  }
+  },
+  {
+"step_number": 4,
+"description": "Implement HelloController class",
+"tool_call": {
+"tool_name": "review_and_refine",
+"parameters": {
+"code": "package com.example.demo;\n\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.RestController;\n\n@RestController\npublic class HelloController {\n\n    @GetMapping(\"/hello\")\n    public String sayHello() {\n        return \"Hello, World!\";\n    }\n}",
+"feedback": "Ensure proper annotations and return statement"
+  }
+  }
+  },
+  {
+"step_number": 5,
+"description": "Build the Spring Boot application",
+"tool_call": {
+"tool_name": "shell_command",
+"parameters": {
+"command": "cd springboot_app && ./mvnw clean package",
+"timeout": 300
+  }
+  }
+  },
+  {
+"step_number": 6,
+"description": "Run the Spring Boot application",
+"tool_call": {
+"tool_name": "execute_command",
+"parameters": {
+"command": "cd springboot_app && ./mvnw spring-boot:run",
+"working_dir": "springboot_app"
+  }
+  }
+  }
+  ]
+  }"#;
+        
+        let result = repairer.repair(input).unwrap();
+        
+        // Debug: print the repaired result
+        println!("Repaired JSON:\n{}", result);
+        
+        // Debug: check what's wrong with the JSON
+        if let Err(e) = serde_json::from_str::<serde_json::Value>(&result) {
+            println!("JSON Parse Error: {}", e);
+            println!("Error location: line {}, column {}", 
+                e.line(), e.column());
+            
+            // Print the specific line with the error
+            let lines: Vec<&str> = result.lines().collect();
+            if e.line() <= lines.len() {
+                println!("Problematic line: {}", lines[e.line() - 1]);
+                println!("Character at error position: '{}'", 
+                    lines[e.line() - 1].chars().nth(e.column() - 1).unwrap_or('?'));
+            }
+        }
+        
+        // Verify the structure is valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        
+        // Check that all expected fields are present
+        assert!(parsed.get("goal").is_some());
+        assert!(parsed.get("steps").is_some());
+        
+        let steps = parsed.get("steps").unwrap().as_array().unwrap();
+        assert_eq!(steps.len(), 6);
+        
+        // Check first step structure
+        let first_step = &steps[0];
+        assert!(first_step.get("step_number").is_some());
+        assert!(first_step.get("description").is_some());
+        assert!(first_step.get("tool_call").is_some());
+        
+        let tool_call = first_step.get("tool_call").unwrap();
+        assert!(tool_call.get("tool_name").is_some());
+        assert!(tool_call.get("parameters").is_some());
+        
+        println!("Repaired JSON structure is valid!");
+    }
+
+    #[test]
+    fn test_json_repair_with_logging() {
+        let mut repairer = JsonRepairer::with_logging(true);
+        
+        let input = r#"{"name": "John", "age": 30,}"#;
+        let result = repairer.repair(input).unwrap();
+        
+        assert!(result.contains("John"));
+        assert!(!result.ends_with(','));
+        
+        let log = repairer.get_repair_log();
+        assert!(!log.is_empty());
+        assert!(log.iter().any(|msg| msg.contains("Starting JSON repair process")));
     }
 }

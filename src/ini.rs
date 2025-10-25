@@ -84,7 +84,7 @@ impl Default for IniRepairer {
 }
 
 impl Repair for IniRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // Handle empty content
@@ -247,6 +247,10 @@ impl RepairStrategy for FixMalformedSectionsStrategy {
     fn priority(&self) -> u8 {
         6
     }
+
+    fn name(&self) -> &str {
+        "FixMalformedSectionsStrategy"
+    }
 }
 
 /// Strategy to fix malformed keys
@@ -267,6 +271,10 @@ impl RepairStrategy for FixMalformedKeysStrategy {
     
     fn priority(&self) -> u8 {
         5
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedKeysStrategy"
     }
 }
 
@@ -307,6 +315,10 @@ impl RepairStrategy for FixMissingEqualsStrategy {
     fn priority(&self) -> u8 {
         4
     }
+
+    fn name(&self) -> &str {
+        "FixMissingEqualsStrategy"
+    }
 }
 
 /// Strategy to fix unquoted values that should be quoted
@@ -333,6 +345,10 @@ impl RepairStrategy for FixUnquotedValuesStrategy {
     fn priority(&self) -> u8 {
         3
     }
+
+    fn name(&self) -> &str {
+        "FixUnquotedValuesStrategy"
+    }
 }
 
 /// Strategy to fix malformed comments
@@ -352,6 +368,10 @@ impl RepairStrategy for FixMalformedCommentsStrategy {
     
     fn priority(&self) -> u8 {
         2
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedCommentsStrategy"
     }
 }
 
@@ -382,6 +402,10 @@ impl RepairStrategy for RemoveDuplicateSectionsStrategy {
     fn priority(&self) -> u8 {
         1
     }
+
+    fn name(&self) -> &str {
+        "RemoveDuplicateSectionsStrategy"
+    }
 }
 
 /// Strategy to add default section if missing
@@ -409,6 +433,10 @@ impl RepairStrategy for AddDefaultSectionStrategy {
     fn priority(&self) -> u8 {
         0
     }
+
+    fn name(&self) -> &str {
+        "AddDefaultSectionStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -418,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_ini_repair_basic() {
-        let repairer = IniRepairer::new();
+        let mut repairer = IniRepairer::new();
         
         let input = "name = John\nage = 30";
         let result = repairer.repair(input).unwrap();
@@ -430,7 +458,7 @@ mod tests {
     
     #[test]
     fn test_ini_repair_malformed_sections() {
-        let repairer = IniRepairer::new();
+        let mut repairer = IniRepairer::new();
         
         let input = "[user\nname = John\n[settings\ntheme = dark";
         let result = repairer.repair(input).unwrap();
@@ -444,7 +472,7 @@ mod tests {
     
     #[test]
     fn test_ini_repair_missing_equals() {
-        let repairer = IniRepairer::new();
+        let mut repairer = IniRepairer::new();
         
         let input = "[user]\nname John\nage 30";
         let result = repairer.repair(input).unwrap();
@@ -457,7 +485,7 @@ mod tests {
     
     #[test]
     fn test_ini_repair_unquoted_values() {
-        let repairer = IniRepairer::new();
+        let mut repairer = IniRepairer::new();
         
         let input = "[user]\nname = John Doe\ndescription = Software Engineer";
         let result = repairer.repair(input).unwrap();
@@ -470,7 +498,7 @@ mod tests {
     
     #[test]
     fn test_ini_repair_malformed_comments() {
-        let repairer = IniRepairer::new();
+        let mut repairer = IniRepairer::new();
         
         let input = "[user]\n#This is a comment\nname = John";
         let result = repairer.repair(input).unwrap();
@@ -483,7 +511,7 @@ mod tests {
     
     #[test]
     fn test_ini_confidence() {
-        let repairer = IniRepairer::new();
+        let mut repairer = IniRepairer::new();
         
         let valid_ini = "[user]\nname = John\nage = 30";
         let conf = repairer.confidence(valid_ini);

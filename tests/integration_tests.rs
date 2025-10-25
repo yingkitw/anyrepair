@@ -11,9 +11,9 @@ fn test_library_integration() {
     assert!(!result.ends_with(','));
 
     // Test format-specific repairers
-    let json_repairer = json::JsonRepairer::new();
-    let yaml_repairer = yaml::YamlRepairer::new();
-    let markdown_repairer = markdown::MarkdownRepairer::new();
+    let mut json_repairer = json::JsonRepairer::new();
+    let mut yaml_repairer = yaml::YamlRepairer::new();
+    let mut markdown_repairer = markdown::MarkdownRepairer::new();
 
     // Test JSON repair
     let json_result = json_repairer.repair(json_input).unwrap();
@@ -64,7 +64,7 @@ fn test_performance() {
     use std::time::Instant;
     
     let input = r#"{"name": "John", "age": 30, "city": "New York", "country": "USA", "hobbies": ["reading", "coding", "gaming"]}"#;
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     
     let start = Instant::now();
     for _ in 0..1000 {
@@ -80,7 +80,7 @@ fn test_performance() {
 fn test_memory_usage() {
     // Test that we don't have memory leaks with large inputs
     let large_input = r#"{"data": "}"#.repeat(10000);
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     
     for _ in 0..100 {
         let _ = repairer.repair(&large_input);

@@ -22,9 +22,16 @@ pub mod custom_rules;
 pub mod plugin;
 pub mod plugin_config;
 pub mod plugin_integration;
+pub mod context_parser;
+pub mod enhanced_json;
 
 pub use error::{RepairError, Result};
 pub use traits::Repair;
+pub use enhanced_json::EnhancedJsonRepairer;
+
+use serde_json::Value;
+use std::fs::File;
+use std::io::Read;
 
 /// Main repair function that automatically detects format and repairs content
 pub fn repair(content: &str) -> Result<String> {
@@ -32,23 +39,98 @@ pub fn repair(content: &str) -> Result<String> {
     
     // Try to detect format and repair accordingly
     if is_json_like(trimmed) {
-        json::JsonRepairer::new().repair(trimmed)
+        let mut repairer = json::JsonRepairer::new();
+        repairer.repair(trimmed)
     } else if is_yaml_like(trimmed) {
-        yaml::YamlRepairer::new().repair(trimmed)
+        let mut repairer = yaml::YamlRepairer::new();
+        repairer.repair(trimmed)
     } else if is_xml_like(trimmed) {
-        xml::XmlRepairer::new().repair(trimmed)
+        let mut repairer = xml::XmlRepairer::new();
+        repairer.repair(trimmed)
     } else if is_toml_like(trimmed) {
-        toml::TomlRepairer::new().repair(trimmed)
+        let mut repairer = toml::TomlRepairer::new();
+        repairer.repair(trimmed)
     } else if is_csv_like(trimmed) {
-        csv::CsvRepairer::new().repair(trimmed)
+        let mut repairer = csv::CsvRepairer::new();
+        repairer.repair(trimmed)
     } else if is_ini_like(trimmed) {
-        ini::IniRepairer::new().repair(trimmed)
+        let mut repairer = ini::IniRepairer::new();
+        repairer.repair(trimmed)
     } else if is_markdown_like(trimmed) {
-        markdown::MarkdownRepairer::new().repair(trimmed)
+        let mut repairer = markdown::MarkdownRepairer::new();
+        repairer.repair(trimmed)
     } else {
         // Default to markdown repair for unknown content
-        markdown::MarkdownRepairer::new().repair(trimmed)
+        let mut repairer = markdown::MarkdownRepairer::new();
+        repairer.repair(trimmed)
     }
+}
+
+/// Enhanced JSON repair with advanced capabilities
+/// 
+/// This function provides drop-in replacement for json.loads() with advanced repair capabilities
+/// inspired by json_repair-main.
+/// 
+/// # Arguments
+/// * `json_str` - The JSON string to repair
+/// * `skip_json_loads` - Skip initial JSON validation for performance
+/// * `logging` - Enable detailed repair logging
+/// * `stream_stable` - Enable streaming support for partial JSON
+/// 
+/// # Returns
+/// * `Ok(Value)` - The parsed JSON value
+/// * `Err(RepairError)` - If repair fails
+pub fn repair_json_advanced(
+    json_str: &str,
+    skip_json_loads: bool,
+    logging: bool,
+    stream_stable: bool,
+) -> Result<Value> {
+    let mut repairer = EnhancedJsonRepairer::new()
+        .with_skip_json_loads(skip_json_loads)
+        .with_logging(logging)
+        .with_stream_stable(stream_stable);
+    
+    repairer.loads(json_str)
+}
+
+/// Drop-in replacement for json.loads() with repair capabilities
+pub fn loads(json_str: &str) -> Result<Value> {
+    repair_json_advanced(json_str, false, false, false)
+}
+
+/// Drop-in replacement for json.load() with repair capabilities
+pub fn load<R: Read>(reader: R) -> Result<Value> {
+    let mut repairer = EnhancedJsonRepairer::new();
+    repairer.load(reader)
+}
+
+/// Load JSON from file with repair capabilities
+pub fn from_file(filename: &str) -> Result<Value> {
+    let mut repairer = EnhancedJsonRepairer::new();
+    repairer.from_file(filename)
+}
+
+/// Repair JSON string and return as string
+pub fn repair_json_string(json_str: &str) -> Result<String> {
+    let mut repairer = EnhancedJsonRepairer::new();
+    repairer.repair_json(json_str)
+}
+
+/// Repair JSON with detailed logging
+pub fn repair_json_with_logging(json_str: &str) -> Result<(Value, Vec<String>)> {
+    let mut repairer = EnhancedJsonRepairer::new().with_logging(true);
+    let value = repairer.loads(json_str)?;
+    let log = repairer.get_repair_log().to_vec();
+    Ok((value, log))
+}
+
+/// Repair JSON with detailed logging using the main JSON repairer
+pub fn repair_json_with_logging_main(json_str: &str) -> Result<(String, Vec<String>)> {
+    let mut repairer = json::JsonRepairer::with_logging(true);
+    let result = repairer.repair(json_str)?;
+    let log = repairer.get_repair_log().to_vec();
+    Ok((result, log))
 }
 
 fn is_json_like(content: &str) -> bool {

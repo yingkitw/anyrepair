@@ -79,7 +79,7 @@ impl Default for YamlRepairer {
 }
 
 impl Repair for YamlRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // Handle empty content
@@ -246,6 +246,10 @@ impl RepairStrategy for FixIndentationStrategy {
     fn priority(&self) -> u8 {
         5
     }
+
+    fn name(&self) -> &str {
+        "FixIndentationStrategy"
+    }
 }
 
 /// Strategy to add missing colons
@@ -271,6 +275,10 @@ impl RepairStrategy for AddMissingColonsStrategy {
     
     fn priority(&self) -> u8 {
         4
+    }
+
+    fn name(&self) -> &str {
+        "AddMissingColonsStrategy"
     }
 }
 
@@ -298,6 +306,10 @@ impl RepairStrategy for FixListFormattingStrategy {
     fn priority(&self) -> u8 {
         3
     }
+
+    fn name(&self) -> &str {
+        "FixListFormattingStrategy"
+    }
 }
 
 /// Strategy to add document separator
@@ -316,6 +328,10 @@ impl RepairStrategy for AddDocumentSeparatorStrategy {
     fn priority(&self) -> u8 {
         2
     }
+
+    fn name(&self) -> &str {
+        "AddDocumentSeparatorStrategy"
+    }
 }
 
 /// Strategy to fix quoted strings
@@ -331,6 +347,10 @@ impl RepairStrategy for FixQuotedStringsStrategy {
     
     fn priority(&self) -> u8 {
         1
+    }
+
+    fn name(&self) -> &str {
+        "FixQuotedStringsStrategy"
     }
 }
 
@@ -388,6 +408,10 @@ impl RepairStrategy for AdvancedIndentationStrategy {
     
     fn priority(&self) -> u8 {
         6
+    }
+
+    fn name(&self) -> &str {
+        "AdvancedIndentationStrategy"
     }
 }
 
@@ -466,6 +490,10 @@ impl RepairStrategy for ComplexStructureStrategy {
     fn priority(&self) -> u8 {
         5
     }
+
+    fn name(&self) -> &str {
+        "ComplexStructureStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -475,7 +503,7 @@ mod tests {
 
     #[test]
     fn test_yaml_repair_basic() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Test missing colons
         let input = "name John\nage 30";
@@ -489,7 +517,7 @@ mod tests {
     
     #[test]
     fn test_yaml_repair_indentation() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         let input = "person:\nname: John\nage: 30";
         let result = repairer.repair(input).unwrap();
@@ -502,7 +530,7 @@ mod tests {
     
     #[test]
     fn test_yaml_repair_list() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         let input = "items:\n- item1\n- item2";
         let result = repairer.repair(input).unwrap();
@@ -515,7 +543,7 @@ mod tests {
     
     #[test]
     fn test_yaml_confidence() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Valid YAML should have confidence 1.0
         let valid = "name: John\nage: 30";
@@ -532,7 +560,7 @@ mod tests {
     
     #[test]
     fn test_needs_repair() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         assert!(!repairer.needs_repair("name: John\nage: 30"));
         assert!(repairer.needs_repair("invalid: yaml: with: too: many: colons:"));
@@ -540,7 +568,7 @@ mod tests {
 
     #[test]
     fn test_yaml_repair_edge_cases() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Test empty YAML
         let input = "";
@@ -565,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_yaml_repair_complex_structures() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Test nested objects
         let input = "person:\nname: John\nage: 30\naddress:\n  city: New York\n  country: USA";
@@ -605,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_yaml_repair_string_handling() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Test quoted strings
         let input = "message: 'Hello World'\ndescription: \"This is a test\"";
@@ -636,7 +664,7 @@ mod tests {
 
     #[test]
     fn test_yaml_repair_malformed_cases() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Test missing colons
         let input = "name John\nage 30";
@@ -670,7 +698,7 @@ mod tests {
 
     #[test]
     fn test_yaml_confidence_edge_cases() {
-        let repairer = YamlRepairer::new();
+        let mut repairer = YamlRepairer::new();
         
         // Test empty string
         assert_eq!(repairer.confidence(""), 0.0);

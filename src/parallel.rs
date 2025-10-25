@@ -222,6 +222,10 @@ mod tests {
         fn priority(&self) -> u8 {
             self.priority
         }
+
+        fn name(&self) -> &str {
+            &self.name
+        }
     }
 
     #[test]

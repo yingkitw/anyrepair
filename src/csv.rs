@@ -81,7 +81,7 @@ impl Default for CsvRepairer {
 }
 
 impl Repair for CsvRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // Handle empty content
@@ -226,6 +226,10 @@ impl RepairStrategy for FixUnquotedStringsStrategy {
     fn priority(&self) -> u8 {
         6
     }
+
+    fn name(&self) -> &str {
+        "FixUnquotedStringsStrategy"
+    }
 }
 
 /// Strategy to fix malformed quotes
@@ -245,6 +249,10 @@ impl RepairStrategy for FixMalformedQuotesStrategy {
     
     fn priority(&self) -> u8 {
         5
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedQuotesStrategy"
     }
 }
 
@@ -305,6 +313,10 @@ impl RepairStrategy for FixMissingQuotesStrategy {
     fn priority(&self) -> u8 {
         4
     }
+
+    fn name(&self) -> &str {
+        "FixMissingQuotesStrategy"
+    }
 }
 
 /// Strategy to fix extra commas
@@ -320,6 +332,10 @@ impl RepairStrategy for FixExtraCommasStrategy {
     
     fn priority(&self) -> u8 {
         3
+    }
+
+    fn name(&self) -> &str {
+        "FixExtraCommasStrategy"
     }
 }
 
@@ -339,6 +355,10 @@ impl RepairStrategy for FixMissingCommasStrategy {
     
     fn priority(&self) -> u8 {
         2
+    }
+
+    fn name(&self) -> &str {
+        "FixMissingCommasStrategy"
     }
 }
 
@@ -375,6 +395,10 @@ impl RepairStrategy for AddHeadersStrategy {
     fn priority(&self) -> u8 {
         1
     }
+
+    fn name(&self) -> &str {
+        "AddHeadersStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -384,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_csv_repair_basic() {
-        let repairer = CsvRepairer::new();
+        let mut repairer = CsvRepairer::new();
         
         let input = "John,30,Engineer\nJane,25,Designer";
         let result = repairer.repair(input).unwrap();
@@ -396,7 +420,7 @@ mod tests {
     
     #[test]
     fn test_csv_repair_unquoted_strings() {
-        let repairer = CsvRepairer::new();
+        let mut repairer = CsvRepairer::new();
         
         let input = "John Doe,30,Software Engineer\nJane Smith,25,UI Designer";
         let result = repairer.repair(input).unwrap();
@@ -409,7 +433,7 @@ mod tests {
     
     #[test]
     fn test_csv_repair_malformed_quotes() {
-        let repairer = CsvRepairer::new();
+        let mut repairer = CsvRepairer::new();
         
         let input = "\"John\"Doe,30,Engineer";
         let result = repairer.repair(input).unwrap();
@@ -418,7 +442,7 @@ mod tests {
     
     #[test]
     fn test_csv_repair_extra_commas() {
-        let repairer = CsvRepairer::new();
+        let mut repairer = CsvRepairer::new();
         
         let input = "John,,30,Engineer\nJane,25,,Designer";
         let result = repairer.repair(input).unwrap();
@@ -430,7 +454,7 @@ mod tests {
     
     #[test]
     fn test_csv_confidence() {
-        let repairer = CsvRepairer::new();
+        let mut repairer = CsvRepairer::new();
         
         let valid_csv = "name,age,occupation\nJohn,30,Engineer";
         let conf = repairer.confidence(valid_csv);

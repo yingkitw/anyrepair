@@ -24,6 +24,10 @@ impl RepairStrategy for ParallelStrategyWrapper {
     fn priority(&self) -> u8 {
         self.strategy.priority()
     }
+
+    fn name(&self) -> &str {
+        self.strategy.name()
+    }
 }
 
 impl ParallelRepairStrategy for ParallelStrategyWrapper {

@@ -121,7 +121,7 @@ impl Default for AdvancedRepairer {
 }
 
 impl Repair for AdvancedRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // Handle empty content
@@ -281,6 +281,10 @@ impl RepairStrategy for IntelligentFormatDetectionStrategy {
     fn priority(&self) -> u8 {
         10
     }
+
+    fn name(&self) -> &str {
+        "IntelligentFormatDetectionStrategy"
+    }
 }
 
 impl IntelligentFormatDetectionStrategy {
@@ -439,6 +443,10 @@ impl RepairStrategy for AdaptiveRepairStrategy {
     fn priority(&self) -> u8 {
         9
     }
+
+    fn name(&self) -> &str {
+        "AdaptiveRepairStrategy"
+    }
 }
 
 impl AdaptiveRepairStrategy {
@@ -517,6 +525,10 @@ impl RepairStrategy for ConfidenceBasedRepairStrategy {
     
     fn priority(&self) -> u8 {
         8
+    }
+
+    fn name(&self) -> &str {
+        "ConfidenceBasedRepairStrategy"
     }
 }
 
@@ -604,6 +616,10 @@ impl RepairStrategy for MultiPassRepairStrategy {
     fn priority(&self) -> u8 {
         7
     }
+
+    fn name(&self) -> &str {
+        "MultiPassRepairStrategy"
+    }
 }
 
 impl MultiPassRepairStrategy {
@@ -652,6 +668,10 @@ impl RepairStrategy for ContextAwareRepairStrategy {
     
     fn priority(&self) -> u8 {
         6
+    }
+
+    fn name(&self) -> &str {
+        "ContextAwareRepairStrategy"
     }
 }
 
@@ -754,6 +774,10 @@ impl RepairStrategy for ErrorRecoveryStrategy {
     fn priority(&self) -> u8 {
         5
     }
+
+    fn name(&self) -> &str {
+        "ErrorRecoveryStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -762,7 +786,7 @@ mod tests {
 
     #[test]
     fn test_advanced_repairer_basic() {
-        let repairer = AdvancedRepairer::new();
+        let mut repairer = AdvancedRepairer::new();
         
         let input = r#"{"name": "John", "age": 30,}"#;
         let result = repairer.repair(input).unwrap();
@@ -771,7 +795,7 @@ mod tests {
     
     #[test]
     fn test_advanced_repairer_confidence() {
-        let repairer = AdvancedRepairer::new();
+        let mut repairer = AdvancedRepairer::new();
         
         let input = r#"{"name": "John", "age": 30}"#;
         let confidence = repairer.confidence(input);

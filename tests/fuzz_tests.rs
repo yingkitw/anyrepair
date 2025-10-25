@@ -14,7 +14,7 @@ mod json_fuzz_tests {
 
         #[test]
         fn test_json_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = json::JsonRepairer::new();
+            let mut repairer = json::JsonRepairer::new();
             let validator = json::JsonValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -26,14 +26,14 @@ mod json_fuzz_tests {
 
         #[test]
         fn test_json_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = json::JsonRepairer::new();
+            let mut repairer = json::JsonRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
 
         #[test]
         fn test_json_repair_idempotent(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = json::JsonRepairer::new();
+            let mut repairer = json::JsonRepairer::new();
             let first_repair = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let second_repair = repairer.repair(&first_repair).unwrap_or_else(|_| first_repair.clone());
             
@@ -57,7 +57,7 @@ mod yaml_fuzz_tests {
 
         #[test]
         fn test_yaml_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = yaml::YamlRepairer::new();
+            let mut repairer = yaml::YamlRepairer::new();
             let validator = yaml::YamlValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -68,7 +68,7 @@ mod yaml_fuzz_tests {
 
         #[test]
         fn test_yaml_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = yaml::YamlRepairer::new();
+            let mut repairer = yaml::YamlRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
@@ -88,7 +88,7 @@ mod markdown_fuzz_tests {
 
         #[test]
         fn test_markdown_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = markdown::MarkdownRepairer::new();
+            let mut repairer = markdown::MarkdownRepairer::new();
             let validator = markdown::MarkdownValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -99,7 +99,7 @@ mod markdown_fuzz_tests {
 
         #[test]
         fn test_markdown_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = markdown::MarkdownRepairer::new();
+            let mut repairer = markdown::MarkdownRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
@@ -119,7 +119,7 @@ mod xml_fuzz_tests {
 
         #[test]
         fn test_xml_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = xml::XmlRepairer::new();
+            let mut repairer = xml::XmlRepairer::new();
             let validator = xml::XmlValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -130,7 +130,7 @@ mod xml_fuzz_tests {
 
         #[test]
         fn test_xml_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = xml::XmlRepairer::new();
+            let mut repairer = xml::XmlRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
@@ -150,7 +150,7 @@ mod toml_fuzz_tests {
 
         #[test]
         fn test_toml_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = toml::TomlRepairer::new();
+            let mut repairer = toml::TomlRepairer::new();
             let validator = toml::TomlValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -161,7 +161,7 @@ mod toml_fuzz_tests {
 
         #[test]
         fn test_toml_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = toml::TomlRepairer::new();
+            let mut repairer = toml::TomlRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
@@ -181,7 +181,7 @@ mod csv_fuzz_tests {
 
         #[test]
         fn test_csv_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = csv::CsvRepairer::new();
+            let mut repairer = csv::CsvRepairer::new();
             let validator = csv::CsvValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -192,7 +192,7 @@ mod csv_fuzz_tests {
 
         #[test]
         fn test_csv_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = csv::CsvRepairer::new();
+            let mut repairer = csv::CsvRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
@@ -212,7 +212,7 @@ mod ini_fuzz_tests {
 
         #[test]
         fn test_ini_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = ini::IniRepairer::new();
+            let mut repairer = ini::IniRepairer::new();
             let validator = ini::IniValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
@@ -223,7 +223,7 @@ mod ini_fuzz_tests {
 
         #[test]
         fn test_ini_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let repairer = ini::IniRepairer::new();
+            let mut repairer = ini::IniRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }

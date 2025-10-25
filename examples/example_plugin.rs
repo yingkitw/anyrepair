@@ -101,6 +101,10 @@ impl RepairStrategy for ExampleStrategy {
     fn priority(&self) -> u8 {
         3
     }
+
+    fn name(&self) -> &str {
+        "ExampleStrategy"
+    }
 }
 
 /// Example validator
@@ -143,7 +147,7 @@ impl ExampleRepairer {
 }
 
 impl Repair for ExampleRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         // Simple example: add a header comment
         Ok(format!("<!-- Repaired by Example Plugin -->\n{}", content))
     }

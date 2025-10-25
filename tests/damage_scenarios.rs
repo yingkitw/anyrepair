@@ -5,7 +5,7 @@ use anyrepair::{repair, json, yaml, markdown, xml, toml, csv, ini, advanced, Rep
 /// Test JSON repair with various damage scenarios
 #[test]
 fn test_json_damage_scenarios() {
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     
     // Test 1: Missing quotes around keys
     let input = r#"{
@@ -83,7 +83,7 @@ fn test_json_damage_scenarios() {
 /// Test YAML repair with various damage scenarios
 #[test]
 fn test_yaml_damage_scenarios() {
-    let repairer = yaml::YamlRepairer::new();
+    let mut repairer = yaml::YamlRepairer::new();
     
     // Test 1: Missing colons
     let input = r#"name John Doe
@@ -133,7 +133,7 @@ address
 /// Test Markdown repair with various damage scenarios
 #[test]
 fn test_markdown_damage_scenarios() {
-    let repairer = markdown::MarkdownRepairer::new();
+    let mut repairer = markdown::MarkdownRepairer::new();
     
     // Test 1: Malformed headers
     let input = r#"#Main Title
@@ -190,7 +190,7 @@ function hello() {
 /// Test XML repair with various damage scenarios
 #[test]
 fn test_xml_damage_scenarios() {
-    let repairer = xml::XmlRepairer::new();
+    let mut repairer = xml::XmlRepairer::new();
     
     // Test 1: Missing quotes around attributes
     let input = r#"<user id=1 name="John Doe" email=john@example.com>
@@ -239,7 +239,7 @@ fn test_xml_damage_scenarios() {
 /// Test TOML repair with various damage scenarios
 #[test]
 fn test_toml_damage_scenarios() {
-    let repairer = toml::TomlRepairer::new();
+    let mut repairer = toml::TomlRepairer::new();
     
     // Test 1: Missing quotes around string values
     let input = r#"[package]
@@ -290,7 +290,7 @@ admin = false"#;
 /// Test CSV repair with various damage scenarios
 #[test]
 fn test_csv_damage_scenarios() {
-    let repairer = csv::CsvRepairer::new();
+    let mut repairer = csv::CsvRepairer::new();
     
     // Test 1: Unquoted strings with spaces
     let input = r#"name,age,email,phone,address
@@ -331,7 +331,7 @@ Bob 35 bob@example.com 555-9012 789 Pine St"#;
 /// Test INI repair with various damage scenarios
 #[test]
 fn test_ini_damage_scenarios() {
-    let repairer = ini::IniRepairer::new();
+    let mut repairer = ini::IniRepairer::new();
     
     // Test 1: Missing equals signs
     let input = r#"[database]
@@ -388,7 +388,7 @@ timezone = America/New_York"#;
 /// Test advanced repairer with various damage scenarios
 #[test]
 fn test_advanced_damage_scenarios() {
-    let repairer = advanced::AdvancedRepairer::new();
+    let mut repairer = advanced::AdvancedRepairer::new();
     
     // Test 1: Severely damaged JSON
     let input = r#"{
@@ -591,7 +591,7 @@ fn test_performance_large_datasets() {
 /// Test confidence scoring with various content types
 #[test]
 fn test_confidence_scoring() {
-    let repairer = advanced::AdvancedRepairer::new();
+    let mut repairer = advanced::AdvancedRepairer::new();
     
     // Test 1: High confidence content
     let high_confidence = r#"{"name": "John", "age": 30}"#;
@@ -659,7 +659,7 @@ fn test_error_recovery_and_resilience() {
 /// Test real-world API response damage
 #[test]
 fn test_real_world_api_response_damage() {
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     
     // Test 1: Damaged API response with missing quotes and trailing commas
     let input = r#"{
@@ -748,7 +748,7 @@ fn test_real_world_api_response_damage() {
 /// Test real-world configuration damage
 #[test]
 fn test_real_world_config_damage() {
-    let repairer = yaml::YamlRepairer::new();
+    let mut repairer = yaml::YamlRepairer::new();
     
     // Test 1: Damaged Docker Compose file
     let input = r#"version: '3.8'
@@ -816,7 +816,7 @@ volumes:
 /// Test real-world data damage
 #[test]
 fn test_real_world_data_damage() {
-    let repairer = csv::CsvRepairer::new();
+    let mut repairer = csv::CsvRepairer::new();
     
     // Test 1: Damaged sales data
     let input = r#"order_id,customer_name,product_name,quantity,price,total,order_date,status
@@ -844,7 +844,7 @@ fn test_real_world_data_damage() {
 /// Test real-world configuration damage
 #[test]
 fn test_real_world_config_damage_ini() {
-    let repairer = ini::IniRepairer::new();
+    let mut repairer = ini::IniRepairer::new();
     
     // Test 1: Damaged Windows INI file
     let input = r#"[Desktop Entry]
@@ -889,7 +889,7 @@ Icon=my-app-about"#;
 /// Test mixed format content damage
 #[test]
 fn test_mixed_format_content_damage() {
-    let repairer = advanced::AdvancedRepairer::new();
+    let mut repairer = advanced::AdvancedRepairer::new();
     
     // Test 1: Mixed JSON/YAML content
     let input = r#"{

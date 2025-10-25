@@ -84,7 +84,7 @@ impl Default for TomlRepairer {
 }
 
 impl Repair for TomlRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // Handle empty content
@@ -221,6 +221,10 @@ impl RepairStrategy for FixMissingQuotesStrategy {
     fn priority(&self) -> u8 {
         6
     }
+
+    fn name(&self) -> &str {
+        "FixMissingQuotesStrategy"
+    }
 }
 
 /// Strategy to fix malformed arrays
@@ -239,6 +243,10 @@ impl RepairStrategy for FixMalformedArraysStrategy {
     
     fn priority(&self) -> u8 {
         5
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedArraysStrategy"
     }
 }
 
@@ -260,6 +268,10 @@ impl RepairStrategy for FixMalformedTablesStrategy {
     fn priority(&self) -> u8 {
         4
     }
+
+    fn name(&self) -> &str {
+        "FixMalformedTablesStrategy"
+    }
 }
 
 /// Strategy to fix malformed strings
@@ -280,6 +292,10 @@ impl RepairStrategy for FixMalformedStringsStrategy {
     
     fn priority(&self) -> u8 {
         3
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedStringsStrategy"
     }
 }
 
@@ -304,6 +320,10 @@ impl RepairStrategy for FixMalformedNumbersStrategy {
     fn priority(&self) -> u8 {
         2
     }
+
+    fn name(&self) -> &str {
+        "FixMalformedNumbersStrategy"
+    }
 }
 
 /// Strategy to fix malformed dates
@@ -324,6 +344,10 @@ impl RepairStrategy for FixMalformedDatesStrategy {
     
     fn priority(&self) -> u8 {
         1
+    }
+
+    fn name(&self) -> &str {
+        "FixMalformedDatesStrategy"
     }
 }
 
@@ -354,6 +378,10 @@ impl RepairStrategy for AddTableHeadersStrategy {
     fn priority(&self) -> u8 {
         0
     }
+
+    fn name(&self) -> &str {
+        "AddTableHeadersStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -363,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_toml_repair_basic() {
-        let repairer = TomlRepairer::new();
+        let mut repairer = TomlRepairer::new();
         
         let input = r#"name = John
 age = 30"#;
@@ -377,7 +405,7 @@ age = 30"#;
     
     #[test]
     fn test_toml_repair_missing_quotes() {
-        let repairer = TomlRepairer::new();
+        let mut repairer = TomlRepairer::new();
         
         let input = r#"[user]
 name = John
@@ -393,7 +421,7 @@ email = john@example.com"#;
     
     #[test]
     fn test_toml_repair_malformed_arrays() {
-        let repairer = TomlRepairer::new();
+        let mut repairer = TomlRepairer::new();
         
         let input = r#"fruits = [apple, banana,]
 colors = [red, green, blue,]"#;
@@ -407,7 +435,7 @@ colors = [red, green, blue,]"#;
     
     #[test]
     fn test_toml_repair_malformed_numbers() {
-        let repairer = TomlRepairer::new();
+        let mut repairer = TomlRepairer::new();
         
         let input = r#"version = 1.2.3.4
 price = 19.99..99"#;
@@ -421,7 +449,7 @@ price = 19.99..99"#;
     
     #[test]
     fn test_toml_confidence() {
-        let repairer = TomlRepairer::new();
+        let mut repairer = TomlRepairer::new();
         
         let valid_toml = r#"[user]
 name = "John"

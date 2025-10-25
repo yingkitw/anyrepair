@@ -5,7 +5,7 @@ use crate::error::Result;
 /// Trait for repairing content of various formats
 pub trait Repair {
     /// Repair the given content and return the repaired version
-    fn repair(&self, content: &str) -> Result<String>;
+    fn repair(&mut self, content: &str) -> Result<String>;
     
     /// Check if the content needs repair
     fn needs_repair(&self, content: &str) -> bool;
@@ -18,9 +18,12 @@ pub trait Repair {
 pub trait RepairStrategy {
     /// Apply the repair strategy to the content
     fn apply(&self, content: &str) -> Result<String>;
-    
+
     /// Get the priority of this strategy (higher = more important)
     fn priority(&self) -> u8;
+
+    /// Get the name of this strategy
+    fn name(&self) -> &str;
 }
 
 /// Trait for parallel-safe repair strategies

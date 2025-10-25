@@ -283,7 +283,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             write_output(output, &repaired)?;
             
             if confidence && !cli.quiet {
-                let repairer = json::JsonRepairer::new();
+                let mut repairer = json::JsonRepairer::new();
                 let conf = repairer.confidence(&content);
                 eprintln!("Confidence: {:.2}", conf);
             }
@@ -295,7 +295,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Json { input, output, confidence } => {
             let content = read_input(input)?;
-            let repairer = json::JsonRepairer::new();
+            let mut repairer = json::JsonRepairer::new();
             let repaired = repairer.repair(&content)?;
             write_output(output, &repaired)?;
             
@@ -306,7 +306,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Yaml { input, output, confidence } => {
             let content = read_input(input)?;
-            let repairer = yaml::YamlRepairer::new();
+            let mut repairer = yaml::YamlRepairer::new();
             let repaired = repairer.repair(&content)?;
             write_output(output, &repaired)?;
             
@@ -317,7 +317,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Markdown { input, output, confidence } => {
             let content = read_input(input)?;
-            let repairer = markdown::MarkdownRepairer::new();
+            let mut repairer = markdown::MarkdownRepairer::new();
             let repaired = repairer.repair(&content)?;
             write_output(output, &repaired)?;
             

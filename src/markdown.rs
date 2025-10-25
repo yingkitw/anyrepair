@@ -84,7 +84,7 @@ impl Default for MarkdownRepairer {
 }
 
 impl Repair for MarkdownRepairer {
-    fn repair(&self, content: &str) -> Result<String> {
+    fn repair(&mut self, content: &str) -> Result<String> {
         let trimmed = content.trim();
         
         // If already valid, return as-is
@@ -239,6 +239,10 @@ impl RepairStrategy for FixHeaderSpacingStrategy {
     fn priority(&self) -> u8 {
         6
     }
+
+    fn name(&self) -> &str {
+        "FixHeaderSpacingStrategy"
+    }
 }
 
 /// Strategy to fix code block fences
@@ -281,6 +285,10 @@ impl RepairStrategy for FixCodeBlockFencesStrategy {
     fn priority(&self) -> u8 {
         5
     }
+
+    fn name(&self) -> &str {
+        "FixCodeBlockFencesStrategy"
+    }
 }
 
 /// Strategy to fix list formatting
@@ -314,6 +322,10 @@ impl RepairStrategy for FixListFormattingStrategy {
     fn priority(&self) -> u8 {
         4
     }
+
+    fn name(&self) -> &str {
+        "FixListFormattingStrategy"
+    }
 }
 
 /// Strategy to fix link formatting
@@ -338,6 +350,10 @@ impl RepairStrategy for FixLinkFormattingStrategy {
     
     fn priority(&self) -> u8 {
         3
+    }
+
+    fn name(&self) -> &str {
+        "FixLinkFormattingStrategy"
     }
 }
 
@@ -364,6 +380,10 @@ impl RepairStrategy for FixBoldItalicStrategy {
     
     fn priority(&self) -> u8 {
         2
+    }
+
+    fn name(&self) -> &str {
+        "FixBoldItalicStrategy"
     }
 }
 
@@ -398,6 +418,10 @@ impl RepairStrategy for AddMissingNewlinesStrategy {
     
     fn priority(&self) -> u8 {
         1
+    }
+
+    fn name(&self) -> &str {
+        "AddMissingNewlinesStrategy"
     }
 }
 
@@ -466,6 +490,10 @@ impl RepairStrategy for FixTableFormattingStrategy {
     
     fn priority(&self) -> u8 {
         3
+    }
+
+    fn name(&self) -> &str {
+        "FixTableFormattingStrategy"
     }
 }
 
@@ -536,6 +564,10 @@ impl RepairStrategy for FixNestedListsStrategy {
     fn priority(&self) -> u8 {
         4
     }
+
+    fn name(&self) -> &str {
+        "FixNestedListsStrategy"
+    }
 }
 
 /// Strategy to fix image syntax
@@ -559,6 +591,10 @@ impl RepairStrategy for FixImageSyntaxStrategy {
     fn priority(&self) -> u8 {
         2
     }
+
+    fn name(&self) -> &str {
+        "FixImageSyntaxStrategy"
+    }
 }
 
 #[cfg(test)]
@@ -568,7 +604,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_headers() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         let input = "#Header\n##Subheader";
         let result = repairer.repair(input).unwrap();
@@ -581,7 +617,7 @@ mod tests {
     
     #[test]
     fn test_markdown_repair_code_blocks() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         let input = "```rust\nfn main() {\n    println!(\"Hello\");\n```";
         let result = repairer.repair(input).unwrap();
@@ -595,7 +631,7 @@ mod tests {
     
     #[test]
     fn test_markdown_repair_lists() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         let input = "-item1\n-item2\n1.item3";
         let result = repairer.repair(input).unwrap();
@@ -608,7 +644,7 @@ mod tests {
     
     #[test]
     fn test_markdown_confidence() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Valid Markdown should have confidence 1.0
         let valid = "# Header\n\nSome **bold** text";
@@ -623,7 +659,7 @@ mod tests {
     
     #[test]
     fn test_needs_repair() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         assert!(!repairer.needs_repair("# Header\n\nSome text"));
         assert!(repairer.needs_repair("not markdown at all"));
@@ -631,7 +667,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_edge_cases() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test empty markdown
         let input = "";
@@ -655,7 +691,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_complex_structures() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test complex document
         let input = "#Title\n\nSome **bold** and *italic* text.\n\n##Subsection\n\n- item1\n- item2\n\n```code\nblock\n```";
@@ -696,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_code_blocks_advanced() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test unclosed code block
         let input = "```rust\nfn main() {\n    println!(\"Hello\");\n";
@@ -729,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_lists_advanced() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test unordered lists
         let input = "-item1\n-item2\n-item3";
@@ -771,7 +807,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_formatting() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test bold and italic
         let input = "**bold** and *italic* and ***both***";
@@ -798,7 +834,7 @@ mod tests {
 
     #[test]
     fn test_markdown_repair_malformed_cases() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test unmatched bold
         let input = "**bold text without closing";
@@ -825,7 +861,7 @@ mod tests {
 
     #[test]
     fn test_markdown_confidence_edge_cases() {
-        let repairer = MarkdownRepairer::new();
+        let mut repairer = MarkdownRepairer::new();
         
         // Test empty string
         assert_eq!(repairer.confidence(""), 0.0);

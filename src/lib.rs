@@ -17,6 +17,7 @@
 // Core modules
 pub mod error;
 pub mod traits;
+pub mod repairer_base;
 
 // Format-specific repairers (kept at root for backward compatibility)
 pub mod json;

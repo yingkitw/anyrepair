@@ -471,6 +471,21 @@ mod tests {
     }
     
     #[test]
+    fn test_ini_repair_empty_input() {
+        let mut repairer = IniRepairer::new();
+        let result = repairer.repair("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_ini_repair_simple_key_value() {
+        let mut repairer = IniRepairer::new();
+        let input = "name = John\nage = 30";
+        let result = repairer.repair(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_ini_repair_missing_equals() {
         let mut repairer = IniRepairer::new();
         

@@ -441,6 +441,21 @@ mod tests {
     }
     
     #[test]
+    fn test_csv_repair_empty_input() {
+        let mut repairer = CsvRepairer::new();
+        let result = repairer.repair("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_csv_repair_single_column() {
+        let mut repairer = CsvRepairer::new();
+        let input = "value1\nvalue2\nvalue3";
+        let result = repairer.repair(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_csv_repair_extra_commas() {
         let mut repairer = CsvRepairer::new();
         

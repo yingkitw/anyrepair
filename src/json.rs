@@ -1098,6 +1098,44 @@ mod tests {
     }
 
     #[test]
+    fn test_json_repair_empty_input() {
+        let mut repairer = JsonRepairer::new();
+        let result = repairer.repair("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_json_repair_whitespace_only() {
+        let mut repairer = JsonRepairer::new();
+        let result = repairer.repair("   \n\t  ");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_json_repair_very_large_input() {
+        let mut repairer = JsonRepairer::new();
+        let large_json = r#"{"data": ""#.to_string() + &"x".repeat(10000) + r#""}"#;
+        let result = repairer.repair(&large_json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_json_repair_deeply_nested() {
+        let mut repairer = JsonRepairer::new();
+        let mut nested = String::from(r#"{"a":"#);
+        for _ in 0..50 {
+            nested.push_str(r#"{"b":"#);
+        }
+        nested.push_str(r#""value""#);
+        for _ in 0..50 {
+            nested.push('}');
+        }
+        nested.push('}');
+        let result = repairer.repair(&nested);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_json_repair_unicode_and_special_characters() {
         let mut repairer = JsonRepairer::new();
         

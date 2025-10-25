@@ -434,6 +434,21 @@ colors = [red, green, blue,]"#;
     }
     
     #[test]
+    fn test_toml_repair_empty_input() {
+        let mut repairer = TomlRepairer::new();
+        let result = repairer.repair("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_toml_repair_simple_key_value() {
+        let mut repairer = TomlRepairer::new();
+        let input = "name = John\nage = 30";
+        let result = repairer.repair(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_toml_repair_malformed_numbers() {
         let mut repairer = TomlRepairer::new();
         

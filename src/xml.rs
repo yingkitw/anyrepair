@@ -396,6 +396,21 @@ mod tests {
     }
     
     #[test]
+    fn test_xml_repair_empty_input() {
+        let mut repairer = XmlRepairer::new();
+        let result = repairer.repair("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_xml_repair_self_closing_tags() {
+        let mut repairer = XmlRepairer::new();
+        let input = "<root><item/><item/></root>";
+        let result = repairer.repair(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_xml_repair_malformed_attributes() {
         let mut repairer = XmlRepairer::new();
         

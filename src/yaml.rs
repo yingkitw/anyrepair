@@ -663,6 +663,20 @@ mod tests {
     }
 
     #[test]
+    fn test_yaml_repair_empty_input() {
+        let mut repairer = YamlRepairer::new();
+        let result = repairer.repair("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_yaml_repair_whitespace_only() {
+        let mut repairer = YamlRepairer::new();
+        let result = repairer.repair("   \n\t  ");
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_yaml_repair_malformed_cases() {
         let mut repairer = YamlRepairer::new();
         

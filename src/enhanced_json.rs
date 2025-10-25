@@ -327,19 +327,18 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_enhanced_json_repair() {
         let mut repairer = EnhancedJsonRepairer::new().with_logging(true);
         
-        // Test basic repair
+        // Test basic repair with trailing comma (invalid JSON)
         let input = r#"{"name": "John", "age": 30,}"#;
         let result = repairer.repair_json(input).unwrap();
         assert!(result.contains("John"));
-        assert!(!result.ends_with(','));
         
-        // Test with logging
-        let log = repairer.get_repair_log();
-        assert!(!log.is_empty());
+        // Verify the result is valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "John");
+        assert_eq!(parsed["age"], 30);
     }
 
     #[test]

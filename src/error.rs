@@ -71,3 +71,51 @@ impl RepairError {
         Self::Generic(msg.into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_creation() {
+        let err = RepairError::json_repair("test error");
+        assert_eq!(err.to_string(), "JSON repair failed: test error");
+
+        let err = RepairError::yaml_repair("yaml error");
+        assert_eq!(err.to_string(), "YAML repair failed: yaml error");
+
+        let err = RepairError::markdown_repair("markdown error");
+        assert_eq!(err.to_string(), "Markdown repair failed: markdown error");
+
+        let err = RepairError::format_detection("detection error");
+        assert_eq!(err.to_string(), "Format detection failed: detection error");
+
+        let err = RepairError::generic("generic error");
+        assert_eq!(err.to_string(), "Generic error: generic error");
+    }
+
+    #[test]
+    fn test_error_display() {
+        let err = RepairError::json_repair("invalid json");
+        let display_str = format!("{}", err);
+        assert!(display_str.contains("JSON repair failed"));
+        assert!(display_str.contains("invalid json"));
+    }
+
+    #[test]
+    fn test_error_debug() {
+        let err = RepairError::generic("test");
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("Generic"));
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_result_type() {
+        let ok_result: Result<String> = Ok("success".to_string());
+        assert!(ok_result.is_ok());
+
+        let err_result: Result<String> = Err(RepairError::generic("failed"));
+        assert!(err_result.is_err());
+    }
+}

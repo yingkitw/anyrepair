@@ -1,0 +1,109 @@
+{
+  "order": {
+    "id": "ORD-2024-001234",
+    "status": "processing",
+    "customer": {
+      "id": "CUST-5678",
+      "name": "Alice Johnson",
+      "email": "alice.johnson@example.com",
+      "phone": "+1-555-0123",
+      "tier": "premium",
+    },
+    "items": [
+      {
+        "sku": "PROD-001",
+        "name": "Wireless Headphones",
+        "category": "Electronics",
+        "quantity": 1,
+        "unitPrice": 79.99,
+        "discount": {
+          "type": "percentage",
+          "value": 10,
+          "appliedPrice": 71.99,
+        },
+        "tax": 5.76,
+        "subtotal": 77.75,
+        "attributes": {
+          "color": "black",
+          "warranty": "2-year",
+          "features": ["noise-cancelling", "wireless", "30-hour battery",],
+        },
+      },
+      {
+        "sku": "PROD-002",
+        "name": "USB-C Cable",
+        "category": "Accessories",
+        "quantity": 3,
+        "unitPrice": 12.99,
+        "discount": {
+          "type": "bulk",
+          "value": 5,
+          "appliedPrice": 12.34,
+        },
+        "tax": 2.78,
+        "subtotal": 39.02,
+        "attributes": {
+          "length": "2m",
+          "material": "braided",
+          "certifications": ["USB-IF", "CE",],
+        },
+      },
+    ],
+    "shipping": {
+      "method": "express",
+      "address": {
+        "street": "456 Oak Avenue",
+        "city": "Boston",
+        "state": "MA",
+        "zip": "02101",
+        "country": "USA",
+      },
+      "cost": 15.00,
+      "estimatedDelivery": "2024-10-28",
+      "trackingNumber": "TRK1234567890",
+    },
+    "billing": {
+      "address": {
+        "street": "456 Oak Avenue",
+        "city": "Boston",
+        "state": "MA",
+        "zip": "02101",
+        "country": "USA",
+      },
+      "method": "credit_card",
+      "cardLast4": "4242",
+      "cardBrand": "Visa",
+    },
+    "totals": {
+      "subtotal": 116.77,
+      "discount": -9.17,
+      "tax": 8.54,
+      "shipping": 15.00,
+      "total": 131.14,
+    },
+    "timeline": [
+      {
+        "status": "created",
+        "timestamp": "2024-10-25T10:00:00Z",
+        "notes": "Order placed",
+      },
+      {
+        "status": "confirmed",
+        "timestamp": "2024-10-25T10:15:00Z",
+        "notes": "Payment confirmed",
+      },
+      {
+        "status": "processing",
+        "timestamp": "2024-10-25T11:30:00Z",
+        "notes": "Items being packed",
+      },
+    ],
+    "metadata": {
+      "source": "web",
+      "campaign": "fall-sale-2024",
+      "referrer": "google-ads",
+      "notes": "Customer requested gift wrapping",
+      "tags": ["vip", "repeat-customer", "high-value",],
+    },
+  },
+}

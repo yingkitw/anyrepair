@@ -4,6 +4,58 @@
 
 AnyRepair is designed as a modular, extensible system for repairing LLM-generated content. The architecture follows Rust best practices with clear separation of concerns and trait-based design for testability. 
 
+## Module Organization
+
+The codebase is organized into logical modules for better maintainability:
+
+```
+src/
+├── lib.rs                 # Main library entry point
+├── main.rs               # CLI application
+├── error.rs              # Error types
+├── traits.rs             # Core trait definitions
+├── repairers/            # Format-specific repair implementations
+│   ├── mod.rs           # Module exports
+│   ├── json.rs          # JSON repairer
+│   ├── yaml.rs          # YAML repairer
+│   ├── markdown.rs      # Markdown repairer
+│   ├── xml.rs           # XML repairer
+│   ├── csv.rs           # CSV repairer
+│   ├── toml.rs          # TOML repairer
+│   └── ini.rs           # INI repairer
+├── utils/                # Utility modules
+│   ├── mod.rs           # Module exports
+│   ├── advanced.rs      # Advanced repair features
+│   ├── parallel.rs      # Parallel processing
+│   ├── context_parser.rs # Context-aware parsing
+│   └── enhanced_json.rs  # Enhanced JSON repair
+├── json.rs              # JSON repairer (root level for backward compatibility)
+├── yaml.rs              # YAML repairer
+├── markdown.rs          # Markdown repairer
+├── xml.rs               # XML repairer
+├── csv.rs               # CSV repairer
+├── toml.rs              # TOML repairer
+├── ini.rs               # INI repairer
+├── plugin.rs            # Plugin system
+├── plugin_config.rs     # Plugin configuration
+├── plugin_integration.rs # Plugin integration
+├── config.rs            # Configuration management
+├── custom_rules.rs      # Custom repair rules
+├── parallel.rs          # Parallel processing
+├── parallel_strategy.rs # Strategy application
+├── advanced.rs          # Advanced features
+├── context_parser.rs    # Context parsing
+└── enhanced_json.rs     # Enhanced JSON repair
+```
+
+### Module Hierarchy
+
+- **Root Level Modules**: Format-specific repairers kept at root for backward compatibility
+- **`repairers/`**: Organized access to all format-specific repair implementations
+- **`utils/`**: Advanced utilities and helper functions
+- **Plugin System**: Extensible plugin architecture
+- **Configuration**: User-defined repair rules and settings
+
 ## Core Components
 
 ### 1. Format Detection (`src/lib.rs`)

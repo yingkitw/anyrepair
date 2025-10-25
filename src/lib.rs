@@ -4,8 +4,21 @@
 //! 
 //! This crate provides robust repair mechanisms for common issues found in LLM-generated content,
 //! such as malformed JSON, incomplete YAML, and broken Markdown formatting.
+//!
+//! ## Module Organization
+//!
+//! - `repairers` - Format-specific repair implementations (JSON, YAML, XML, CSV, TOML, INI, Markdown)
+//! - `plugins` - Plugin system and integration
+//! - `config` - Configuration and custom rule management
+//! - `utils` - Utility functions and helpers (advanced, parallel, context parsing)
+//! - `traits` - Core trait definitions
+//! - `error` - Error types and handling
 
+// Core modules
 pub mod error;
+pub mod traits;
+
+// Format-specific repairers (kept at root for backward compatibility)
 pub mod json;
 pub mod yaml;
 pub mod markdown;
@@ -13,17 +26,22 @@ pub mod xml;
 pub mod toml;
 pub mod csv;
 pub mod ini;
+
+// Organized modules (re-export from existing modules)
+pub mod repairers;
+pub mod utils;
+
+// Legacy modules (re-exported from organized modules for backward compatibility)
 pub mod parallel;
 pub mod parallel_strategy;
 pub mod advanced;
-pub mod traits;
-pub mod config;
-pub mod custom_rules;
 pub mod plugin;
 pub mod plugin_config;
 pub mod plugin_integration;
 pub mod context_parser;
 pub mod enhanced_json;
+pub mod config;
+pub mod custom_rules;
 
 pub use error::{RepairError, Result};
 pub use traits::Repair;

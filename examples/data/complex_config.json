@@ -1,0 +1,172 @@
+{
+  "application": {
+    "name": "MyApp",
+    "version": "2.5.1",
+    "environment": "production",
+    "debug": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "ssl": {
+      "enabled": true,
+      "certificate": "/etc/ssl/certs/app.crt",
+      "key": "/etc/ssl/private/app.key",
+      "protocols": ["TLSv1.2", "TLSv1.3"]
+    },
+    "cors": {
+      "enabled": true,
+      "origins": ["https://example.com", "https://app.example.com"],
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "credentials": true,
+      "maxAge": 86400
+    }
+  },
+  "database": {
+    "primary": {
+      "type": "postgresql",
+      "host": "db-primary.internal",
+      "port": 5432,
+      "database": "myapp_prod",
+      "username": "app_user",
+      "pool": {
+        "min": 5,
+        "max": 20,
+        "idleTimeout": 30000,
+        "connectionTimeout": 5000
+      },
+      "ssl": true,
+      "replication": {
+        "enabled": true,
+        "replicas": [
+          {
+            "host": "db-replica1.internal",
+            "port": 5432
+          },
+          {
+            "host": "db-replica2.internal",
+            "port": 5432
+          }
+        ]
+      }
+    },
+    "cache": {
+      "type": "redis",
+      "host": "cache.internal",
+      "port": 6379,
+      "ttl": 3600,
+      "cluster": {
+        "enabled": true,
+        "nodes": [
+          "cache-node1.internal:6379",
+          "cache-node2.internal:6379",
+          "cache-node3.internal:6379"
+        ]
+      }
+    }
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputs": [
+      {
+        "type": "file",
+        "path": "/var/log/app/app.log",
+        "maxSize": "100MB",
+        "maxFiles": 10,
+        "compress": true
+      },
+      {
+        "type": "syslog",
+        "host": "syslog.internal",
+        "port": 514,
+        "facility": "local0"
+      },
+      {
+        "type": "elasticsearch",
+        "host": "elasticsearch.internal",
+        "port": 9200,
+        "index": "app-logs"
+      }
+    ]
+  },
+  "authentication": {
+    "jwt": {
+      "enabled": true,
+      "secret": "${JWT_SECRET}",
+      "algorithm": "HS256",
+      "expiresIn": "24h",
+      "refreshTokenExpiresIn": "7d"
+    },
+    "oauth2": {
+      "enabled": true,
+      "providers": {
+        "google": {
+          "clientId": "${GOOGLE_CLIENT_ID}",
+          "clientSecret": "${GOOGLE_CLIENT_SECRET}",
+          "redirectUri": "https://app.example.com/auth/google/callback"
+        },
+        "github": {
+          "clientId": "${GITHUB_CLIENT_ID}",
+          "clientSecret": "${GITHUB_CLIENT_SECRET}",
+          "redirectUri": "https://app.example.com/auth/github/callback"
+        }
+      }
+    }
+  },
+  "features": {
+    "analytics": {
+      "enabled": true,
+      "provider": "google-analytics",
+      "trackingId": "UA-123456789-1"
+    },
+    "notifications": {
+      "enabled": true,
+      "channels": {
+        "email": {
+          "enabled": true,
+          "provider": "sendgrid",
+          "apiKey": "${SENDGRID_API_KEY}"
+        },
+        "sms": {
+          "enabled": true,
+          "provider": "twilio",
+          "accountSid": "${TWILIO_ACCOUNT_SID}",
+          "authToken": "${TWILIO_AUTH_TOKEN}"
+        },
+        "push": {
+          "enabled": true,
+          "provider": "firebase",
+          "projectId": "${FIREBASE_PROJECT_ID}"
+        }
+      }
+    },
+    "rateLimit": {
+      "enabled": true,
+      "windowMs": 60000,
+      "maxRequests": 100,
+      "keyGenerator": "ip"
+    }
+  },
+  "monitoring": {
+    "healthCheck": {
+      "enabled": true,
+      "interval": 30000,
+      "timeout": 5000,
+      "endpoints": ["/health", "/health/ready", "/health/live"]
+    },
+    "metrics": {
+      "enabled": true,
+      "provider": "prometheus",
+      "port": 9090,
+      "path": "/metrics"
+    },
+    "tracing": {
+      "enabled": true,
+      "provider": "jaeger",
+      "host": "jaeger.internal",
+      "port": 6831,
+      "samplingRate": 0.1
+    }
+  }
+}

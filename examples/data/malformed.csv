@@ -1,0 +1,6 @@
+name,age,email,city,role
+John Doe,30,john@example.com,New York,admin,
+Jane Smith,28,jane@example.com,Los Angeles,
+Bob Johnson,35,,Chicago,user
+Alice Williams,32,alice@example.com,Houston
+Charlie Brown,29,charlie@example.com,Phoenix,user,extra,fields

@@ -31,6 +31,10 @@ struct Cli {
 enum Commands {
     /// Repair content automatically (detects format)
     Repair {
+        /// Input file path (or use --input flag, stdin if not provided)
+        #[arg(value_name = "FILE")]
+        file: Option<String>,
+        
         /// Input file (stdin if not provided)
         #[arg(short, long)]
         input: Option<String>,
@@ -271,9 +275,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     match cli.command {
-        Commands::Repair { input, output, confidence } => {
+        Commands::Repair { file, input, output, confidence } => {
             let start_time = Instant::now();
-            let content = read_input(input)?;
+            // Prefer positional file argument over --input flag
+            let input_source = file.or(input);
+            let content = read_input(input_source)?;
             
             if cli.verbose && !cli.quiet {
                 eprintln!("Detecting format and repairing content...");

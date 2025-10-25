@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <user>
+    <name>John Doe</name>
+    <age>30</age>
+    <email>john@example.com
+    <address>
+      <street>123 Main St
+      <city>New York</city>
+      <state>NY</state>
+      <zip>10001</zip>
+    </address>
+    <roles>
+      <role>admin</role>
+      <role>user
+    </roles>
+    <active>true</active>
+  </user>
+</root>

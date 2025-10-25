@@ -1,0 +1,110 @@
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "2024-10-25T12:34:56.789Z",
+  "data": {
+    "users": [
+      {
+        "id": 1,
+        "username": "john_doe",
+        "email": "john@example.com",
+        "profile": {
+          "firstName": "John",
+          "lastName": "Doe",
+          "avatar": "https://example.com/avatars/john.jpg",
+          "bio": "Software engineer and coffee enthusiast",
+          "location": {
+            "city": "New York",
+            "state": "NY",
+            "country": "USA",
+            "coordinates": {
+              "latitude": 40.7128,
+              "longitude": -74.0060
+            }
+          }
+        },
+        "preferences": {
+          "theme": "dark",
+          "language": "en",
+          "notifications": {
+            "email": true,
+            "push": false,
+            "sms": true
+          },
+          "privacy": {
+            "profilePublic": true,
+            "showEmail": false,
+            "allowMessages": true
+          }
+        },
+        "metadata": {
+          "createdAt": "2023-01-15T10:30:00Z",
+          "updatedAt": "2024-10-25T12:00:00Z",
+          "lastLogin": "2024-10-25T11:45:00Z",
+          "loginCount": 156,
+          "isActive": true,
+          "roles": ["user", "contributor"]
+        }
+      },
+      {
+        "id": 2,
+        "username": "jane_smith",
+        "email": "jane@example.com",
+        "profile": {
+          "firstName": "Jane",
+          "lastName": "Smith",
+          "avatar": "https://example.com/avatars/jane.jpg",
+          "bio": "Product manager and designer",
+          "location": {
+            "city": "San Francisco",
+            "state": "CA",
+            "country": "USA",
+            "coordinates": {
+              "latitude": 37.7749,
+              "longitude": -122.4194
+            }
+          }
+        },
+        "preferences": {
+          "theme": "light",
+          "language": "en",
+          "notifications": {
+            "email": true,
+            "push": true,
+            "sms": false
+          },
+          "privacy": {
+            "profilePublic": true,
+            "showEmail": true,
+            "allowMessages": true
+          }
+        },
+        "metadata": {
+          "createdAt": "2023-06-20T14:15:00Z",
+          "updatedAt": "2024-10-24T18:30:00Z",
+          "lastLogin": "2024-10-24T17:20:00Z",
+          "loginCount": 89,
+          "isActive": true,
+          "roles": ["user", "admin"]
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 2,
+      "totalPages": 5,
+      "totalItems": 10,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  },
+  "meta": {
+    "requestId": "req_abc123def456",
+    "version": "2.0",
+    "rateLimit": {
+      "limit": 1000,
+      "remaining": 987,
+      "reset": 1635158400
+    }
+  }
+}

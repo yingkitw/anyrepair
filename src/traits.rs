@@ -14,6 +14,40 @@ pub trait Repair {
     fn confidence(&self, content: &str) -> f64;
 }
 
+/// Base trait for format-specific repairers to reduce code duplication
+pub trait BaseRepairer: Repair {
+    /// Get the validator for this format
+    fn validator(&self) -> &dyn Validator;
+    
+    /// Get the strategies for this format
+    fn strategies(&self) -> &[Box<dyn RepairStrategy>];
+    
+    /// Default implementation of repair logic
+    fn repair_impl(&self, content: &str) -> Result<String> {
+        let trimmed = content.trim();
+        
+        // Handle empty content
+        if trimmed.is_empty() {
+            return Ok(String::new());
+        }
+        
+        // If already valid, return as-is
+        if self.validator().is_valid(trimmed) {
+            return Ok(trimmed.to_string());
+        }
+        
+        // Apply repair strategies
+        let mut repaired = trimmed.to_string();
+        for strategy in self.strategies() {
+            if let Ok(result) = strategy.apply(&repaired) {
+                repaired = result;
+            }
+        }
+        
+        Ok(repaired)
+    }
+}
+
 /// Trait for format-specific repair strategies
 pub trait RepairStrategy {
     /// Apply the repair strategy to the content

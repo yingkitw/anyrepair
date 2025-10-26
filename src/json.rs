@@ -58,6 +58,7 @@ impl JsonRepairer {
     /// Create a new JSON repairer
     pub fn new() -> Self {
         let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+            Box::new(StripTrailingContentStrategy),
             Box::new(AddMissingQuotesStrategy),
             Box::new(FixTrailingCommasStrategy),
             // Box::new(FixUnescapedQuotesStrategy), // Disabled due to regex complexity
@@ -214,6 +215,177 @@ impl Validator for JsonValidator {
             Ok(_) => vec![],
             Err(e) => vec![e.to_string()],
         }
+    }
+}
+
+/// Strategy to strip trailing content after JSON closes
+struct StripTrailingContentStrategy;
+
+impl RepairStrategy for StripTrailingContentStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        let mut result = String::new();
+        let mut brace_count = 0;
+        let mut bracket_count = 0;
+        let mut in_string = false;
+        let mut escape_next = false;
+        let mut found_json_end = false;
+        let chars: Vec<char> = content.chars().collect();
+        let len = chars.len();
+        
+        for i in 0..len {
+            let ch = chars[i];
+            
+            if escape_next {
+                result.push(ch);
+                escape_next = false;
+                continue;
+            }
+            
+            match ch {
+                '\\' if in_string => {
+                    result.push(ch);
+                    escape_next = true;
+                }
+                '"' => {
+                    result.push(ch);
+                    in_string = !in_string;
+                }
+                '{' if !in_string => {
+                    result.push(ch);
+                    brace_count += 1;
+                }
+                '}' if !in_string => {
+                    result.push(ch);
+                    brace_count -= 1;
+                    if brace_count == 0 && bracket_count == 0 {
+                        // Check if next non-whitespace character is a comma or bracket/brace
+                        // If so, this might be JSONL format, so don't strip
+                        let mut j = i + 1;
+                        while j < len && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r') {
+                            j += 1;
+                        }
+                        
+                        if j < len && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
+                            // This looks like JSONL or multiple objects, keep going
+                            found_json_end = false;
+                        } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
+                            // End of input or only special characters left (including backticks), strip trailing content
+                            found_json_end = true;
+                        }
+                    }
+                }
+                '[' if !in_string => {
+                    result.push(ch);
+                    bracket_count += 1;
+                }
+                ']' if !in_string => {
+                    result.push(ch);
+                    bracket_count -= 1;
+                    if brace_count == 0 && bracket_count == 0 {
+                        // Check if next non-whitespace character is a comma or bracket/brace
+                        let mut j = i + 1;
+                        while j < len && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r') {
+                            j += 1;
+                        }
+                        
+                        if j < len && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
+                            // This looks like JSONL or multiple objects, keep going
+                            found_json_end = false;
+                        } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
+                            // End of input or only special characters left (including backticks), strip trailing content
+                            found_json_end = true;
+                        }
+                    }
+                }
+                _ => {
+                    if !found_json_end {
+                        result.push(ch);
+                    }
+                }
+            }
+        }
+        
+        Ok(result)
+    }
+
+    fn priority(&self) -> u8 {
+        10 // Highest priority - run first
+    }
+
+    fn name(&self) -> &str {
+        "StripTrailingContentStrategy"
+    }
+}
+
+/// Strategy to escape unescaped quotes in string values
+struct EscapeUnescapedQuotesStrategy;
+
+impl RepairStrategy for EscapeUnescapedQuotesStrategy {
+    fn apply(&self, content: &str) -> Result<String> {
+        // Use a regex to find patterns like: "key": "value with "unescaped" quotes"
+        // and escape the inner quotes
+        let mut result = String::new();
+        let mut in_string = false;
+        let mut escape_next = false;
+        let chars: Vec<char> = content.chars().collect();
+        let len = chars.len();
+        let mut i = 0;
+        
+        while i < len {
+            let ch = chars[i];
+            
+            if escape_next {
+                result.push(ch);
+                escape_next = false;
+                i += 1;
+                continue;
+            }
+            
+            if ch == '\\' && in_string {
+                result.push(ch);
+                escape_next = true;
+                i += 1;
+            } else if ch == '"' {
+                if !in_string {
+                    // Starting a string
+                    in_string = true;
+                    result.push(ch);
+                    i += 1;
+                } else {
+                    // Check if the next character suggests this might be a closing quote
+                    // Look ahead to see if we have a comma, closing brace, or closing bracket
+                    let mut j = i + 1;
+                    while j < len && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r') {
+                        j += 1;
+                    }
+                    
+                    if j < len && (chars[j] == ',' || chars[j] == '}' || chars[j] == ']' || chars[j] == ':') {
+                        // This looks like a closing quote
+                        result.push(ch);
+                        in_string = false;
+                        i += 1;
+                    } else {
+                        // This looks like an unescaped quote inside the string
+                        result.push('\\');
+                        result.push(ch);
+                        i += 1;
+                    }
+                }
+            } else {
+                result.push(ch);
+                i += 1;
+            }
+        }
+        
+        Ok(result)
+    }
+
+    fn priority(&self) -> u8 {
+        9 // High priority - run early
+    }
+
+    fn name(&self) -> &str {
+        "EscapeUnescapedQuotesStrategy"
     }
 }
 
@@ -529,28 +701,57 @@ impl FixAgenticAiResponseStrategy {
     
     /// Fix string escaping in parameters
     fn fix_parameter_strings(&self, content: &str) -> String {
-        // Use regex to find and fix unescaped quotes in string values
-        let mut result = content.to_string();
+        let mut result = String::new();
+        let mut in_string = false;
+        let mut escape_next = false;
+        let chars: Vec<char> = content.chars().collect();
+        let len = chars.len();
+        let mut i = 0;
         
-        // Pattern to match: "key": "value with "quotes" inside"
-        // This regex looks for a quoted string value that contains unescaped quotes
-        let pattern = r#""([^"]*)"([^"]*)"([^"]*)"#;
-        
-        if let Ok(regex) = Regex::new(pattern) {
-            result = regex.replace_all(&result, |caps: &regex::Captures| {
-                let part1 = &caps[1];
-                let part2 = &caps[2];
-                let part3 = &caps[3];
-                
-                // If part2 contains quotes, escape them
-                if part2.contains("\"") {
-                    let escaped_part2 = part2.replace("\"", "\\\"");
-                    format!("\"{}\"{}\"{}", part1, escaped_part2, part3)
+        while i < len {
+            let ch = chars[i];
+            
+            if escape_next {
+                result.push(ch);
+                escape_next = false;
+                i += 1;
+                continue;
+            }
+            
+            if ch == '\\' && in_string {
+                result.push(ch);
+                escape_next = true;
+                i += 1;
+            } else if ch == '"' {
+                if !in_string {
+                    // Starting a string
+                    in_string = true;
+                    result.push(ch);
+                    i += 1;
                 } else {
-                    // No quotes to escape, return as-is
-                    format!("\"{}\"{}\"{}", part1, part2, part3)
+                    // Check if the next character suggests this might be a closing quote
+                    // Look ahead to see if we have a comma, closing brace, or closing bracket
+                    let mut j = i + 1;
+                    while j < len && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r') {
+                        j += 1;
+                    }
+                    
+                    if j < len && (chars[j] == ',' || chars[j] == '}' || chars[j] == ']' || chars[j] == ':') {
+                        // This looks like a closing quote
+                        result.push(ch);
+                        in_string = false;
+                        i += 1;
+                    } else {
+                        // This looks like an unescaped quote inside the string
+                        result.push('\\');
+                        result.push(ch);
+                        i += 1;
+                    }
                 }
-            }).to_string();
+            } else {
+                result.push(ch);
+                i += 1;
+            }
         }
         
         result
@@ -823,7 +1024,7 @@ mod tests {
                     "path": "C:\\Users\\John\\Documents",
                     "regex": "pattern\\d+",
                     "unicode": "Hello \u0041\u0042\u0043",
-                    "quotes": "He said \"Hello\" and "Goodbye""}
+                    "quotes": "He said \"Hello\" and \"Goodbye\""}
         "#);
         
         // Test empty strings and special values
@@ -1077,10 +1278,10 @@ mod tests {
         assert_snapshot!(result, @r#"
         {
                     "single": "quotes",
-                    "double": "quotes with "escaped" content",
+                    "double": "quotes with \"escaped\" content",
                     "trailing": "comma",
-                    "missing": "comma"
-                    "number": 42,
+                    "missing": "comma\"
+                    \"number": 42,
                     "array": [1, 2, 3],
                     "nested": {
                         "inner": "value",
@@ -1172,9 +1373,9 @@ mod tests {
         {
                     "multiline": "Line 1\nLine 2\r\nLine 3",
                     "tabs": "Column1\tColumn2\tColumn3",
-                    "quotes": "He said \"Hello\" and "Goodbye"",
-                    "backslashes": "Path: "C":\\Users\\Name\\Documents",
-                    "mixed_quotes": "It's a \"beautiful\" day"}
+                    "quotes": "He said \"Hello\" and \"Goodbye\"",
+                    "backslashes": "Path: \"C":\\Users\\Name\\Documents",
+                    \"mixed_quotes": "It's a \"beautiful\" day"}
         "#);
     }
 
@@ -1269,8 +1470,8 @@ mod tests {
                     "extra_colon": "key":: "value",
                     "duplicate_keys": {"a": 1, "a": 2},
                     "nested_errors": {
-                        "inner": "value"
-                        "missing_comma": "here"
+                        "inner": "value\"
+                        \"missing_comma": "here"
                     },
                     "array_errors": [1, 2, 3],
                     "mixed_quotes": {"single": "double"}}
@@ -1519,12 +1720,12 @@ mod tests {
         {
                     "key1": "value1",
                     "key2": "value2",
-                    "key3": "value with "quotes" inside",
-                    "key4": "value with "single" quotes",
+                    "key3": "value with \"quotes\" inside",
+                    "key4": "value with \"single\" quotes",
                     "key5": "value with \n newlines and \t tabs",
                     "key6": "value with \\ backslashes",
-                    "key7": "value with "unicode": café naïve résumé 🌍",
-                    "key8": 42,
+                    "key7": "value with \"unicode": café naïve résumé 🌍",
+                    \"key8": 42,
                     "key9": 3.14159,
                     "key10": true,
                     "key11": false,

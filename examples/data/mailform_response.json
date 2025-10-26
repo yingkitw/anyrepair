@@ -1,0 +1,60 @@
+{
+  "goal": "generate java springboot",
+  "steps": [
+    {
+      "step_number": 1,
+      "description": "Scaffold Spring Boot project structure",
+      "tool_call": {
+        "tool_name": "scaffold_project",
+        "parameters": {
+          "project_type": "java",
+          "project_name": "spring-app"
+        }
+      }
+    },
+    {
+      "step_number": 2,
+      "description": "Generate Spring Boot application code",
+      "tool_call": {
+        "tool_name": "generate_code",
+        "parameters": {
+          "prompt": "Generate a simple Java Spring Boot application with a REST controller exposing a "/hello" endpoint returning "Hello, World!". Include necessary dependencies in pom.xml.",
+          "template": "SpringBootApplication.java"
+        }
+      }
+    },
+    {
+      "step_number": 3,
+      "description": "Generate Maven build file",
+      "tool_call": {
+        "tool_name": "generate_build_file",
+        "parameters": {
+          "project_type": "java",
+          "project_name": "springboot-app"
+        }
+      }
+    },
+    {
+      "step_number": 4,
+      "description": "Generate basic JUnit tests for the application",
+      "tool_call": {
+        "tool_name": "generate_tests",
+        "parameters": {
+          "filepath": "src/main/java/com/example/springbootapp/HelloController.java",
+          "test_type": "JUnit"
+        }
+      }
+    },
+    {
+      "step_number": 5,
+      "description": "Generate project documentation",
+      "tool_call": {
+        "tool_name": "create_documentation",
+        "parameters": {
+          "project_path": "./springboot-app"
+        }
+      }
+    }
+  ]
+}
+```

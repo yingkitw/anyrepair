@@ -44,9 +44,21 @@ pub mod enhanced_json;
 pub mod config;
 pub mod custom_rules;
 
+// Enterprise features
+pub mod analytics;
+pub mod batch_processor;
+pub mod validation_rules;
+pub mod audit_log;
+pub mod confidence_scorer;
+
 pub use error::{RepairError, Result};
 pub use traits::Repair;
 pub use enhanced_json::EnhancedJsonRepairer;
+pub use analytics::AnalyticsTracker;
+pub use batch_processor::BatchProcessor;
+pub use validation_rules::ValidationRulesEngine;
+pub use audit_log::AuditLogger;
+pub use confidence_scorer::ConfidenceScorer;
 
 use serde_json::Value;
 use std::fs::File;

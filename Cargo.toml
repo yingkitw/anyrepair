@@ -9,7 +9,7 @@ repository = "https://github.com/yingkitw/anyrepair"
 homepage = "https://github.com/yingkitw/anyrepair"
 documentation = "https://docs.rs/anyrepair"
 readme = "README.md"
-keywords = ["llm", "repair", "json", "yaml", "markdown", "xml", "parsing", "validation"]
+keywords = ["llm", "repair", "json", "yaml", "parser"]
 categories = ["text-processing", "parser-implementations", "development-tools"]
 
 [dependencies]

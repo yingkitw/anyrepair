@@ -11,27 +11,30 @@ The codebase is organized into logical modules for better maintainability:
 ```
 src/
 ├── lib.rs                 # Main library entry point
-├── main.rs               # CLI application
-├── error.rs              # Error types
-├── traits.rs             # Core trait definitions
-├── repairers/            # Format-specific repair implementations
-│   ├── mod.rs           # Module exports
-│   ├── json.rs          # JSON repairer
-│   ├── yaml.rs          # YAML repairer
-│   ├── markdown.rs      # Markdown repairer
-│   ├── xml.rs           # XML repairer
-│   ├── csv.rs           # CSV repairer
-│   ├── toml.rs          # TOML repairer
-│   └── ini.rs           # INI repairer
-├── utils/                # Utility modules
-│   ├── mod.rs           # Module exports
-│   ├── advanced.rs      # Advanced repair features
-│   ├── parallel.rs      # Parallel processing
-│   ├── context_parser.rs # Context-aware parsing
-│   └── enhanced_json.rs  # Enhanced JSON repair
-├── json.rs              # JSON repairer (root level for backward compatibility)
+├── main.rs               # CLI application (180 lines, optimized)
+├── bin/
+│   └── mcp_server.rs     # MCP server binary
+├── cli/                  # CLI module (modulized)
+│   ├── mod.rs           # CLI utilities and exports
+│   ├── repair_cmd.rs    # Repair command handlers
+│   ├── validate_cmd.rs  # Validation command
+│   ├── batch_cmd.rs     # Batch processing command
+│   ├── rules_cmd.rs     # Rules management command
+│   └── stream_cmd.rs    # Streaming command
+├── json/                 # JSON module (modulized, 573 lines total)
+│   ├── mod.rs           # Main repairer (216 lines)
+│   ├── strategies.rs    # Repair strategies (312 lines)
+│   └── validator.rs     # JSON validator (45 lines)
+├── markdown/             # Markdown module (modulized, 554 lines total)
+│   ├── mod.rs           # Main repairer (186 lines)
+│   ├── strategies.rs    # Repair strategies (301 lines)
+│   └── validator.rs     # Markdown validator (67 lines)
+├── mcp_server.rs        # MCP server implementation (312 lines)
+├── streaming.rs         # Streaming repair support
+├── error.rs             # Error types
+├── traits.rs            # Core trait definitions
+├── repairer_base.rs     # Base repairer implementation
 ├── yaml.rs              # YAML repairer
-├── markdown.rs          # Markdown repairer
 ├── xml.rs               # XML repairer
 ├── csv.rs               # CSV repairer
 ├── toml.rs              # TOML repairer
@@ -510,6 +513,62 @@ tests/
 - `tempfile` - Temporary file handling
 - `proptest` - Property-based testing
 - `arbitrary` - Fuzz testing support
+
+## MCP Server Integration
+
+### MCP Server (`src/mcp_server.rs`)
+
+The MCP (Model Context Protocol) server provides integration with Claude and other AI clients:
+
+**Architecture:**
+- `AnyrepairMcpServer` - Main server implementation
+- 9 available tools (repair, repair_json, repair_yaml, repair_markdown, repair_xml, repair_toml, repair_csv, repair_ini, validate)
+- JSON-based request/response protocol
+- Stateless design for scalability
+
+**Features:**
+- Auto-detect and repair functionality
+- Format-specific repair with confidence scoring
+- Content validation across all formats
+- Error handling with descriptive messages
+- Tool discovery and metadata
+
+**Binary:** `src/bin/mcp_server.rs` (39 lines)
+- Stdin/stdout interface
+- Server info and tool discovery
+- Request processing loop
+- Graceful EOF handling
+
+**Integration:**
+- Claude desktop integration via `claude_desktop_config.json`
+- Supports all 7 repair formats
+- Confidence scoring for format-specific repairs
+- Comprehensive error handling
+
+## Modulization Strategy
+
+### Phase 1: JSON Module (Complete)
+- Extracted strategies to `src/json/strategies.rs`
+- Extracted validator to `src/json/validator.rs`
+- Created `src/json/mod.rs` for main repairer
+- Reduced from 2082 to 573 lines (73% reduction)
+
+### Phase 2: Markdown Module (Complete)
+- Extracted strategies to `src/markdown/strategies.rs`
+- Extracted validator to `src/markdown/validator.rs`
+- Created `src/markdown/mod.rs` for main repairer
+- Reduced from 938 to 554 lines (41% reduction)
+
+### Phase 3: CLI Module (Complete)
+- Extracted command handlers to `src/cli/`
+- Created separate files for each command type
+- Reduced main.rs from 881 to 180 lines (80% reduction)
+- Maintained backward compatibility
+
+**Total Modulization Impact:**
+- Before: 3901 lines in large files
+- After: 1662 lines in organized modules
+- Overall reduction: 57%
 
 ## Enterprise Features
 

@@ -54,6 +54,9 @@ pub mod confidence_scorer;
 // Streaming support
 pub mod streaming;
 
+// MCP server support
+pub mod mcp_server;
+
 pub use error::{RepairError, Result};
 pub use traits::Repair;
 pub use enhanced_json::EnhancedJsonRepairer;
@@ -63,6 +66,7 @@ pub use validation_rules::ValidationRulesEngine;
 pub use audit_log::AuditLogger;
 pub use confidence_scorer::ConfidenceScorer;
 pub use streaming::StreamingRepair;
+pub use mcp_server::AnyrepairMcpServer;
 
 use serde_json::Value;
 use std::fs::File;

@@ -48,9 +48,11 @@ Unlike single-format tools like `json-repair-rs` or `json5`, AnyRepair handles *
 - **Plugin System**: Extensible architecture for custom repair logic
 
 ### **Production-Ready Features**
-- **Comprehensive Testing**: 228 test cases (170 unit + 18 damage scenario + 36 fuzz + 4 integration) with 100% pass rate
-- **High Performance**: Regex caching with 99.6% performance improvement
+- **Comprehensive Testing**: 311 test cases (147 unit + 43 MCP + 18 damage + 18 streaming + 36 fuzz + 4 integration + 26 streaming + 18 complex) with 100% pass rate
+- **High Performance**: Regex caching with 99.6% performance improvement, optimized binaries (1.5 MB)
 - **CLI & Library**: Both command-line tool and Rust library for integration
+- **MCP Server**: Model Context Protocol server for Claude and other AI clients
+- **Streaming Support**: Process large files with minimal memory overhead
 - **Configuration Management**: TOML-based configuration with custom rules
 - **Enterprise Features**: Analytics, batch processing, validation rules, and audit logging
 
@@ -114,6 +116,27 @@ Each format has tailored confidence rules:
 - **Customizable**: Rules can be extended through the plugin system
 
 ## Agentic AI & MCP Integration
+
+### **MCP Server**
+
+AnyRepair now includes a dedicated MCP server for integration with Claude and other MCP-compatible clients:
+
+```bash
+# Run the MCP server
+anyrepair-mcp
+
+# Or integrate with Claude
+# Add to claude_desktop_config.json:
+# {
+#   "mcpServers": {
+#     "anyrepair": {
+#       "command": "anyrepair-mcp"
+#     }
+#   }
+# }
+```
+
+See [MCP_SERVER.md](MCP_SERVER.md) for detailed documentation.
 
 ### **Model Context Protocol (MCP) Support**
 

@@ -35,6 +35,11 @@
 - [x] Streaming repair for large files
 - [x] Complex damage test cases (18 tests)
 - [x] Complex streaming test cases (18 tests)
+- [x] Code modulization (JSON, Markdown, CLI modules)
+- [x] MCP server implementation
+- [x] MCP test coverage (43 tests)
+- [x] MCP examples and documentation
+- [x] Build size optimization (94% reduction)
 
 ## Next Implementation Priorities 🚀
 

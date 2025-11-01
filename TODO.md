@@ -32,6 +32,9 @@
 - [x] Fuzz testing for robustness
 - [x] Plugin system foundation
 - [x] Additional documentation improvements
+- [x] Streaming repair for large files
+- [x] Complex damage test cases (18 tests)
+- [x] Complex streaming test cases (18 tests)
 
 ## Next Implementation Priorities 🚀
 

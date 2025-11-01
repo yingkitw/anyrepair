@@ -329,7 +329,12 @@ mod performance_fuzz_tests {
             let result = repair(&input).unwrap();
             
             // Output should not be excessively larger than input
-            prop_assert!(result.len() < input.len() * 10);
+            // For empty input, result should also be empty or minimal
+            if input.is_empty() {
+                prop_assert!(result.len() <= 1);
+            } else {
+                prop_assert!(result.len() < input.len() * 10);
+            }
         }
     }
 }

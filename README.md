@@ -257,12 +257,39 @@ cargo install anyrepair
 # Repair a file
 anyrepair input.json
 
+# Stream repair large files with minimal memory
+anyrepair stream --input large_file.json --output repaired.json --format json
+
 # Batch process
 anyrepair batch --input-dir ./files --output-dir ./repaired
 
 # Get statistics
 anyrepair stats --input-dir ./files
 ```
+
+## Streaming Repair for Large Files
+
+AnyRepair includes streaming repair capabilities for processing large files with minimal memory overhead:
+
+```rust
+use anyrepair::StreamingRepair;
+use std::fs::File;
+use std::io::BufReader;
+
+let input = BufReader::new(File::open("large_file.json")?);
+let mut output = File::create("repaired.json")?;
+
+let processor = StreamingRepair::with_buffer_size(8192);
+let bytes_processed = processor.process(input, &mut output, "json")?;
+println!("Processed {} bytes", bytes_processed);
+```
+
+**Benefits:**
+- Process files larger than available RAM
+- Configurable buffer size for memory optimization
+- Automatic format detection
+- Streaming from stdin/stdout support
+- Progress tracking via byte count
 
 ## Supported Formats
 

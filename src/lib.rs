@@ -7,10 +7,10 @@
 //!
 //! ## Module Organization
 //!
-//! - `repairers` - Format-specific repair implementations (JSON, YAML, XML, CSV, TOML, INI, Markdown)
+//! - Format-specific repairers: `json`, `yaml`, `markdown`, `xml`, `toml`, `csv`, `ini`
 //! - `plugins` - Plugin system and integration
 //! - `config` - Configuration and custom rule management
-//! - `utils` - Utility functions and helpers (advanced, parallel, context parsing)
+//! - Utility modules: `advanced`, `parallel`, `context_parser`, `enhanced_json`
 //! - `traits` - Core trait definitions
 //! - `error` - Error types and handling
 
@@ -19,7 +19,7 @@ pub mod error;
 pub mod traits;
 pub mod repairer_base;
 
-// Format-specific repairers (kept at root for backward compatibility)
+// Format-specific repairers
 pub mod json;
 pub mod yaml;
 pub mod markdown;
@@ -28,11 +28,7 @@ pub mod toml;
 pub mod csv;
 pub mod ini;
 
-// Organized modules (re-export from existing modules)
-pub mod repairers;
-pub mod utils;
-
-// Legacy modules (re-exported from organized modules for backward compatibility)
+// Utility and helper modules
 pub mod parallel;
 pub mod parallel_strategy;
 pub mod advanced;

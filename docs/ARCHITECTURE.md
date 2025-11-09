@@ -57,9 +57,8 @@ src/
 
 ### Module Hierarchy
 
-- **Root Level Modules**: Format-specific repairers kept at root for backward compatibility
-- **`repairers/`**: Organized access to all format-specific repair implementations
-- **`utils/`**: Advanced utilities and helper functions
+- **Format-Specific Repairers**: Direct modules at root level (`json`, `yaml`, `markdown`, `xml`, `toml`, `csv`, `ini`)
+- **Utility Modules**: Helper functions at root level (`advanced`, `parallel`, `context_parser`, `enhanced_json`)
 - **Plugin System**: Extensible plugin architecture
 - **Configuration**: User-defined repair rules and settings
 

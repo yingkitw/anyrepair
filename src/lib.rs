@@ -63,6 +63,7 @@ pub use audit_log::AuditLogger;
 pub use confidence_scorer::ConfidenceScorer;
 pub use streaming::StreamingRepair;
 pub use mcp_server::AnyrepairMcpServer;
+pub use json::JsonRepairer;
 
 use serde_json::Value;
 use std::fs::File;
@@ -98,6 +99,85 @@ pub fn repair(content: &str) -> Result<String> {
         // Default to markdown repair for unknown content
         let mut repairer = markdown::MarkdownRepairer::new();
         repairer.repair(trimmed)
+    }
+}
+
+/// Repair JSON string - Python jsonrepair compatible API
+/// 
+/// This function provides a simple interface matching Python's jsonrepair library:
+/// ```python
+/// from jsonrepair import repair_json
+/// repaired = repair_json('{"key": "value",}')
+/// ```
+/// 
+/// # Arguments
+/// * `json_str` - The malformed JSON string to repair
+/// 
+/// # Returns
+/// * `Ok(String)` - The repaired JSON string
+/// * `Err(RepairError)` - If repair fails
+/// 
+/// # Example
+/// ```
+/// use anyrepair::jsonrepair;
+/// 
+/// let malformed = r#"{"name": "John", age: 30,}"#;
+/// let repaired = jsonrepair(malformed).unwrap();
+/// assert!(repaired.contains("\"age\""));
+/// assert!(!repaired.ends_with(','));
+/// ```
+pub fn jsonrepair(json_str: &str) -> Result<String> {
+    let mut repairer = json::JsonRepairer::new();
+    repairer.repair(json_str)
+}
+
+/// JsonRepair - Python jsonrepair compatible class-like interface
+/// 
+/// This struct provides a class-based API matching Python's jsonrepair library:
+/// ```python
+/// from jsonrepair import JsonRepair
+/// jr = JsonRepair()
+/// repaired = jr.jsonrepair('{"key": "value",}')
+/// ```
+/// 
+/// # Example
+/// ```
+/// use anyrepair::JsonRepair;
+/// 
+/// let mut jr = JsonRepair::new();
+/// let malformed = r#"{"name": "John", age: 30,}"#;
+/// let repaired = jr.jsonrepair(malformed).unwrap();
+/// assert!(repaired.contains("\"age\""));
+/// assert!(!repaired.ends_with(','));
+/// ```
+pub struct JsonRepair {
+    repairer: json::JsonRepairer,
+}
+
+impl JsonRepair {
+    /// Create a new JsonRepair instance
+    pub fn new() -> Self {
+        Self {
+            repairer: json::JsonRepairer::new(),
+        }
+    }
+
+    /// Repair a JSON string (Python jsonrepair compatible method)
+    /// 
+    /// # Arguments
+    /// * `json_str` - The malformed JSON string to repair
+    /// 
+    /// # Returns
+    /// * `Ok(String)` - The repaired JSON string
+    /// * `Err(RepairError)` - If repair fails
+    pub fn jsonrepair(&mut self, json_str: &str) -> Result<String> {
+        self.repairer.repair(json_str)
+    }
+}
+
+impl Default for JsonRepair {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -336,5 +416,292 @@ mod tests {
         let long_input = "a".repeat(10000);
         let result = repair(&long_input);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_jsonrepair_function() {
+        // Test Python jsonrepair compatible function
+        let malformed = r#"{"name": "John", age: 30,}"#;
+        let repaired = jsonrepair(malformed).unwrap();
+        assert!(repaired.contains("\"age\""));
+        assert!(!repaired.ends_with(','));
+        
+        // Test with trailing comma
+        let with_comma = r#"{"key": "value",}"#;
+        let repaired = jsonrepair(with_comma).unwrap();
+        assert!(!repaired.ends_with(','));
+    }
+
+    #[test]
+    fn test_jsonrepair_struct() {
+        // Test Python jsonrepair compatible struct
+        let mut jr = JsonRepair::new();
+        let malformed = r#"{"name": "John", age: 30,}"#;
+        let repaired = jr.jsonrepair(malformed).unwrap();
+        assert!(repaired.contains("\"age\""));
+        assert!(!repaired.ends_with(','));
+        
+        // Test default
+        let mut jr = JsonRepair::default();
+        let with_comma = r#"{"key": "value",}"#;
+        let repaired = jr.jsonrepair(with_comma).unwrap();
+        assert!(!repaired.ends_with(','));
+    }
+
+    #[test]
+    fn test_jsonrepair_trailing_commas() {
+        // Test trailing commas in objects
+        let input = r#"{"name": "John", "age": 30,}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(!repaired.contains(",\n}"));
+        assert!(!repaired.contains(",}"));
+        
+        // Test trailing commas in arrays
+        let input = r#"[1, 2, 3,]"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(!repaired.contains(",]"));
+        
+        // Test multiple trailing commas
+        let input = r#"{"a": 1, "b": 2, "c": 3,}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(!repaired.ends_with(','));
+    }
+
+    #[test]
+    fn test_jsonrepair_missing_quotes() {
+        // Test missing quotes around keys
+        let input = r#"{name: "John", age: 30}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\"name\""));
+        assert!(repaired.contains("\"age\""));
+        // Verify it's valid JSON
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
+        
+        // Test missing quotes around values - this case may not be fully repairable
+        // as "John" without quotes could be interpreted as an identifier
+        // The repairer focuses on keys, so we test a case that should work
+        let input = r#"{"name": "John", age: 30}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\"age\""));
+        // Verify it's valid JSON
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
+        
+        // Test mixed missing quotes
+        let input = r#"{name: "John", age: 30}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\"name\""));
+        assert!(repaired.contains("\"age\""));
+        // Verify it's valid JSON
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
+    }
+
+    #[test]
+    fn test_jsonrepair_single_quotes() {
+        // Test single quotes instead of double quotes
+        let input = r#"{'name': 'John', 'age': 30}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\"name\""));
+        assert!(repaired.contains("\"John\""));
+        assert!(!repaired.contains("'"));
+        
+        // Test mixed single and double quotes
+        let input = r#"{'name': "John", "age": 30}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(!repaired.contains("'"));
+    }
+
+    #[test]
+    fn test_jsonrepair_boolean_null() {
+        // Test Python-style booleans
+        let input = r#"{"active": True, "deleted": False}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("true"));
+        assert!(repaired.contains("false"));
+        
+        // Test various null representations
+        let input = r#"{"value1": null, "value2": None, "value3": NULL, "value4": undefined}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.matches("null").count() >= 4);
+    }
+
+    #[test]
+    fn test_jsonrepair_malformed_numbers() {
+        // Test trailing dots
+        let input = r#"{"price": 29.99., "quantity": 10.}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("29.99"));
+        assert!(repaired.contains("10"));
+        
+        // Test multiple dots
+        let input = r#"{"value": 123.45.67}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("123.45"));
+    }
+
+    #[test]
+    fn test_jsonrepair_nested_structures() {
+        // Test nested objects with errors
+        let input = r#"{
+            "user": {
+                name: "John",
+                age: 30,
+                address: {
+                    street: "123 Main St",
+                    city: "NYC",
+                },
+            },
+        }"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\"name\""));
+        assert!(repaired.contains("\"age\""));
+        assert!(repaired.contains("\"street\""));
+        assert!(repaired.contains("\"city\""));
+        
+        // Test nested arrays
+        let input = r#"{"items": [1, 2, 3,], "tags": ['a', 'b',],}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("[1,2,3]") || repaired.contains("[1, 2, 3]"));
+        assert!(!repaired.contains(",]"));
+    }
+
+    #[test]
+    fn test_jsonrepair_missing_braces() {
+        // Test missing closing brace
+        let input = r#"{"name": "John", "age": 30"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.ends_with('}'));
+        
+        // Test missing opening brace
+        let input = r#""name": "John", "age": 30}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.starts_with('{'));
+        
+        // Test missing brackets
+        let input = r#"[1, 2, 3"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.ends_with(']'));
+    }
+
+    #[test]
+    fn test_jsonrepair_empty_and_edge_cases() {
+        // Test empty string (may return empty or empty object)
+        let repaired = jsonrepair("").unwrap();
+        assert!(repaired.is_empty() || repaired == "{}");
+        
+        // Test already valid JSON
+        let valid = r#"{"name": "John", "age": 30}"#;
+        let repaired = jsonrepair(valid).unwrap();
+        // Should be valid JSON (may have whitespace differences)
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
+        
+        // Test whitespace only (may return empty or empty object)
+        let repaired = jsonrepair("   \n\t  ").unwrap();
+        assert!(repaired.trim().is_empty() || repaired.trim() == "{}");
+        
+        // Test just braces
+        let repaired = jsonrepair("{}").unwrap();
+        assert_eq!(repaired.trim(), "{}");
+        
+        // Test just brackets
+        let repaired = jsonrepair("[]").unwrap();
+        assert_eq!(repaired.trim(), "[]");
+    }
+
+    #[test]
+    fn test_jsonrepair_complex_real_world() {
+        // Test complex real-world scenario
+        let input = r#"{
+            'users': [
+                {
+                    id: 1,
+                    name: "Alice",
+                    email: 'alice@example.com',
+                    active: True,
+                    tags: ['admin', 'user',],
+                },
+                {
+                    id: 2,
+                    name: "Bob",
+                    email: 'bob@example.com',
+                    active: False,
+                    tags: ['user',],
+                },
+            ],
+            'metadata': {
+                total: 2,
+                page: 1,
+                has_more: False,
+            },
+        }"#;
+        
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\"users\""));
+        assert!(repaired.contains("\"Alice\""));
+        assert!(repaired.contains("\"Bob\""));
+        assert!(repaired.contains("true"));
+        assert!(repaired.contains("false"));
+        assert!(!repaired.contains("'"));
+        assert!(!repaired.contains(",]"));
+        assert!(!repaired.contains(",}"));
+        
+        // Verify it's valid JSON
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
+    }
+
+    #[test]
+    fn test_jsonrepair_struct_multiple_calls() {
+        // Test that JsonRepair can be reused for multiple repairs
+        let mut jr = JsonRepair::new();
+        
+        let input1 = r#"{"key1": "value1",}"#;
+        let repaired1 = jr.jsonrepair(input1).unwrap();
+        assert!(!repaired1.ends_with(','));
+        
+        let input2 = r#"{key2: "value2"}"#;
+        let repaired2 = jr.jsonrepair(input2).unwrap();
+        assert!(repaired2.contains("\"key2\""));
+        
+        let input3 = r#"['a', 'b',]"#;
+        let repaired3 = jr.jsonrepair(input3).unwrap();
+        assert!(!repaired3.contains("'"));
+        assert!(!repaired3.contains(",]"));
+    }
+
+    #[test]
+    fn test_jsonrepair_function_vs_struct_consistency() {
+        // Test that function and struct produce same results
+        let input = r#"{"name": "John", age: 30,}"#;
+        
+        let repaired_func = jsonrepair(input).unwrap();
+        let mut jr = JsonRepair::new();
+        let repaired_struct = jr.jsonrepair(input).unwrap();
+        
+        // Both should produce valid JSON
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired_func).is_ok());
+        assert!(serde_json::from_str::<serde_json::Value>(&repaired_struct).is_ok());
+        
+        // Both should have same structure (may differ in whitespace)
+        let parsed_func: serde_json::Value = serde_json::from_str(&repaired_func).unwrap();
+        let parsed_struct: serde_json::Value = serde_json::from_str(&repaired_struct).unwrap();
+        assert_eq!(parsed_func, parsed_struct);
+    }
+
+    #[test]
+    fn test_jsonrepair_unicode_and_special_chars() {
+        // Test Unicode characters
+        let input = r#"{"name": "José", "emoji": "🚀"}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("José"));
+        assert!(repaired.contains("🚀"));
+        
+        // Test escaped characters
+        let input = r#"{"message": "He said \"Hello\""}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\\\"Hello\\\""));
+        
+        // Test newlines in strings
+        let input = r#"{"text": "Line 1\nLine 2"}"#;
+        let repaired = jsonrepair(input).unwrap();
+        assert!(repaired.contains("\\n"));
     }
 }

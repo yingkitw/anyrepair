@@ -1,6 +1,6 @@
 [package]
 name = "anyrepair"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 authors = ["Ying Kit WONG"]
 description = "A comprehensive Rust crate for repairing LLM responses including JSON, YAML, XML, TOML, CSV, INI, and Markdown with advanced analytics and enterprise features"
@@ -9,7 +9,7 @@ repository = "https://github.com/yingkitw/anyrepair"
 homepage = "https://github.com/yingkitw/anyrepair"
 documentation = "https://docs.rs/anyrepair"
 readme = "README.md"
-keywords = ["llm", "repair", "json", "mcp", "agentic"]
+keywords = ["llm", "repair", "json", "mcp", "parser"]
 categories = ["text-processing", "parser-implementations", "development-tools"]
 
 [dependencies]

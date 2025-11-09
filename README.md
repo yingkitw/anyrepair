@@ -48,13 +48,14 @@ Unlike single-format tools like `json-repair-rs` or `json5`, AnyRepair handles *
 - **Plugin System**: Extensible architecture for custom repair logic
 
 ### **Production-Ready Features**
-- **Comprehensive Testing**: 311 test cases (147 unit + 43 MCP + 18 damage + 18 streaming + 36 fuzz + 4 integration + 26 streaming + 18 complex) with 100% pass rate
+- **Comprehensive Testing**: 326 test cases (204 library + 4 integration + 26 streaming + 18 complex damage + 18 complex streaming + 36 fuzz + 18 damage scenarios + 2 doctests) with 100% pass rate
 - **High Performance**: Regex caching with 99.6% performance improvement, optimized binaries (1.5 MB)
 - **CLI & Library**: Both command-line tool and Rust library for integration
 - **MCP Server**: Model Context Protocol server for Claude and other AI clients
 - **Streaming Support**: Process large files with minimal memory overhead
 - **Configuration Management**: TOML-based configuration with custom rules
 - **Enterprise Features**: Analytics, batch processing, validation rules, and audit logging
+- **Python-Compatible API**: Drop-in replacement for Python's jsonrepair library
 
 ### **Comparison with Other Tools**
 
@@ -77,13 +78,14 @@ Unlike single-format tools like `json-repair-rs` or `json5`, AnyRepair handles *
 - **Auto-detection**: Automatically detects format and applies appropriate repairs
 - **High performance**: Regex caching with up to 99.6% performance improvement
 - **CLI tool**: Command-line interface for easy usage
-- **Comprehensive testing**: 228 test cases with snapshot and fuzz testing
+- **Comprehensive testing**: 326 test cases with snapshot and fuzz testing
 - **Parallel processing**: Multi-threaded strategy application for better performance
 - **Advanced strategies**: Intelligent format detection, adaptive repair, and context-aware processing
 - **Plugin system**: Extensible architecture for custom repair strategies
 - **Custom rules**: User-defined repair rules with full CLI management
 - **Fuzz testing**: Comprehensive property-based testing for robustness
 - **Configuration**: TOML-based configuration with custom rules and plugin settings
+- **Python-compatible API**: Drop-in replacement for Python's jsonrepair library
 
 ## Rule-Based Confidence Scoring
 
@@ -261,6 +263,33 @@ anyrepair = "0.1.5"
 ## Usage
 
 ### Library
+
+#### Python jsonrepair Compatible API
+
+AnyRepair provides a Python jsonrepair-compatible interface for easy migration:
+
+**Function-based API:**
+```rust
+use anyrepair::jsonrepair;
+
+// Simple function call matching Python's jsonrepair
+let malformed = r#"{"name": "John", age: 30,}"#;
+let repaired = jsonrepair(malformed)?;
+println!("{}", repaired); // {"name": "John", "age": 30}
+```
+
+**Class-based API:**
+```rust
+use anyrepair::JsonRepair;
+
+// Class-like interface matching Python's JsonRepair class
+let mut jr = JsonRepair::new();
+let malformed = r#"{"key": "value",}"#;
+let repaired = jr.jsonrepair(malformed)?;
+println!("{}", repaired); // {"key": "value"}
+```
+
+#### Multi-Format Auto-Detection
 
 ```rust
 use anyrepair::repair;

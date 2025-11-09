@@ -25,6 +25,10 @@
 - [x] INI file repair support implementation
 - [x] Parallel strategy application for performance optimization
 - [x] Advanced repair strategies with enhanced capabilities
+- [x] Codebase simplification - Removed redundant directories (repairers/, utils/)
+- [x] Codebase simplification - Consolidated JSON and Markdown subdirectories into single files
+- [x] Python jsonrepair compatible API - Added `jsonrepair()` function and `JsonRepair` struct
+- [x] Comprehensive test coverage - Added 14 test cases for Python-compatible API (326 total tests)
 
 ## In Progress 🔄
 
@@ -129,6 +133,8 @@
 - [x] Memory usage tests
 - [x] Fuzz testing for robustness
 - [x] Integration tests with real-world data
+- [x] Python jsonrepair API test coverage (14 comprehensive tests)
+- [x] Total test coverage: 326 tests (204 library + 4 integration + 26 streaming + 18 complex damage + 18 complex streaming + 36 fuzz + 18 damage scenarios + 2 doctests)
 
 ## Documentation
 

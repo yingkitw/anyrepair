@@ -21,14 +21,8 @@ src/
 │   ├── batch_cmd.rs     # Batch processing command
 │   ├── rules_cmd.rs     # Rules management command
 │   └── stream_cmd.rs    # Streaming command
-├── json/                 # JSON module (modulized, 573 lines total)
-│   ├── mod.rs           # Main repairer (216 lines)
-│   ├── strategies.rs    # Repair strategies (312 lines)
-│   └── validator.rs     # JSON validator (45 lines)
-├── markdown/             # Markdown module (modulized, 554 lines total)
-│   ├── mod.rs           # Main repairer (186 lines)
-│   ├── strategies.rs    # Repair strategies (301 lines)
-│   └── validator.rs     # Markdown validator (67 lines)
+├── json.rs               # JSON repairer (consolidated, 571 lines)
+├── markdown.rs           # Markdown repairer (consolidated, ~550 lines)
 ├── mcp_server.rs        # MCP server implementation (312 lines)
 ├── streaming.rs         # Streaming repair support
 ├── error.rs             # Error types
@@ -70,12 +64,17 @@ The main entry point provides automatic format detection and routing:
 
 ```rust
 pub fn repair(content: &str) -> Result<String>
+pub fn jsonrepair(json_str: &str) -> Result<String>  // Python-compatible API
 ```
 
 **Detection Logic:**
 - JSON: Checks for `{}` or `[]` patterns
 - YAML: Looks for `:`, `---`, or key-value patterns
 - Markdown: Detects `#`, `**`, `*`, ````, or `[` patterns
+
+**Python-Compatible API:**
+- `jsonrepair()` - Function-based API matching Python's jsonrepair
+- `JsonRepair` - Struct-based API matching Python's JsonRepair class
 
 ### 2. Repair Traits (`src/traits.rs`)
 
@@ -104,11 +103,18 @@ pub trait Validator {
 #### JSON Repairer (`src/json.rs`)
 
 **Strategies:**
-1. `AddMissingQuotesStrategy` - Adds quotes around unquoted keys
-2. `FixTrailingCommasStrategy` - Removes trailing commas
-3. `FixUnescapedQuotesStrategy` - Escapes quotes in strings
+1. `StripTrailingContentStrategy` - Removes content after JSON closes
+2. `AddMissingQuotesStrategy` - Adds quotes around unquoted keys
+3. `FixTrailingCommasStrategy` - Removes trailing commas
 4. `AddMissingBracesStrategy` - Adds missing opening/closing braces
 5. `FixSingleQuotesStrategy` - Converts single quotes to double quotes
+6. `FixMalformedNumbersStrategy` - Fixes malformed numeric values
+7. `FixBooleanNullStrategy` - Converts Python-style booleans/null to JSON
+8. `FixAgenticAiResponseStrategy` - Special handling for AI responses
+
+**Python-Compatible API:**
+- `jsonrepair(json_str: &str) -> Result<String>` - Function-based API matching Python's jsonrepair
+- `JsonRepair` struct with `jsonrepair()` method - Class-based API matching Python's JsonRepair class
 
 **Validation:**
 - Uses `serde_json::from_str::<Value>()` for validation
@@ -384,9 +390,9 @@ Validation is performed:
 
 ### Test Coverage
 
-The project includes comprehensive test coverage with **116+ test cases**:
+The project includes comprehensive test coverage with **326 test cases**:
 
-#### JSON Tests (28 test cases)
+#### Library Tests (204 test cases)
 - **Basic repair tests**: Core functionality validation
 - **Edge case tests**: Empty strings, whitespace, partial JSON
 - **Complex nested structures**: Deep objects and arrays
@@ -400,6 +406,7 @@ The project includes comprehensive test coverage with **116+ test cases**:
 - **Extreme damage scenarios**: Multiple error types
 - **Partial and truncated**: Incomplete data recovery
 - **Nested arrays and objects**: Complex hierarchies
+- **Python jsonrepair API**: 14 comprehensive tests for Python-compatible interface
 
 #### YAML Tests (12 test cases)
 - Basic repair functionality
@@ -428,7 +435,7 @@ The project includes comprehensive test coverage with **116+ test cases**:
 - **INI Tests**: Basic repair, missing equals, malformed sections, unquoted values
 
 #### Advanced Tests (20+ test cases)
-- **Fuzz Tests**: Property-based testing for all formats
+- **Fuzz Tests**: Property-based testing for all formats (36 tests)
 - **Plugin Tests**: Plugin system functionality
 - **Custom Rules Tests**: Rule engine and configuration
 - **Parallel Processing Tests**: Multi-threaded strategy application
@@ -439,6 +446,31 @@ The project includes comprehensive test coverage with **116+ test cases**:
 - Performance testing
 - Error handling
 - Memory usage validation
+
+#### Streaming Tests (26 test cases)
+- Large file processing
+- Buffer size variations
+- Format-specific streaming
+- Performance optimization
+
+#### Complex Damage Tests (18 test cases)
+- Real-world damage scenarios
+- Multiple error types
+- Nested structure repairs
+
+#### Complex Streaming Tests (18 test cases)
+- Large file streaming
+- Multi-format streaming
+- Edge case handling
+
+#### Damage Scenario Tests (18 test cases)
+- Comprehensive damage patterns
+- Format-specific scenarios
+- Real-world examples
+
+#### Doc Tests (2 test cases)
+- API documentation examples
+- Python-compatible interface examples
 
 ### Snapshot Testing
 
@@ -547,16 +579,14 @@ The MCP (Model Context Protocol) server provides integration with Claude and oth
 ## Modulization Strategy
 
 ### Phase 1: JSON Module (Complete)
-- Extracted strategies to `src/json/strategies.rs`
-- Extracted validator to `src/json/validator.rs`
-- Created `src/json/mod.rs` for main repairer
-- Reduced from 2082 to 573 lines (73% reduction)
+- Initially extracted strategies to `src/json/strategies.rs`
+- Initially extracted validator to `src/json/validator.rs`
+- **Final**: Consolidated into single `src/json.rs` file (571 lines)
 
 ### Phase 2: Markdown Module (Complete)
-- Extracted strategies to `src/markdown/strategies.rs`
-- Extracted validator to `src/markdown/validator.rs`
-- Created `src/markdown/mod.rs` for main repairer
-- Reduced from 938 to 554 lines (41% reduction)
+- Initially extracted strategies to `src/markdown/strategies.rs`
+- Initially extracted validator to `src/markdown/validator.rs`
+- **Final**: Consolidated into single `src/markdown.rs` file (~550 lines)
 
 ### Phase 3: CLI Module (Complete)
 - Extracted command handlers to `src/cli/`
@@ -564,10 +594,17 @@ The MCP (Model Context Protocol) server provides integration with Claude and oth
 - Reduced main.rs from 881 to 180 lines (80% reduction)
 - Maintained backward compatibility
 
+### Phase 4: Codebase Simplification (Complete)
+- Removed redundant `repairers/` directory (7 re-export files)
+- Removed redundant `utils/` directory (4 re-export files)
+- Consolidated JSON and Markdown subdirectories into single files
+- Reduced from 53 to 36 source files (32% reduction)
+- Consistent single-file pattern for all format repairers
+
 **Total Modulization Impact:**
-- Before: 3901 lines in large files
-- After: 1662 lines in organized modules
-- Overall reduction: 57%
+- Before: 3901 lines in large files + redundant directories
+- After: 1662 lines in organized modules + 36 source files
+- Overall reduction: 57% in complexity, 32% in file count
 
 ## Enterprise Features
 
@@ -610,7 +647,10 @@ Comprehensive audit logging for compliance:
 5. **Fuzz Testing**: ✅ Comprehensive property-based testing completed
 6. **Advanced Analytics**: ✅ Repair success rate tracking and performance monitoring completed
 7. **Enterprise Features**: ✅ Batch processing, validation rules, audit logging completed
-8. **Web Interface**: Create a simple web interface for online repair
-9. **REST API**: Add REST API for programmatic access
-10. **Docker Container**: Create Docker image for easy deployment
-11. **Machine Learning**: ML-based repair strategies for complex cases
+8. **Codebase Simplification**: ✅ Removed redundant directories, consolidated modules (32% file reduction)
+9. **Python-Compatible API**: ✅ Added jsonrepair() function and JsonRepair struct for easy migration
+10. **Comprehensive Testing**: ✅ 326 test cases with 100% pass rate
+11. **Web Interface**: Create a simple web interface for online repair
+12. **REST API**: Add REST API for programmatic access
+13. **Docker Container**: Create Docker image for easy deployment
+14. **Machine Learning**: ML-based repair strategies for complex cases

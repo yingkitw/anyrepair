@@ -1,6 +1,7 @@
 //! YAML repair functionality
 
 use crate::error::Result;
+use crate::repairer_base;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use serde_yaml::Value;
@@ -60,15 +61,7 @@ impl YamlRepairer {
     
     /// Apply all repair strategies to the content
     fn apply_strategies(&self, content: &str) -> Result<String> {
-        let mut repaired = content.to_string();
-        
-        for strategy in &self.strategies {
-            if let Ok(result) = strategy.apply(&repaired) {
-                repaired = result;
-            }
-        }
-        
-        Ok(repaired)
+        repairer_base::apply_strategies(&self.strategies, content)
     }
 }
 

@@ -10,9 +10,6 @@ pub mod stream_cmd;
 
 pub use repair_cmd::handle_repair;
 pub use validate_cmd::handle_validate;
-pub use batch_cmd::handle_batch;
-pub use rules_cmd::handle_rules;
-pub use stream_cmd::handle_stream;
 
 use std::fs;
 use std::io::{self, Read};

@@ -23,7 +23,7 @@ pub fn handle_repair(
     }
     
     if show_confidence {
-        let mut json_repairer = anyrepair::json::JsonRepairer::new();
+        let json_repairer = anyrepair::json::JsonRepairer::new();
         let confidence = json_repairer.confidence(&repaired);
         println!("Confidence: {:.2}%", confidence * 100.0);
     }

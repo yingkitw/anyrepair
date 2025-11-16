@@ -4,6 +4,7 @@
 //! for fixing common JSON issues from LLM outputs.
 
 use crate::error::Result;
+use crate::repairer_base;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use serde_json::Value;

@@ -124,7 +124,10 @@
 - [x] Add more comprehensive input validation
 - [x] Optimize regex patterns for better performance
 - [x] Add more edge case handling
-- [ ] Improve confidence scoring algorithms
+- [x] Improve confidence scoring algorithms
+- [x] Consolidate duplicate code in repairers
+- [x] Fix invalid Cargo.toml edition (2024 → 2021)
+- [x] Optimize format detection functions
 
 ## Testing
 

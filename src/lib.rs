@@ -256,9 +256,16 @@ fn is_json_like(content: &str) -> bool {
 
 fn is_yaml_like(content: &str) -> bool {
     let trimmed = content.trim();
-    trimmed.contains("---") || 
-    (trimmed.contains(":") && !trimmed.starts_with('{') && !trimmed.starts_with('[')) ||
-    trimmed.lines().any(|line| line.contains(":") && !line.trim().starts_with('"') && !line.trim().starts_with('{'))
+    if trimmed.contains("---") {
+        return true;
+    }
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        return false;
+    }
+    trimmed.contains(":") || trimmed.lines().any(|line| {
+        let line = line.trim();
+        line.contains(":") && !line.starts_with('"') && !line.starts_with('{')
+    })
 }
 
 fn is_xml_like(content: &str) -> bool {
@@ -270,29 +277,40 @@ fn is_xml_like(content: &str) -> bool {
 
 fn is_toml_like(content: &str) -> bool {
     let trimmed = content.trim();
-    trimmed.starts_with('[') ||
-    (trimmed.contains('=') && !trimmed.starts_with('{') && !trimmed.starts_with('<') && !trimmed.starts_with('#')) ||
-    trimmed.lines().any(|line| line.trim().starts_with('[') && line.trim().ends_with(']'))
+    if trimmed.starts_with('[') {
+        return true;
+    }
+    if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') {
+        return false;
+    }
+    trimmed.contains('=') || trimmed.lines().any(|line| {
+        let line = line.trim();
+        line.starts_with('[') && line.ends_with(']')
+    })
 }
 
 fn is_csv_like(content: &str) -> bool {
     let trimmed = content.trim();
-    trimmed.contains(',') &&
-    !trimmed.starts_with('{') &&
-    !trimmed.starts_with('[') &&
-    !trimmed.starts_with('<') &&
-    !trimmed.starts_with('#') &&
-    !trimmed.starts_with("<?xml") &&
+    if !trimmed.contains(',') {
+        return false;
+    }
+    if trimmed.starts_with('{') || trimmed.starts_with('[') || trimmed.starts_with('<') || 
+       trimmed.starts_with('#') || trimmed.starts_with("<?xml") {
+        return false;
+    }
     trimmed.lines().count() > 1
 }
 
 fn is_ini_like(content: &str) -> bool {
     let trimmed = content.trim();
-    (trimmed.starts_with('[') && trimmed.contains(']')) ||
-    (trimmed.contains('=') && !trimmed.starts_with('{') && !trimmed.starts_with('<') && 
-     !trimmed.starts_with('#') && !trimmed.starts_with("<?xml") && 
-     !trimmed.contains(',') && !trimmed.contains(':')) ||
-    trimmed.lines().any(|line| {
+    if trimmed.starts_with('[') && trimmed.contains(']') {
+        return true;
+    }
+    if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') || 
+       trimmed.starts_with("<?xml") || trimmed.contains(',') || trimmed.contains(':') {
+        return false;
+    }
+    trimmed.contains('=') || trimmed.lines().any(|line| {
         let line = line.trim();
         line.starts_with('[') && line.contains(']') && !line.contains(',')
     })

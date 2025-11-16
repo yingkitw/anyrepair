@@ -3,6 +3,20 @@
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
 
+/// Apply repair strategies to content with minimal allocations
+#[inline]
+pub fn apply_strategies(strategies: &[Box<dyn RepairStrategy>], content: &str) -> Result<String> {
+    let mut repaired = content.to_string();
+    
+    for strategy in strategies {
+        if let Ok(result) = strategy.apply(&repaired) {
+            repaired = result;
+        }
+    }
+    
+    Ok(repaired)
+}
+
 /// Generic repairer base that implements common repair logic
 pub struct GenericRepairer {
     pub strategies: Vec<Box<dyn RepairStrategy>>,
@@ -20,15 +34,7 @@ impl GenericRepairer {
     
     /// Apply all repair strategies to the content
     pub fn apply_strategies(&self, content: &str) -> Result<String> {
-        let mut repaired = content.to_string();
-        
-        for strategy in &self.strategies {
-            if let Ok(result) = strategy.apply(&repaired) {
-                repaired = result;
-            }
-        }
-        
-        Ok(repaired)
+        apply_strategies(&self.strategies, content)
     }
     
     /// Standard repair implementation

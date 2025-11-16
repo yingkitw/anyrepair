@@ -1,6 +1,6 @@
 [package]
 name = "anyrepair"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 authors = ["Ying Kit WONG"]
 description = "A comprehensive Rust crate for repairing LLM responses including JSON, YAML, XML, TOML, CSV, INI, and Markdown with advanced analytics and enterprise features"

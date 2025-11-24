@@ -1,35 +1,76 @@
-# Comprehensive Test Summary
+# Test Summary
 
 ## Overview
 
-AnyRepair now has **298 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases.
+AnyRepair includes **347+ comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
+
+## Test Organization
+
+### Test Files
+
+- **`tests/integration_tests.rs`** - Integration tests (4 tests)
+- **`tests/streaming_tests.rs`** - Streaming repair tests (26 tests)
+- **`tests/complex_damage_tests.rs`** - Complex damage scenarios (18 tests)
+- **`tests/complex_streaming_tests.rs`** - Complex streaming scenarios (18 tests)
+- **`tests/damage_scenarios.rs`** - Damage scenario tests (18 tests)
+- **`tests/fuzz_tests.rs`** - Property-based fuzz testing (36 tests)
+- **`tests/diff_tests.rs`** - Diff/Unified diff repair tests (35 tests)
+
+### Test Coverage by Format
+
+- **JSON**: 204+ tests (library + integration + streaming + complex + fuzz)
+- **YAML**: Comprehensive coverage
+- **Markdown**: Comprehensive coverage
+- **XML**: Comprehensive coverage
+- **TOML**: Comprehensive coverage
+- **CSV**: Comprehensive coverage
+- **INI**: Comprehensive coverage
+- **Diff/Unified diff**: 35 tests
+
+## Test Statistics
+
+- **Total Tests**: 347+ tests
+- **Pass Rate**: 100%
+- **Test Files**: 7
+- **Coverage**: All formats and major features
 
 ## Test Suite Breakdown
 
-### 1. Unit Tests (178 tests)
+### 1. Unit Tests (209+ tests)
 **Location**: `src/lib.rs` and format-specific modules
 
 **Coverage**:
-- JSON: 35 tests
-- YAML: 14 tests
-- Markdown: 14 tests
-- XML: 9 tests
-- TOML: 9 tests
-- CSV: 9 tests
-- INI: 10 tests
-- Advanced: 9 tests
-- Config: 4 tests
-- Plugins: 9 tests
-- Parallel: 4 tests
-- Error handling: 4 tests
-- Enhanced JSON: 4 tests
-- Validation: 4 tests
-- Context parsing: 3 tests
-- Custom rules: 3 tests
+- JSON: 35+ tests
+- YAML: 14+ tests
+- Markdown: 14+ tests
+- XML: 9+ tests
+- TOML: 9+ tests
+- CSV: 9+ tests
+- INI: 10+ tests
+- Diff: Unit tests in module
+- Advanced: 9+ tests
+- Config: 4+ tests
+- Plugins: 9+ tests
+- Parallel: 4+ tests
+- Error handling: 4+ tests
+- Enhanced JSON: 4+ tests
+- Validation: 4+ tests
+- Context parsing: 3+ tests
+- Custom rules: 3+ tests
 
 **Focus**: Core functionality, edge cases, format-specific features
 
-### 2. Damage Scenario Tests (18 tests)
+### 2. Integration Tests (4 tests)
+**Location**: `tests/integration_tests.rs`
+
+**Coverage**: End-to-end integration testing
+
+### 3. Streaming Tests (26 tests)
+**Location**: `tests/streaming_tests.rs`
+
+**Coverage**: Large file processing, memory efficiency
+
+### 4. Damage Scenario Tests (18 tests)
 **Location**: `tests/damage_scenarios.rs`
 
 **Coverage**:
@@ -48,96 +89,97 @@ AnyRepair now has **298 comprehensive tests** covering all formats, damage patte
 - Performance with large datasets
 - Error recovery and resilience
 - Edge cases and boundary conditions
-- Confidence scoring
 
-**Focus**: Realistic LLM output damage patterns
-
-### 3. Complex Damage Tests (18 tests)
+### 5. Complex Damage Tests (18 tests)
 **Location**: `tests/complex_damage_tests.rs`
 
-**Coverage**:
-- **JSON (4)**: Deep nesting, mixed quotes, API responses, Unicode
-- **YAML (3)**: Indentation, anchors/references, multiline strings
-- **Markdown (3)**: Mixed formatting, code blocks, tables/lists
-- **XML (2)**: Nested attributes, CDATA sections
-- **CSV (2)**: Quoted fields, multiline content
-- **TOML (2)**: Nested tables, inline tables
-- **INI (2)**: Multiple sections, special characters
+**Coverage**: Complex multi-issue damage scenarios
 
-**Focus**: Complex multi-error scenarios with realistic depth
-
-### 4. Complex Streaming Tests (18 tests)
+### 6. Complex Streaming Tests (18 tests)
 **Location**: `tests/complex_streaming_tests.rs`
 
-**Coverage**:
-- **Large Files (7)**: JSON, YAML, Markdown, CSV, XML, TOML, INI
-- **Buffer Sizes (2)**: Very small (256B), very large (64KB)
-- **Complex Damage (3)**: Mixed damage, performance, boundary alignment
-- **Auto-Detection (2)**: JSON, YAML
-- **Special Content (3)**: Unicode, multiline, escaping
-- **Advanced (1)**: Deeply nested XML
+**Coverage**: Complex streaming scenarios with damage
 
-**Focus**: Streaming with complex damage and various buffer sizes
-
-### 5. Fuzz Tests (36 tests)
+### 7. Fuzz Tests (36 tests)
 **Location**: `tests/fuzz_tests.rs`
 
-**Coverage**:
-- General fuzz tests (never panics, handles edge cases)
-- Format-specific fuzz tests (JSON, YAML, Markdown, XML, TOML, CSV, INI)
-- Edge case fuzz tests (whitespace, quotes, special chars, newlines)
-- Custom rules fuzz tests
-- Performance fuzz tests (reasonable time, memory usage)
+**Coverage**: Property-based testing for robustness
 
-**Focus**: Property-based testing, robustness, no panics
-
-### 6. Integration Tests (4 tests)
-**Location**: `tests/integration_tests.rs`
+### 8. Diff Repair Tests (35 tests)
+**Location**: `tests/diff_tests.rs`
 
 **Coverage**:
-- Library integration
-- Performance testing
-- Error handling
-- Memory usage
+- Basic functionality (6 tests)
+- Repair strategies (7 tests)
+- Edge cases (5 tests)
+- API tests (3 tests)
+- File-based tests - sample (1 test)
+- File-based tests - malformed (7 tests)
+- File-based tests - complex (5 tests)
+- Batch/integration (1 test)
 
-**Focus**: End-to-end workflows
-
-### 7. Streaming Tests (26 tests)
-**Location**: `tests/streaming_tests.rs`
-
-**Coverage**:
-- Basic streaming for all formats
-- Custom buffer sizes
-- Large file simulation
-- Auto-detection
-- Empty input handling
-- Multiline content
-- Various formats (JSON, YAML, Markdown, XML, CSV, TOML, INI)
-
-**Focus**: Basic streaming functionality
+**Focus**: Unified diff format repair, hunk headers, file headers, line prefixes
 
 ## Test Statistics
 
 ### Total Coverage
 ```
-Unit Tests:              178 ✅
+Unit Tests:              209+ ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
 Complex Streaming:        18 ✅
 Fuzz Tests:               36 ✅
 Integration Tests:         4 ✅
 Streaming Tests:          26 ✅
+Diff Tests:               35 ✅
 ─────────────────────────────
-TOTAL:                   298 ✅
+TOTAL:                   364+ ✅
 ```
 
 ### Pass Rate
-- **Overall**: 100% (298/298 passing)
-- **All Formats**: 7/7 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI)
+- **Overall**: 100% (364+/364+ passing)
+- **All Formats**: 8/8 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
 - **All Features**: Streaming, plugins, custom rules, validation, analytics
 
+### Coverage by Format
+
+| Format | Unit | Damage | Complex | Streaming | Fuzz | Diff | Total |
+|--------|------|--------|---------|-----------|------|------|-------|
+| JSON | 35+ | 1 | 4 | 7 | 6 | - | 53+ |
+| YAML | 14+ | 1 | 3 | 7 | 6 | - | 31+ |
+| Markdown | 14+ | 1 | 3 | 7 | 6 | - | 31+ |
+| XML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
+| TOML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
+| CSV | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
+| INI | 10+ | 1 | 2 | 7 | 6 | - | 26+ |
+| Diff | - | - | - | - | - | 35 | 35 |
+| Advanced | 9+ | 6 | - | - | - | - | 15+ |
+| Streaming | - | - | - | - | - | - | 26 |
+| **Total** | **209+** | **18** | **18** | **18** | **36** | **35** | **364+** |
+
+## Test Statistics
+
+### Total Coverage
+```
+Unit Tests:              209+ ✅
+Damage Scenarios:         18 ✅
+Complex Damage:           18 ✅
+Complex Streaming:        18 ✅
+Fuzz Tests:               36 ✅
+Integration Tests:         4 ✅
+Streaming Tests:          26 ✅
+Diff Tests:               35 ✅
+─────────────────────────────
+TOTAL:                   364+ ✅
+```
+
+### Pass Rate
+- **Overall**: 100% (364+/364+ passing)
+- **All Formats**: 8/8 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
+- **All Features**: Streaming, plugins, custom rules, validation, analytics, diff repair
+
 ### Test Execution Time
-- **Total**: ~20 seconds
+- **Total**: ~25 seconds
 - **Unit Tests**: 0.23s
 - **Damage Scenarios**: 0.10s
 - **Complex Damage**: 0.04s
@@ -145,6 +187,7 @@ TOTAL:                   298 ✅
 - **Fuzz Tests**: 7.50s (property-based)
 - **Integration Tests**: 12.19s (performance)
 - **Streaming Tests**: 0.06s
+- **Diff Tests**: 0.01s
 
 ## Coverage by Damage Type
 
@@ -170,18 +213,19 @@ TOTAL:                   298 ✅
 
 ## Coverage by Format
 
-| Format | Unit | Damage | Complex | Streaming | Fuzz | Total |
-|--------|------|--------|---------|-----------|------|-------|
-| JSON | 35 | 1 | 4 | 7 | 6 | 53 |
-| YAML | 14 | 1 | 3 | 7 | 6 | 31 |
-| Markdown | 14 | 1 | 3 | 7 | 6 | 31 |
-| XML | 9 | 1 | 2 | 7 | 6 | 25 |
-| TOML | 9 | 1 | 2 | 7 | 6 | 25 |
-| CSV | 9 | 1 | 2 | 7 | 6 | 25 |
-| INI | 10 | 1 | 2 | 7 | 6 | 26 |
-| Advanced | 9 | 6 | - | - | - | 15 |
-| Streaming | - | - | - | - | - | 26 |
-| **Total** | **178** | **18** | **18** | **18** | **36** | **298** |
+| Format | Unit | Damage | Complex | Streaming | Fuzz | Diff | Total |
+|--------|------|--------|---------|-----------|------|------|-------|
+| JSON | 35+ | 1 | 4 | 7 | 6 | - | 53+ |
+| YAML | 14+ | 1 | 3 | 7 | 6 | - | 31+ |
+| Markdown | 14+ | 1 | 3 | 7 | 6 | - | 31+ |
+| XML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
+| TOML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
+| CSV | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
+| INI | 10+ | 1 | 2 | 7 | 6 | - | 26+ |
+| Diff | - | - | - | - | - | 35 | 35 |
+| Advanced | 9+ | 6 | - | - | - | - | 15+ |
+| Streaming | - | - | - | - | - | - | 26 |
+| **Total** | **209+** | **18** | **18** | **18** | **36** | **35** | **364+** |
 
 ## Key Test Scenarios
 
@@ -243,7 +287,7 @@ cargo test --test integration_tests -- --nocapture
 ## Test Quality Metrics
 
 ### Coverage Assessment
-- ✅ All 7 formats have comprehensive tests
+- ✅ All 8 formats have comprehensive tests (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
 - ✅ All damage types covered
 - ✅ Edge cases explicitly tested
 - ✅ Error scenarios validated
@@ -269,10 +313,9 @@ cargo test --test integration_tests -- --nocapture
 ## Documentation
 
 ### Test Documentation
-- `COMPLEX_DAMAGE_TESTS.md` - Complex damage scenarios
-- `COMPLEX_STREAMING_TESTS.md` - Complex streaming scenarios
+- `TEST_SUMMARY.md` - This file (comprehensive test overview)
 - `STREAMING_FEATURE.md` - Streaming feature overview
-- `TEST_SUMMARY.md` - This file
+- Historical test detail files archived in `docs/archive/`
 
 ### Code Documentation
 - `README.md` - Main documentation

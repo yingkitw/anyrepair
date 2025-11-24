@@ -2,6 +2,25 @@
 
 This directory contains examples demonstrating how to use the AnyRepair library and MCP server.
 
+## Directory Structure
+
+```
+examples/
+├── data/              # Test data files organized by format
+│   ├── json/         # JSON test files (sample, malformed, complex)
+│   ├── yaml/         # YAML test files
+│   ├── markdown/     # Markdown test files
+│   ├── xml/          # XML test files
+│   ├── toml/         # TOML test files
+│   ├── csv/          # CSV test files
+│   ├── ini/          # INI test files
+│   └── diff/         # Unified diff test files
+├── *.rs              # Rust code examples
+└── README.md         # This file
+```
+
+See [data/README.md](data/README.md) for detailed information about test data files.
+
 ## MCP Server Examples
 
 ### 1. JSON Repair Example

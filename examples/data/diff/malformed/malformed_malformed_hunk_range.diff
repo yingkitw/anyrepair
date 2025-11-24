@@ -1,0 +1,6 @@
+--- a/file.txt
++++ b/file.txt
+@@ abc def ghi jkl @@
+-old
++new
+

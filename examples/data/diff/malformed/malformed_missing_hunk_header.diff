@@ -1,0 +1,6 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+-old code
++new code
+ unchanged line
+

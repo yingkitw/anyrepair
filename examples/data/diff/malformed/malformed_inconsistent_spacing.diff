@@ -1,0 +1,6 @@
+--- a/file.txt
++++ b/file.txt
+@@  -1,2  +1,2  @@
+-old
++new
+

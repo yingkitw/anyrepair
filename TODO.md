@@ -23,6 +23,7 @@
 - [x] TOML repair support implementation
 - [x] CSV repair support implementation
 - [x] INI file repair support implementation
+- [x] Diff/Unified diff repair support implementation
 - [x] Parallel strategy application for performance optimization
 - [x] Advanced repair strategies with enhanced capabilities
 - [x] Codebase simplification - Removed redundant directories (repairers/, utils/)
@@ -94,6 +95,7 @@
   - [x] TOML repair
   - [x] CSV repair
   - [x] INI file repair
+  - [x] Diff/Unified diff repair
 - [x] Advanced features
   - [x] Custom repair rule configuration
   - [x] Repair quality scoring

@@ -1,0 +1,168 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,50 +1,75 @@
+ //! AnyRepair Library
+ //! A comprehensive Rust crate for repairing LLM responses
+ 
+ use std::collections::HashMap;
+ use std::io::{Read, Write};
+ use serde::{Deserialize, Serialize};
+ 
++/// Configuration for repair operations
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct RepairConfig {
++    pub max_iterations: usize,
++    pub enable_logging: bool,
++    pub strict_mode: bool,
++}
++
++impl Default for RepairConfig {
++    fn default() -> Self {
++        Self {
++            max_iterations: 10,
++            enable_logging: false,
++            strict_mode: false,
++        }
++    }
++}
++
+ /// Main repairer trait
+ pub trait Repairer {
+     fn repair(&mut self, content: &str) -> Result<String, RepairError>;
+     fn validate(&self, content: &str) -> bool;
++    fn get_config(&self) -> &RepairConfig;
++    fn set_config(&mut self, config: RepairConfig);
+ }
+ 
+ /// Error type for repair operations
+ #[derive(Debug, Clone)]
+ pub enum RepairError {
+     InvalidFormat(String),
+     ParseError(String),
++    ConfigError(String),
+     IoError(String),
+ }
+ 
+ impl std::fmt::Display for RepairError {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         match self {
+             RepairError::InvalidFormat(msg) => write!(f, "Invalid format: {}", msg),
+             RepairError::ParseError(msg) => write!(f, "Parse error: {}", msg),
++            RepairError::ConfigError(msg) => write!(f, "Config error: {}", msg),
+             RepairError::IoError(msg) => write!(f, "IO error: {}", msg),
+         }
+     }
+ }
+ 
+-/// JSON repairer implementation
+-pub struct JsonRepairer {
+-    strategies: Vec<Box<dyn RepairStrategy>>,
+-}
++/// JSON repairer implementation
++pub struct JsonRepairer {
++    strategies: Vec<Box<dyn RepairStrategy>>,
++    config: RepairConfig,
++}
+ 
+ impl JsonRepairer {
+-    pub fn new() -> Self {
++    pub fn new() -> Self {
++        Self::with_config(RepairConfig::default())
++    }
++    
++    pub fn with_config(config: RepairConfig) -> Self {
+         Self {
+             strategies: vec![],
++            config,
+         }
+     }
+ }
+ 
+ impl Repairer for JsonRepairer {
+     fn repair(&mut self, content: &str) -> Result<String, RepairError> {
+-        // Apply strategies
++        if self.config.enable_logging {
++            eprintln!("Starting repair with {} strategies", self.strategies.len());
++        }
++        
++        // Apply strategies
+         let mut result = content.to_string();
+         for strategy in &self.strategies {
+             result = strategy.apply(&result)?;
++            
++            if self.config.enable_logging {
++                eprintln!("Applied strategy: {}", strategy.name());
++            }
+         }
+         
++        if self.config.strict_mode && !self.validate(&result) {
++            return Err(RepairError::ConfigError("Strict mode validation failed".to_string()));
++        }
++        
+         Ok(result)
+     }
+     
+     fn validate(&self, content: &str) -> bool {
+         serde_json::from_str::<serde_json::Value>(content).is_ok()
+     }
++    
++    fn get_config(&self) -> &RepairConfig {
++        &self.config
++    }
++    
++    fn set_config(&mut self, config: RepairConfig) {
++        self.config = config;
++    }
+ }
+ 
+@@ -52,15 +77,25 @@
+ pub trait RepairStrategy {
+     fn apply(&self, content: &str) -> Result<String, RepairError>;
+     fn name(&self) -> &str;
++    fn priority(&self) -> u8;
+ }
+ 
+ /// Strategy for fixing trailing commas
+ struct FixTrailingCommasStrategy;
+ 
+ impl RepairStrategy for FixTrailingCommasStrategy {
+     fn apply(&self, content: &str) -> Result<String, RepairError> {
+-        Ok(content.replace(",\n}", "\n}").replace(",\n]", "\n]"))
++        let result = content
++            .replace(",\n}", "\n}")
++            .replace(",\n]", "\n]")
++            .replace(",}", "}")
++            .replace(",]", "]");
++        Ok(result)
+     }
+     
+     fn name(&self) -> &str {
+         "FixTrailingCommas"
+     }
++    
++    fn priority(&self) -> u8 {
++        10
++    }
+ }
++
++/// Strategy for fixing missing quotes
++struct FixMissingQuotesStrategy;
++
++impl RepairStrategy for FixMissingQuotesStrategy {
++    fn apply(&self, content: &str) -> Result<String, RepairError> {
++        // Complex regex-based quote fixing
++        let re = regex::Regex::new(r"(\w+):\s*([^,\}\]]+)").unwrap();
++        let result = re.replace_all(content, |caps: &regex::Captures| {
++            format!("{}: {}", caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str())
++        });
++        Ok(result.to_string())
++    }
++    
++    fn name(&self) -> &str {
++        "FixMissingQuotes"
++    }
++    
++    fn priority(&self) -> u8 {
++        8
++    }
++}

@@ -1,0 +1,159 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 1234567..abcdefg 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,15 +1,20 @@
+ //! AnyRepair Library
+ 
++use crate::error::RepairError;
+ use crate::traits::Repair;
+-use crate::error::RepairError;
+ 
+ /// Main repair function
+ pub fn repair(content: &str) -> Result<String, RepairError> {
+     let trimmed = content.trim();
+     
++    // Early return for empty content
++    if trimmed.is_empty() {
++        return Ok(String::new());
++    }
++    
+     // Auto-detect format
+     if is_json_like(trimmed) {
+         let mut repairer = json::JsonRepairer::new();
+-        repairer.repair(trimmed)
++        repairer.repair(trimmed).map_err(|e| RepairError::from(e))
+     } else if is_yaml_like(trimmed) {
+         let mut repairer = yaml::YamlRepairer::new();
+         repairer.repair(trimmed)
+@@ -20,6 +25,11 @@ pub fn repair(content: &str) -> Result<String, RepairError> {
+     }
+ }
+ 
++/// Check if content looks like JSON
++fn is_json_like(content: &str) -> bool {
++    content.trim_start().starts_with('{') || content.trim_start().starts_with('[')
++}
++
+ diff --git a/src/json.rs b/src/json.rs
+ index 2345678..bcdefgh 100644
+ --- a/src/json.rs
++++ b/src/json.rs
+@@ -10,20 +10,35 @@ use crate::traits::{Repair, RepairStrategy, Validator};
+ 
+ /// JSON repairer
+ pub struct JsonRepairer {
+     strategies: Vec<Box<dyn RepairStrategy>>,
+     validator: JsonValidator,
++    max_iterations: usize,
++    enable_logging: bool,
+ }
+ 
+ impl JsonRepairer {
+     pub fn new() -> Self {
++        Self::with_options(false, 10)
++    }
++    
++    pub fn with_options(enable_logging: bool, max_iterations: usize) -> Self {
+         let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+             Box::new(StripTrailingContentStrategy),
+             Box::new(AddMissingQuotesStrategy),
+             Box::new(FixTrailingCommasStrategy),
+             Box::new(AddMissingBracesStrategy),
++            Box::new(FixSingleQuotesStrategy),
++            Box::new(FixMalformedNumbersStrategy),
++            Box::new(FixBooleanNullStrategy),
+         ];
+         
+         strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+         
+         Self {
+             strategies,
+             validator: JsonValidator,
++            max_iterations,
++            enable_logging,
+         }
+     }
+ }
+@@ -32,7 +47,20 @@ impl Repair for JsonRepairer {
+     fn repair(&mut self, content: &str) -> Result<String> {
+         let trimmed = content.trim();
+         
++        if trimmed.is_empty() {
++            return Ok(String::new());
++        }
++        
++        if self.enable_logging {
++            eprintln!("Starting JSON repair for {} bytes", trimmed.len());
++        }
++        
+         if self.validator.is_valid(trimmed) {
++            if self.enable_logging {
++                eprintln!("Content already valid, skipping repair");
++            }
+             return Ok(trimmed.to_string());
+         }
+         
+@@ -40,6 +68,12 @@ impl Repair for JsonRepairer {
+         let mut repaired = trimmed.to_string();
+         let mut iteration = 0;
+         
++        while iteration < self.max_iterations && !self.validator.is_valid(&repaired) {
++            let previous = repaired.clone();
++            
++            for strategy in &self.strategies {
++                if let Ok(result) = strategy.apply(&repaired) {
++                    repaired = result;
++                }
++            }
++            
++            // Check if we made progress
++            if repaired == previous {
++                if self.enable_logging {
++                    eprintln!("No progress made after iteration {}", iteration);
++                }
++                break;
++            }
++            
++            iteration += 1;
++        }
++        
++        if self.enable_logging {
++            eprintln!("Repair completed after {} iterations", iteration);
++        }
++        
+         Ok(repaired)
+     }
+ }
+ 
+ diff --git a/src/yaml.rs b/src/yaml.rs
+ index 3456789..cdefghi 100644
+ --- a/src/yaml.rs
++++ b/src/yaml.rs
+@@ -5,10 +5,15 @@ use crate::traits::{Repair, RepairStrategy, Validator};
+ 
+ /// YAML repairer
+ pub struct YamlRepairer {
+     strategies: Vec<Box<dyn RepairStrategy>>,
+     validator: YamlValidator,
++    preserve_comments: bool,
+ }
+ 
++impl Default for YamlRepairer {
++    fn default() -> Self {
++        Self::new()
++    }
++}
++
+ impl YamlRepairer {
+     pub fn new() -> Self {
+         let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+@@ -18,6 +23,7 @@ impl YamlRepairer {
+         Self {
+             strategies,
+             validator: YamlValidator,
++            preserve_comments: true,
+         }
+     }
+ }
+

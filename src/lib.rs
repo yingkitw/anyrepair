@@ -27,6 +27,7 @@ pub mod xml;
 pub mod toml;
 pub mod csv;
 pub mod ini;
+pub mod diff;
 
 // Utility and helper modules
 pub mod parallel;
@@ -64,6 +65,7 @@ pub use confidence_scorer::ConfidenceScorer;
 pub use streaming::StreamingRepair;
 pub use mcp_server::AnyrepairMcpServer;
 pub use json::JsonRepairer;
+pub use diff::DiffRepairer;
 
 use serde_json::Value;
 use std::fs::File;
@@ -91,6 +93,9 @@ pub fn repair(content: &str) -> Result<String> {
         repairer.repair(trimmed)
     } else if is_ini_like(trimmed) {
         let mut repairer = ini::IniRepairer::new();
+        repairer.repair(trimmed)
+    } else if is_diff_like(trimmed) {
+        let mut repairer = diff::DiffRepairer::new();
         repairer.repair(trimmed)
     } else if is_markdown_like(trimmed) {
         let mut repairer = markdown::MarkdownRepairer::new();
@@ -316,8 +321,40 @@ fn is_ini_like(content: &str) -> bool {
     })
 }
 
+fn is_diff_like(content: &str) -> bool {
+    let trimmed = content.trim();
+    // Check for hunk headers (@@)
+    if trimmed.contains("@@") {
+        return true;
+    }
+    // Check for file headers (--- or +++ at start of lines)
+    if trimmed.lines().any(|line| line.starts_with("---") || line.starts_with("+++")) {
+        return true;
+    }
+    // Check for diff line prefixes (+, -, space) in multiple lines
+    let lines: Vec<&str> = trimmed.lines().collect();
+    if lines.len() > 1 {
+        let diff_line_count = lines.iter()
+            .filter(|line| {
+                let line = line.trim();
+                line.starts_with('+') || line.starts_with('-') || 
+                (line.starts_with(' ') && !line.starts_with("@@"))
+            })
+            .count();
+        // If more than half the lines look like diff lines, it's probably a diff
+        if diff_line_count as f64 / lines.len() as f64 > 0.3 {
+            return true;
+        }
+    }
+    false
+}
+
 fn is_markdown_like(content: &str) -> bool {
     let trimmed = content.trim();
+    // Don't match diff as markdown
+    if is_diff_like(trimmed) {
+        return false;
+    }
     trimmed.starts_with('#') ||
     trimmed.contains("```") ||
     trimmed.contains("**") ||

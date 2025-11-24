@@ -1,0 +1,157 @@
+--- a/src/strategies.rs
++++ b/src/strategies.rs
+@@ -1,100 +1,120 @@
+ //! Repair strategies for various formats
+ 
+ use crate::error::Result;
+ use crate::traits::RepairStrategy;
+ use regex::Regex;
+ use std::sync::OnceLock;
+ 
++/// Strategy priority levels
++pub mod priority {
++    pub const CRITICAL: u8 = 100;
++    pub const HIGH: u8 = 50;
++    pub const MEDIUM: u8 = 25;
++    pub const LOW: u8 = 10;
++}
++
+ /// Strategy for fixing trailing commas
+ pub struct FixTrailingCommasStrategy;
+ 
+ impl RepairStrategy for FixTrailingCommasStrategy {
+     fn apply(&self, content: &str) -> Result<String> {
+-        let mut result = content.to_string();
++        let result = content
++            .replace(",\n}", "\n}")
++            .replace(",\n]", "\n]")
++            .replace(",}", "}")
++            .replace(",]", "]");
+         
+-        // Fix trailing commas before closing braces
+-        result = result.replace(",\n}", "\n}");
+-        result = result.replace(",\n]", "\n]");
+-        
+-        // Fix trailing commas on same line
+-        result = result.replace(",}", "}");
+-        result = result.replace(",]", "]");
+-        
+         Ok(result)
+     }
+     
+     fn priority(&self) -> u8 {
+-        10
++        priority::HIGH
+     }
+     
+     fn name(&self) -> &str {
+         "FixTrailingCommas"
+     }
+ }
+ 
+ /// Strategy for adding missing quotes
+ pub struct AddMissingQuotesStrategy;
+ 
+ impl RepairStrategy for AddMissingQuotesStrategy {
+     fn apply(&self, content: &str) -> Result<String> {
++        // Use regex to find unquoted keys and values
+         static RE: OnceLock<Regex> = OnceLock::new();
+         let re = RE.get_or_init(|| {
+             Regex::new(r"(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:").unwrap()
+         });
+         
+-        let result = re.replace_all(content, |caps: &regex::Captures| {
++        re.replace_all(content, |caps: &regex::Captures| {
+             let indent = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+             let key = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+             format!("{}\"{}\":", indent, key)
+-        });
++        }).to_string()
++    }
++    
++    fn priority(&self) -> u8 {
++        priority::CRITICAL
++    }
++    
++    fn name(&self) -> &str {
++        "AddMissingQuotes"
++    }
++}
++
++/// Strategy for fixing single quotes to double quotes
++pub struct FixSingleQuotesStrategy;
++
++impl RepairStrategy for FixSingleQuotesStrategy {
++    fn apply(&self, content: &str) -> Result<String> {
++        // Only replace single quotes that are used as string delimiters
++        // Be careful not to replace apostrophes in words
++        let mut result = content.to_string();
++        let mut in_string = false;
++        let mut chars: Vec<char> = result.chars().collect();
++        
++        for i in 0..chars.len() {
++            if chars[i] == '\'' && (i == 0 || chars[i-1] != '\\') {
++                // Check if this is likely a string delimiter
++                let prev_char = if i > 0 { Some(chars[i-1]) } else { None };
++                let next_char = if i < chars.len() - 1 { Some(chars[i+1]) } else { None };
++                
++                if matches!(prev_char, Some(' ' | ':' | '=' | ',' | '[' | '{')) &&
++                   matches!(next_char, Some(c) if c.is_alphanumeric() || c == ' ') {
++                    chars[i] = '"';
++                    in_string = !in_string;
++                }
++            }
++        }
++        
++        Ok(chars.into_iter().collect())
++    }
++    
++    fn priority(&self) -> u8 {
++        priority::MEDIUM
++    }
++    
++    fn name(&self) -> &str {
++        "FixSingleQuotes"
++    }
++}
++
++/// Strategy for fixing malformed numbers
++pub struct FixMalformedNumbersStrategy;
++
++impl RepairStrategy for FixMalformedNumbersStrategy {
++    fn apply(&self, content: &str) -> Result<String> {
++        static RE: OnceLock<Regex> = OnceLock::new();
++        let re = RE.get_or_init(|| {
++            Regex::new(r"(\d+)\.(\d+)\.(\d+)").unwrap()
++        });
+         
+-        Ok(result.to_string())
++        let result = re.replace_all(content, |caps: &regex::Captures| {
++            // This might be a version number, keep as is
++            // Or it might be a malformed decimal, fix it
++            let first = caps.get(1).unwrap().as_str();
++            let second = caps.get(2).unwrap().as_str();
++            let third = caps.get(3).unwrap().as_str();
++            
++            // If second part is very long, it's probably malformed
++            if second.len() > 10 {
++                format!("{}.{}{}", first, second, third)
++            } else {
++                format!("{}.{}.{}", first, second, third)
++            }
++        });
++        
++        Ok(result.to_string())
+     }
+     
+     fn priority(&self) -> u8 {
+-        8
++        priority::LOW
+     }
+     
+     fn name(&self) -> &str {
+-        "AddMissingQuotes"
++        "FixMalformedNumbers"
+     }
+ }
+

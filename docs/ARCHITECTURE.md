@@ -4,7 +4,54 @@
 
 AnyRepair is designed as a modular, extensible system for repairing LLM-generated content. The architecture follows Rust best practices with clear separation of concerns and trait-based design for testability. 
 
-## Module Organization
+## Project Structure
+
+### Directory Organization
+
+```
+anyrepair/
+├── README.md              # Main project documentation
+├── TODO.md                # Task tracking and roadmap
+├── Cargo.toml             # Project manifest
+├── src/                   # Source code
+│   ├── lib.rs            # Library entry point
+│   ├── main.rs           # CLI application
+│   ├── bin/              # Binary executables
+│   │   └── mcp_server.rs # MCP server binary
+│   ├── cli/              # CLI module
+│   │   ├── mod.rs
+│   │   ├── repair_cmd.rs
+│   │   ├── validate_cmd.rs
+│   │   ├── batch_cmd.rs
+│   │   ├── rules_cmd.rs
+│   │   └── stream_cmd.rs
+│   ├── json.rs           # JSON repairer
+│   ├── yaml.rs           # YAML repairer
+│   ├── markdown.rs       # Markdown repairer
+│   ├── xml.rs            # XML repairer
+│   ├── toml.rs           # TOML repairer
+│   ├── csv.rs            # CSV repairer
+│   ├── ini.rs            # INI repairer
+│   ├── diff.rs           # Diff/Unified diff repairer
+│   ├── mcp_server.rs     # MCP server implementation
+│   ├── streaming.rs      # Streaming repair support
+│   ├── error.rs          # Error types
+│   ├── traits.rs         # Core trait definitions
+│   ├── repairer_base.rs  # Base repairer implementation
+│   └── ...               # Other utility modules
+├── examples/             # Usage examples
+│   ├── README.md
+│   └── data/             # Test data files
+├── tests/                # Test suites
+├── docs/                 # Documentation
+│   ├── INDEX.md         # Documentation index
+│   ├── ARCHITECTURE.md  # This file
+│   ├── CHANGELOG.md     # Version history
+│   └── ...              # Other docs
+└── target/              # Build output
+```
+
+### Module Organization
 
 The codebase is organized into logical modules for better maintainability:
 
@@ -23,6 +70,7 @@ src/
 │   └── stream_cmd.rs    # Streaming command
 ├── json.rs               # JSON repairer (consolidated, 571 lines)
 ├── markdown.rs           # Markdown repairer (consolidated, ~550 lines)
+├── diff.rs               # Diff/Unified diff repairer
 ├── mcp_server.rs        # MCP server implementation (312 lines)
 ├── streaming.rs         # Streaming repair support
 ├── error.rs             # Error types
@@ -51,7 +99,7 @@ src/
 
 ### Module Hierarchy
 
-- **Format-Specific Repairers**: Direct modules at root level (`json`, `yaml`, `markdown`, `xml`, `toml`, `csv`, `ini`)
+- **Format-Specific Repairers**: Direct modules at root level (`json`, `yaml`, `markdown`, `xml`, `toml`, `csv`, `ini`, `diff`)
 - **Utility Modules**: Helper functions at root level (`advanced`, `parallel`, `context_parser`, `enhanced_json`)
 - **Plugin System**: Extensible plugin architecture
 - **Configuration**: User-defined repair rules and settings
@@ -553,7 +601,7 @@ The MCP (Model Context Protocol) server provides integration with Claude and oth
 
 **Architecture:**
 - `AnyrepairMcpServer` - Main server implementation
-- 9 available tools (repair, repair_json, repair_yaml, repair_markdown, repair_xml, repair_toml, repair_csv, repair_ini, validate)
+- 10 available tools (repair, repair_json, repair_yaml, repair_markdown, repair_xml, repair_toml, repair_csv, repair_ini, repair_diff, validate)
 - JSON-based request/response protocol
 - Stateless design for scalability
 

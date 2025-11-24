@@ -1,0 +1,220 @@
+--- a/src/repairer.rs
++++ b/src/repairer.rs
+@@ -1,200 +1,250 @@
+ //! Core repairer implementation with advanced strategies
+ 
+ use crate::error::{RepairError, Result};
+ use crate::traits::{Repair, RepairStrategy, Validator};
+ use std::collections::HashMap;
+ use std::sync::Arc;
+ use regex::Regex;
+ use once_cell::sync::Lazy;
+ 
++/// Configuration for repair operations
++#[derive(Debug, Clone)]
++pub struct RepairConfig {
++    pub max_iterations: usize,
++    pub enable_logging: bool,
++    pub strict_mode: bool,
++    pub preserve_formatting: bool,
++    pub custom_rules: Vec<CustomRule>,
++}
++
++impl Default for RepairConfig {
++    fn default() -> Self {
++        Self {
++            max_iterations: 10,
++            enable_logging: false,
++            strict_mode: false,
++            preserve_formatting: true,
++            custom_rules: Vec::new(),
++        }
++    }
++}
++
++/// Custom repair rule
++#[derive(Debug, Clone)]
++pub struct CustomRule {
++    pub pattern: String,
++    pub replacement: String,
++    pub priority: u8,
++}
++
+ /// Base repairer implementation
+ pub struct BaseRepairer {
+     strategies: Vec<Box<dyn RepairStrategy>>,
+     validator: Box<dyn Validator>,
++    config: RepairConfig,
++    stats: RepairStats,
+ }
+ 
++/// Statistics for repair operations
++#[derive(Debug, Default)]
++pub struct RepairStats {
++    pub iterations: usize,
++    pub strategies_applied: usize,
++    pub bytes_processed: usize,
++    pub repair_time_ms: u64,
++}
++
+ impl BaseRepairer {
+-    pub fn new(validator: Box<dyn Validator>, strategies: Vec<Box<dyn RepairStrategy>>) -> Self {
++    pub fn new(
++        validator: Box<dyn Validator>,
++        strategies: Vec<Box<dyn RepairStrategy>>,
++    ) -> Self {
++        Self::with_config(validator, strategies, RepairConfig::default())
++    }
++    
++    pub fn with_config(
++        validator: Box<dyn Validator>,
++        strategies: Vec<Box<dyn RepairStrategy>>,
++        config: RepairConfig,
++    ) -> Self {
+         let mut sorted_strategies = strategies;
+         sorted_strategies.sort_by_key(|s| std::cmp::Reverse(s.priority()));
+         
+         Self {
+             strategies: sorted_strategies,
+             validator,
++            config,
++            stats: RepairStats::default(),
+         }
+     }
++    
++    pub fn get_stats(&self) -> &RepairStats {
++        &self.stats
++    }
++    
++    pub fn reset_stats(&mut self) {
++        self.stats = RepairStats::default();
++    }
+ }
+ 
+ impl Repair for BaseRepairer {
+     fn repair(&mut self, content: &str) -> Result<String> {
++        let start_time = std::time::Instant::now();
++        self.stats.bytes_processed = content.len();
++        
+         let trimmed = content.trim();
+         
+         if trimmed.is_empty() {
++            self.stats.repair_time_ms = start_time.elapsed().as_millis() as u64;
+             return Ok(String::new());
+         }
+         
+         if self.validator.is_valid(trimmed) {
++            self.stats.repair_time_ms = start_time.elapsed().as_millis() as u64;
+             return Ok(trimmed.to_string());
+         }
+         
++        if self.config.enable_logging {
++            eprintln!("Starting repair for {} bytes", trimmed.len());
++        }
++        
+         let mut repaired = trimmed.to_string();
+-        let mut iteration = 0;
++        let mut iteration = 0;
++        let max_iterations = self.config.max_iterations;
+         
+-        while iteration < 10 && !self.validator.is_valid(&repaired) {
++        while iteration < max_iterations && !self.validator.is_valid(&repaired) {
+             let previous = repaired.clone();
+             
++            // Apply custom rules first
++            for rule in &self.config.custom_rules {
++                if let Ok(regex) = Regex::new(&rule.pattern) {
++                    repaired = regex.replace_all(&repaired, rule.replacement.as_str()).to_string();
++                }
++            }
++            
++            // Apply standard strategies
+             for strategy in &self.strategies {
+                 if let Ok(result) = strategy.apply(&repaired) {
+                     repaired = result;
++                    self.stats.strategies_applied += 1;
++                    
++                    if self.config.enable_logging {
++                        eprintln!("Applied strategy: {}", strategy.name());
++                    }
+                 }
+             }
+             
+             if repaired == previous {
++                if self.config.enable_logging {
++                    eprintln!("No progress made after iteration {}", iteration);
++                }
+                 break;
+             }
+             
+             iteration += 1;
+         }
+         
++        self.stats.iterations = iteration;
++        self.stats.repair_time_ms = start_time.elapsed().as_millis() as u64;
++        
++        if self.config.enable_logging {
++            eprintln!(
++                "Repair completed: {} iterations, {} strategies applied, {}ms",
++                self.stats.iterations,
++                self.stats.strategies_applied,
++                self.stats.repair_time_ms
++            );
++        }
++        
++        if self.config.strict_mode && !self.validator.is_valid(&repaired) {
++            return Err(RepairError::repair_failed(
++                "Strict mode validation failed after repair"
++            ));
++        }
++        
+         Ok(repaired)
+     }
+     
+     fn needs_repair(&self, content: &str) -> bool {
+         !self.validator.is_valid(content)
+     }
+     
+     fn confidence(&self, content: &str) -> f64 {
++        if content.trim().is_empty() {
++            return 0.0;
++        }
++        
+         if self.validator.is_valid(content) {
+             return 1.0;
+         }
+         
++        // Calculate confidence based on various factors
+         let mut score = 0.0;
+         
++        // Check structure completeness
+         let open_braces = content.matches('{').count();
+         let close_braces = content.matches('}').count();
+         let brace_balance = 1.0 - ((open_braces as f64 - close_braces as f64).abs() / (open_braces + close_braces + 1) as f64);
+         score += brace_balance * 0.3;
+         
++        // Check quote balance
+         let single_quotes = content.matches('\'').count();
+         let double_quotes = content.matches('"').count();
+         let quote_balance = if double_quotes > 0 {
+             1.0 - ((double_quotes % 2) as f64 * 0.1)
+         } else {
+             0.5
+         };
+         score += quote_balance * 0.2;
+         
++        // Check for common patterns
+         if content.contains(':') && content.contains(',') {
+             score += 0.3;
+         }
+         
++        // Check length (very short or very long content is less likely to be valid)
+         let len = content.len();
+         if len > 10 && len < 100000 {
+             score += 0.2;
+         }
+         
+         score.min(1.0)
+     }
+ }
+

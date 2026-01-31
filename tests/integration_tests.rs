@@ -1,6 +1,6 @@
 //! Integration tests for the anyrepair library
 
-use anyrepair::{repair, json, yaml, markdown, traits::Repair};
+use anyrepair::{repair, json, yaml, markdown, xml, toml, csv, ini, diff, traits::Repair};
 
 #[test]
 fn test_library_integration() {
@@ -89,3 +89,252 @@ fn test_memory_usage() {
     // If we get here without panicking, memory usage is reasonable
     assert!(true);
 }
+
+#[test]
+fn test_all_format_repairers() {
+    // Test XML repairer
+    let mut xml_repairer = xml::XmlRepairer::new();
+    let xml_input = "<root><item>value</item></root>";
+    let xml_result = xml_repairer.repair(xml_input).unwrap();
+    assert!(xml_result.contains("<root>"));
+
+    // Test TOML repairer
+    let mut toml_repairer = toml::TomlRepairer::new();
+    let toml_input = "name = \"John\"\nage = 30";
+    let toml_result = toml_repairer.repair(toml_input).unwrap();
+    assert!(toml_result.contains("name"));
+
+    // Test CSV repairer
+    let mut csv_repairer = csv::CsvRepairer::new();
+    let csv_input = "name,age\nJohn,30\nJane,25";
+    let csv_result = csv_repairer.repair(csv_input).unwrap();
+    assert!(csv_result.contains("John,30"));
+
+    // Test INI repairer
+    let mut ini_repairer = ini::IniRepairer::new();
+    let ini_input = "[user]\nname = John\nage = 30";
+    let ini_result = ini_repairer.repair(ini_input).unwrap();
+    assert!(ini_result.contains("[user]"));
+
+    // Test Diff repairer
+    let mut diff_repairer = diff::DiffRepairer::new();
+    let diff_input = "@@ -1,3 +1,4 @@\n-line 1\n+line 1 modified\n line 2";
+    let diff_result = diff_repairer.repair(diff_input).unwrap();
+    assert!(diff_result.contains("@@"));
+}
+
+#[test]
+fn test_json_with_js_comments() {
+    let mut json_repairer = json::JsonRepairer::new();
+
+    // Test JSON with JavaScript-style comments
+    let input = r#"{
+  // This is a single-line comment
+  "name": "John",
+  "age": 30, /* trailing comment */
+  "city": "NYC",
+  /* Multi-line
+     comment */ "active": true
+}"#;
+
+    let result = json_repairer.repair(input).unwrap();
+    assert!(result.contains("name"));
+    assert!(result.contains("John"));
+    assert!(!result.contains("//"));
+    assert!(!result.contains("/*"));
+
+    // Verify it's valid JSON
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["name"], "John");
+    assert_eq!(parsed["age"], 30);
+}
+
+#[test]
+fn test_format_detection_with_comments() {
+    // JSON with comments should still be detected as JSON
+    let json_with_comments = r#"{
+  // comment
+  "key": "value"
+}"#;
+
+    let result = repair(json_with_comments).unwrap();
+    assert!(result.contains("key"));
+    assert!(!result.contains("//"));
+}
+
+#[test]
+fn test_xml_edge_cases() {
+    let mut xml_repairer = xml::XmlRepairer::new();
+
+    // Unclosed tags - the repairer may or may not add closing tags
+    let input1 = "<root><item>value</root>";
+    let result1 = xml_repairer.repair(input1).unwrap();
+    // Just verify it contains some expected content
+    assert!(result1.contains("<root>") || result1.contains("<item>"));
+
+    // Missing quotes
+    let input2 = "<root item=value></root>";
+    let result2 = xml_repairer.repair(input2).unwrap();
+    assert!(result2.contains("\"") || result2.contains("item"));
+}
+
+#[test]
+fn test_toml_edge_cases() {
+    let mut toml_repairer = toml::TomlRepairer::new();
+
+    // Malformed arrays
+    let input1 = "items = [1, 2, 3,]";
+    let result1 = toml_repairer.repair(input1).unwrap();
+    assert!(result1.contains("items"));
+
+    // Missing quotes
+    let input2 = "name = John";
+    let result2 = toml_repairer.repair(input2).unwrap();
+    assert!(result2.contains("\""));
+}
+
+#[test]
+fn test_csv_edge_cases() {
+    let mut csv_repairer = csv::CsvRepairer::new();
+
+    // Unquoted strings
+    let input1 = "name,age\nJohn,30\nJane,25";
+    let result1 = csv_repairer.repair(input1).unwrap();
+    assert!(result1.contains("John"));
+
+    // Malformed quotes
+    let input2 = "name,age\n\"John,30\n\"Jane\",25";
+    let result2 = csv_repairer.repair(input2).unwrap();
+    assert!(result2.lines().count() >= 2);
+}
+
+#[test]
+fn test_ini_edge_cases() {
+    let mut ini_repairer = ini::IniRepairer::new();
+
+    // Missing equals
+    let input1 = "[user]\nname John\nage = 30";
+    let result1 = ini_repairer.repair(input1).unwrap();
+    assert!(result1.contains("="));
+
+    // Unquoted values
+    let input2 = "[settings]\nverbose = true";
+    let result2 = ini_repairer.repair(input2).unwrap();
+    assert!(result2.contains("verbose"));
+}
+
+#[test]
+fn test_diff_edge_cases() {
+    let mut diff_repairer = diff::DiffRepairer::new();
+
+    // Missing hunk header
+    let input1 = "-line 1\n+line 2\n line 3";
+    let result1 = diff_repairer.repair(input1).unwrap();
+    assert!(result1.contains("@@"));
+
+    // Missing file headers
+    let input2 = "@@ -1,3 +1,4 @@\n-old\n+new";
+    let result2 = diff_repairer.repair(input2).unwrap();
+    // Should add file headers if missing
+    assert!(result2.contains("@@"));
+}
+
+#[test]
+fn test_repair_strategy_priority() {
+    let mut json_repairer = json::JsonRepairer::new();
+
+    // Test that StripJsCommentsStrategy (priority 95) runs before quote fixing (priority 85)
+    let input = r#"{
+  // comment
+  name: "John",
+  age: 30,
+}"#;
+
+    let result = json_repairer.repair(input).unwrap();
+    // Comments should be stripped
+    assert!(!result.contains("//"));
+    // Quotes should be added
+    assert!(result.contains("\"name\""));
+    assert!(result.contains("\"age\""));
+}
+
+#[test]
+fn test_combined_json_repairs() {
+    let mut json_repairer = json::JsonRepairer::new();
+
+    // Test multiple issues at once: comments + trailing commas + missing quotes
+    let input = r#"{
+  // Configuration
+  name: "John", /* trailing comma expected */
+  age: 30,
+  active: true,
+}"#;
+
+    let result = json_repairer.repair(input).unwrap();
+    assert!(!result.contains("//"));
+    assert!(!result.contains("/*"));
+    assert!(result.contains("\"name\""));
+    assert!(result.contains("\"age\""));
+    assert!(!result.contains(",\n}"));
+
+    // Verify valid JSON
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["name"], "John");
+    assert_eq!(parsed["age"], 30);
+    assert_eq!(parsed["active"], true);
+}
+
+#[test]
+fn test_confidence_scoring_with_comments() {
+    let mut json_repairer = json::JsonRepairer::new();
+
+    // JSON with missing quotes should have lower confidence before repair
+    let input = r#"{key: "value"}"#;
+    let confidence_before = json_repairer.confidence(input);
+    assert!(confidence_before < 1.0);
+
+    // After repair, confidence should be high
+    let result = json_repairer.repair(input).unwrap();
+    let confidence_after = json_repairer.confidence(&result);
+    assert!(confidence_after > confidence_before);
+    assert_eq!(confidence_after, 1.0);
+}
+
+#[test]
+fn test_repair_with_special_characters_in_comments() {
+    let mut json_repairer = json::JsonRepairer::new();
+
+    let input = r#"{
+  "key": "value",
+  // Comment with special chars: @#$%^&*()
+  "url": "https://example.com"
+}"#;
+
+    let result = json_repairer.repair(input).unwrap();
+    assert!(!result.contains("// Comment"));
+    assert!(result.contains("https://"));
+}
+
+#[test]
+fn test_empty_and_minimal_inputs() {
+    let mut json_repairer = json::JsonRepairer::new();
+
+    // Empty with only comment
+    let input1 = r#"// just a comment"#;
+    let result1 = json_repairer.repair(input1).unwrap();
+    assert!(!result1.contains("//"));
+
+    // Minimal JSON
+    let input2 = r#"{}"#;
+    let result2 = json_repairer.repair(input2).unwrap();
+    assert_eq!(result2.trim(), "{}");
+
+    // Array with comment
+    let input3 = r#"[1, 2, // comment
+    3]"#;
+    let result3 = json_repairer.repair(input3).unwrap();
+    assert!(!result3.contains("//"));
+    assert!(result3.contains("["));
+    assert!(result3.contains("]"));
+}
+

@@ -37,15 +37,16 @@ fn get_toml_regex_cache() -> &'static TomlRegexCache {
 }
 
 /// TOML repairer that can fix common TOML issues
+/// 
+/// Uses trait-based composition with GenericRepairer for better modularity
 pub struct TomlRepairer {
-    strategies: Vec<Box<dyn RepairStrategy>>,
-    validator: TomlValidator,
+    inner: crate::repairer_base::GenericRepairer,
 }
 
 impl TomlRepairer {
     /// Create a new TOML repairer
     pub fn new() -> Self {
-        let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
             Box::new(FixMissingQuotesStrategy),
             Box::new(FixMalformedArraysStrategy),
             Box::new(FixMalformedTablesStrategy),
@@ -55,18 +56,10 @@ impl TomlRepairer {
             Box::new(AddTableHeadersStrategy),
         ];
         
-        // Sort strategies by priority (higher priority first)
-        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+        let validator: Box<dyn Validator> = Box::new(TomlValidator);
+        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
         
-        Self {
-            strategies,
-            validator: TomlValidator,
-        }
-    }
-    
-    /// Apply all repair strategies to the content
-    fn apply_strategies(&self, content: &str) -> Result<String> {
-        repairer_base::apply_strategies(&self.strategies, content)
+        Self { inner }
     }
 }
 
@@ -78,23 +71,11 @@ impl Default for TomlRepairer {
 
 impl Repair for TomlRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
-        let trimmed = content.trim();
-        
-        // Handle empty content
-        if trimmed.is_empty() {
-            return Ok("".to_string());
-        }
-        
-        // If already valid, return as-is
-        if self.validator.is_valid(trimmed) {
-            return Ok(trimmed.to_string());
-        }
-        
-        // Apply repair strategies
-        let repaired = self.apply_strategies(trimmed)?;
-        
-        // Always return the repaired content, even if validation fails
-        Ok(repaired)
+        self.inner.repair(content)
+    }
+    
+    fn needs_repair(&self, content: &str) -> bool {
+        self.inner.needs_repair(content)
     }
     
     fn confidence(&self, content: &str) -> f64 {
@@ -131,10 +112,6 @@ impl Repair for TomlRepairer {
         }
         
         score.min(1.0)
-    }
-    
-    fn needs_repair(&self, content: &str) -> bool {
-        !self.validator.is_valid(content)
     }
 }
 

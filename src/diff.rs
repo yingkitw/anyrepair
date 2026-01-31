@@ -45,15 +45,16 @@ fn get_diff_regex_cache() -> &'static DiffRegexCache {
 }
 
 /// Diff repairer that can fix common unified diff issues
+/// 
+/// Uses trait-based composition with GenericRepairer for better modularity
 pub struct DiffRepairer {
-    strategies: Vec<Box<dyn RepairStrategy>>,
-    validator: DiffValidator,
+    inner: crate::repairer_base::GenericRepairer,
 }
 
 impl DiffRepairer {
     /// Create a new diff repairer
     pub fn new() -> Self {
-        let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
             Box::new(FixMissingHunkHeadersStrategy),
             Box::new(FixLinePrefixesStrategy),
             Box::new(FixMissingNewlinesStrategy),
@@ -62,18 +63,10 @@ impl DiffRepairer {
             Box::new(FixInconsistentSpacingStrategy),
         ];
         
-        // Sort strategies by priority (higher priority first)
-        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+        let validator: Box<dyn Validator> = Box::new(DiffValidator);
+        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
         
-        Self {
-            strategies,
-            validator: DiffValidator,
-        }
-    }
-    
-    /// Apply all repair strategies to the content
-    fn apply_strategies(&self, content: &str) -> Result<String> {
-        repairer_base::apply_strategies(&self.strategies, content)
+        Self { inner }
     }
 }
 
@@ -85,37 +78,18 @@ impl Default for DiffRepairer {
 
 impl Repair for DiffRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
-        let trimmed = content.trim();
+        let mut repaired = self.inner.repair(content)?;
         
-        // Handle empty content
-        if trimmed.is_empty() {
-            return Ok("".to_string());
-        }
-        
-        // Check if content has file headers - if not, we should apply strategies
-        let has_file_headers = trimmed.lines().any(|line| line.starts_with("---")) &&
-                              trimmed.lines().any(|line| line.starts_with("+++"));
-        
-        // Check for other issues that need repair (missing newline, spacing issues)
-        let needs_newline = !trimmed.ends_with('\n') && !trimmed.ends_with("\r\n");
-        let has_spacing_issues = trimmed.contains("  ");
-        
-        // If already valid AND has file headers AND no other issues, return as-is
-        // Otherwise, apply strategies to improve the diff
-        if self.validator.is_valid(trimmed) && has_file_headers && !needs_newline && !has_spacing_issues {
-            return Ok(trimmed.to_string());
-        }
-        
-        // Apply repair strategies
-        let mut repaired = self.apply_strategies(trimmed)?;
-        
-        // Ensure result ends with newline (strategies might join lines without trailing newline)
-        if !repaired.ends_with('\n') && !repaired.ends_with("\r\n") {
+        // Ensure result ends with newline (diff format requirement)
+        if !repaired.is_empty() && !repaired.ends_with('\n') && !repaired.ends_with("\r\n") {
             repaired.push('\n');
         }
         
-        // Always return the repaired content, even if validation fails
         Ok(repaired)
+    }
+    
+    fn needs_repair(&self, content: &str) -> bool {
+        self.inner.needs_repair(content)
     }
     
     fn confidence(&self, content: &str) -> f64 {
@@ -167,10 +141,6 @@ impl Repair for DiffRepairer {
         
         score.min(1.0)
     }
-    
-    fn needs_repair(&self, content: &str) -> bool {
-        !self.validator.is_valid(content)
-    }
 }
 
 /// Diff validator
@@ -201,8 +171,10 @@ impl Validator for DiffValidator {
         let has_file_headers = lines.iter().any(|line| line.starts_with("---")) &&
                                lines.iter().any(|line| line.starts_with("+++"));
         
-        // File headers are preferred but not strictly required for validity
-        // We'll be lenient here and allow diffs without file headers
+        // File headers are required for a valid diff
+        if !has_file_headers {
+            return false;
+        }
         
         // Check that diff lines have proper prefixes
         let mut in_hunk = false;
@@ -211,6 +183,10 @@ impl Validator for DiffValidator {
                 in_hunk = true;
                 // Validate hunk header format
                 if !get_diff_regex_cache().hunk_header.is_match(line) {
+                    return false;
+                }
+                // Check for excessive spacing (double spaces)
+                if line.contains("  ") {
                     return false;
                 }
             } else if in_hunk {

@@ -35,15 +35,16 @@ fn get_xml_regex_cache() -> &'static XmlRegexCache {
 }
 
 /// XML repairer that can fix common XML issues
+/// 
+/// Uses trait-based composition with GenericRepairer for better modularity
 pub struct XmlRepairer {
-    strategies: Vec<Box<dyn RepairStrategy>>,
-    validator: XmlValidator,
+    inner: crate::repairer_base::GenericRepairer,
 }
 
 impl XmlRepairer {
     /// Create a new XML repairer
     pub fn new() -> Self {
-        let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
             Box::new(FixUnclosedTagsStrategy),
             Box::new(FixMalformedAttributesStrategy),
             Box::new(FixInvalidCharactersStrategy),
@@ -52,18 +53,10 @@ impl XmlRepairer {
             Box::new(AddXmlDeclarationStrategy),
         ];
         
-        // Sort strategies by priority (higher priority first)
-        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+        let validator: Box<dyn Validator> = Box::new(XmlValidator);
+        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
         
-        Self {
-            strategies,
-            validator: XmlValidator,
-        }
-    }
-    
-    /// Apply all repair strategies to the content
-    fn apply_strategies(&self, content: &str) -> Result<String> {
-        repairer_base::apply_strategies(&self.strategies, content)
+        Self { inner }
     }
 }
 
@@ -75,23 +68,11 @@ impl Default for XmlRepairer {
 
 impl Repair for XmlRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
-        let trimmed = content.trim();
-        
-        // Handle empty content
-        if trimmed.is_empty() {
-            return Ok("".to_string());
-        }
-        
-        // If already valid, return as-is
-        if self.validator.is_valid(trimmed) {
-            return Ok(trimmed.to_string());
-        }
-        
-        // Apply repair strategies
-        let repaired = self.apply_strategies(trimmed)?;
-        
-        // Always return the repaired content, even if validation fails
-        Ok(repaired)
+        self.inner.repair(content)
+    }
+    
+    fn needs_repair(&self, content: &str) -> bool {
+        self.inner.needs_repair(content)
     }
     
     fn confidence(&self, content: &str) -> f64 {
@@ -130,10 +111,6 @@ impl Repair for XmlRepairer {
         }
         
         score.min(1.0)
-    }
-    
-    fn needs_repair(&self, content: &str) -> bool {
-        !self.validator.is_valid(content)
     }
 }
 

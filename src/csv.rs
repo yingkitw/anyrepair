@@ -35,15 +35,16 @@ fn get_csv_regex_cache() -> &'static CsvRegexCache {
 }
 
 /// CSV repairer that can fix common CSV issues
+/// 
+/// Uses trait-based composition with GenericRepairer for better modularity
 pub struct CsvRepairer {
-    strategies: Vec<Box<dyn RepairStrategy>>,
-    validator: CsvValidator,
+    inner: crate::repairer_base::GenericRepairer,
 }
 
 impl CsvRepairer {
     /// Create a new CSV repairer
     pub fn new() -> Self {
-        let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
             Box::new(FixUnquotedStringsStrategy),
             Box::new(FixMalformedQuotesStrategy),
             Box::new(FixMissingQuotesStrategy),
@@ -52,18 +53,10 @@ impl CsvRepairer {
             Box::new(AddHeadersStrategy),
         ];
         
-        // Sort strategies by priority (higher priority first)
-        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+        let validator: Box<dyn Validator> = Box::new(CsvValidator);
+        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
         
-        Self {
-            strategies,
-            validator: CsvValidator,
-        }
-    }
-    
-    /// Apply all repair strategies to the content
-    fn apply_strategies(&self, content: &str) -> Result<String> {
-        repairer_base::apply_strategies(&self.strategies, content)
+        Self { inner }
     }
 }
 
@@ -75,23 +68,11 @@ impl Default for CsvRepairer {
 
 impl Repair for CsvRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
-        let trimmed = content.trim();
-        
-        // Handle empty content
-        if trimmed.is_empty() {
-            return Ok("".to_string());
-        }
-        
-        // If already valid, return as-is
-        if self.validator.is_valid(trimmed) {
-            return Ok(trimmed.to_string());
-        }
-        
-        // Apply repair strategies
-        let repaired = self.apply_strategies(trimmed)?;
-        
-        // Always return the repaired content, even if validation fails
-        Ok(repaired)
+        self.inner.repair(content)
+    }
+    
+    fn needs_repair(&self, content: &str) -> bool {
+        self.inner.needs_repair(content)
     }
     
     fn confidence(&self, content: &str) -> f64 {
@@ -128,10 +109,6 @@ impl Repair for CsvRepairer {
         }
         
         score.min(1.0)
-    }
-    
-    fn needs_repair(&self, content: &str) -> bool {
-        !self.validator.is_valid(content)
     }
 }
 

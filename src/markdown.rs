@@ -410,15 +410,16 @@ impl RepairStrategy for FixImageSyntaxStrategy {
 // ============================================================================
 
 /// Markdown repairer that can fix common Markdown issues
+/// 
+/// Uses trait-based composition with GenericRepairer for better modularity
 pub struct MarkdownRepairer {
-    strategies: Vec<Box<dyn RepairStrategy>>,
-    validator: MarkdownValidator,
+    inner: crate::repairer_base::GenericRepairer,
 }
 
 impl MarkdownRepairer {
     /// Create a new Markdown repairer
     pub fn new() -> Self {
-        let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
             Box::new(FixHeaderSpacingStrategy),
             Box::new(FixCodeBlockFencesStrategy),
             Box::new(FixListFormattingStrategy),
@@ -430,18 +431,10 @@ impl MarkdownRepairer {
             Box::new(FixImageSyntaxStrategy),
         ];
         
-        // Sort strategies by priority (higher priority first)
-        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+        let validator: Box<dyn Validator> = Box::new(MarkdownValidator);
+        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
         
-        Self {
-            strategies,
-            validator: MarkdownValidator,
-        }
-    }
-    
-    /// Apply all repair strategies to the content
-    fn apply_strategies(&self, content: &str) -> Result<String> {
-        repairer_base::apply_strategies(&self.strategies, content)
+        Self { inner }
     }
 }
 
@@ -453,26 +446,15 @@ impl Default for MarkdownRepairer {
 
 impl Repair for MarkdownRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
-        let trimmed = content.trim();
-        
-        // If already valid, return as-is
-        if self.validator.is_valid(trimmed) {
-            return Ok(trimmed.to_string());
-        }
-        
-        // Apply repair strategies
-        let repaired = self.apply_strategies(trimmed)?;
-        
-        // Return the repaired content
-        Ok(repaired)
+        self.inner.repair(content)
     }
     
     fn needs_repair(&self, content: &str) -> bool {
-        !self.validator.is_valid(content)
+        self.inner.needs_repair(content)
     }
     
     fn confidence(&self, content: &str) -> f64 {
-        if self.validator.is_valid(content) {
+        if self.inner.validator().is_valid(content) {
             return 1.0;
         }
         
@@ -510,13 +492,13 @@ mod tests {
     #[test]
     fn test_markdown_repairer_creation() {
         let repairer = MarkdownRepairer::new();
-        assert!(!repairer.strategies.is_empty());
+        assert!(!repairer.inner.strategies().is_empty());
     }
 
     #[test]
     fn test_markdown_repairer_default() {
         let repairer = MarkdownRepairer::default();
-        assert!(!repairer.strategies.is_empty());
+        assert!(!repairer.inner.strategies().is_empty());
     }
 
     #[test]

@@ -32,15 +32,16 @@ fn get_yaml_regex_cache() -> &'static YamlRegexCache {
 }
 
 /// YAML repairer that can fix common YAML issues
+/// 
+/// Uses trait-based composition with GenericRepairer for better modularity
 pub struct YamlRepairer {
-    strategies: Vec<Box<dyn RepairStrategy>>,
-    validator: YamlValidator,
+    inner: crate::repairer_base::GenericRepairer,
 }
 
 impl YamlRepairer {
     /// Create a new YAML repairer
     pub fn new() -> Self {
-        let mut strategies: Vec<Box<dyn RepairStrategy>> = vec![
+        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
             Box::new(FixIndentationStrategy),
             Box::new(AddMissingColonsStrategy),
             Box::new(FixListFormattingStrategy),
@@ -50,18 +51,10 @@ impl YamlRepairer {
             Box::new(ComplexStructureStrategy),
         ];
         
-        // Sort strategies by priority (higher priority first)
-        strategies.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+        let validator: Box<dyn Validator> = Box::new(YamlValidator);
+        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
         
-        Self {
-            strategies,
-            validator: YamlValidator,
-        }
-    }
-    
-    /// Apply all repair strategies to the content
-    fn apply_strategies(&self, content: &str) -> Result<String> {
-        repairer_base::apply_strategies(&self.strategies, content)
+        Self { inner }
     }
 }
 
@@ -73,32 +66,15 @@ impl Default for YamlRepairer {
 
 impl Repair for YamlRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
-        let trimmed = content.trim();
-        
-        // Handle empty content
-        if trimmed.is_empty() {
-            return Ok("".to_string());
-        }
-        
-        // If already valid, return as-is
-        if self.validator.is_valid(trimmed) {
-            return Ok(trimmed.to_string());
-        }
-        
-        // Apply repair strategies
-        let repaired = self.apply_strategies(trimmed)?;
-        
-        // Return the repaired content even if validation fails
-        // (some repairs might not be perfect but are still improvements)
-        Ok(repaired)
+        self.inner.repair(content)
     }
     
     fn needs_repair(&self, content: &str) -> bool {
-        !self.validator.is_valid(content)
+        self.inner.needs_repair(content)
     }
     
     fn confidence(&self, content: &str) -> f64 {
-        if self.validator.is_valid(content) {
+        if self.inner.validator().is_valid(content) {
             return 1.0;
         }
         
@@ -544,7 +520,7 @@ mod tests {
         
         // Invalid YAML should have lower confidence
         let invalid = "invalid: yaml: with: too: many: colons:";
-        let is_valid = repairer.validator.is_valid(invalid);
+        let is_valid = repairer.inner.validator().is_valid(invalid);
         println!("Is '{}' valid: {}", invalid, is_valid);
         let conf = repairer.confidence(invalid);
         println!("Confidence for invalid YAML: {}", conf);

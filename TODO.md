@@ -24,7 +24,6 @@
 - [x] CSV repair support implementation
 - [x] INI file repair support implementation
 - [x] Diff/Unified diff repair support implementation
-- [x] Parallel strategy application for performance optimization
 - [x] Advanced repair strategies with enhanced capabilities
 - [x] Codebase simplification - Removed redundant directories (repairers/, utils/)
 - [x] Codebase simplification - Consolidated JSON and Markdown subdirectories into single files
@@ -35,7 +34,6 @@
 
 - [x] Custom repair rule configuration
 - [x] Fuzz testing for robustness
-- [x] Plugin system foundation
 - [x] Additional documentation improvements
 - [x] Streaming repair for large files
 - [x] Complex damage test cases (18 tests)
@@ -51,8 +49,6 @@
 ### High Priority
 - [x] **Custom repair rule configuration** - Allow users to define custom repair rules ✅
 - [x] **Fuzz testing** - Add comprehensive fuzz testing for robustness ✅
-- [x] **Plugin system foundation** - Start building extensibility framework ✅
-
 ### Medium Priority  
 - [ ] **Web interface** - Create a simple web interface for online repair
 - [ ] **REST API** - Add REST API for programmatic access
@@ -60,8 +56,6 @@
 
 ### Low Priority
 - [ ] **Video tutorials** - Create video content for better user onboarding
-- [ ] **Advanced analytics** - Add more sophisticated repair metrics
-- [ ] **Enterprise features** - Multi-format batch processing, audit logging
 
 ## Planned 📋
 
@@ -101,23 +95,8 @@
   - [x] Repair quality scoring
   - [x] Batch processing
 - [x] Performance improvements
-  - [x] Parallel strategy application
   - [x] Memory optimization
   - [x] Caching mechanisms
-
-### Long Term
-- [x] Plugin system
-  - [x] External strategy loading
-  - [x] Custom format support
-  - [x] Third-party integrations
-- [x] Advanced analytics
-  - [x] Repair success metrics
-  - [x] Performance monitoring
-  - [x] Usage statistics
-- [x] Enterprise features
-  - [x] Multi-format batch processing
-  - [x] Custom validation rules
-  - [x] Audit logging
 
 ## Technical Debt
 
@@ -130,6 +109,15 @@
 - [x] Consolidate duplicate code in repairers
 - [x] Fix invalid Cargo.toml edition (2024 → 2021)
 - [x] Optimize format detection functions
+- [x] KISS/DRY/SoC refactoring (v0.2.0)
+  - [x] Centralized format registry: `create_repairer()`, `create_validator()`, `normalize_format()`, `SUPPORTED_FORMATS`
+  - [x] Eliminated 8 duplicated CLI `handle_*` functions → single `handle_repair` with registry
+  - [x] Removed 8 per-format CLI subcommands → unified `repair --format <fmt>`
+  - [x] Extracted `format_detection.rs` module (SoC: detection logic out of lib.rs)
+  - [x] Removed dead code: `BaseRepairer` trait, standalone `apply_strategies()`
+  - [x] DRY'd `JsonRepairer::with_logging` (reuses `new()` instead of duplicating strategies)
+  - [x] Refactored `streaming.rs` and `validate_cmd.rs` to use centralized registry
+  - [x] Improved diff detection precision (no false positives on YAML `---`)
 
 ## Testing
 
@@ -161,8 +149,6 @@
 - [ ] Web interface for online repair
 - [ ] REST API for programmatic access
 - [ ] Docker container for easy deployment
-- [ ] Integration with popular LLM APIs
-- [ ] Real-time repair suggestions
 - [ ] Repair history and undo functionality
 - [ ] Custom repair templates
 - [ ] Repair quality feedback system
@@ -172,7 +158,6 @@
 ## New Areas for Improvement 🎯
 
 ### Format Detection Enhancements
-- [ ] **ML-based format detection** - Use machine learning for ambiguous content detection
 - [ ] **Format detection confidence scoring** - Expose detection confidence to users
 - [ ] **Manual format hints** - Allow users to provide format hints for better detection
 - [ ] **Multi-format content handling** - Handle files containing multiple formats (e.g., JSON in Markdown code blocks)
@@ -198,7 +183,6 @@
 - [ ] **Lazy strategy evaluation** - Skip strategies if not needed for content
 - [ ] **Compile-time regex optimization** - Use `regex_lite!` or compile-time optimization
 - [ ] **SIMD operations** - Use SIMD for string processing operations
-- [ ] **Async batch processing** - Parallel file processing with tokio
 - [ ] **Memory-mapped files** - Use memmap for large file processing
 - [ ] **Incremental repair** - Repair only modified portions in watch mode
 - [ ] **Strategy caching** - Cache successful strategy patterns per format
@@ -206,11 +190,10 @@
 
 ### Testing Improvements
 - [ ] **Mutation testing** - Use cargo-mutants to test error handling
-- [ ] **Contract testing** - Plugin contract verification tests
 - [ ] **Property-based testing** - Expand proptest coverage for all formats
 - [ ] **Performance regression tests** - Catch performance degradation in CI
 - [ ] **Cross-format tests** - Test content mixing multiple formats
-- [ ] **Real-world corpus** - Test with actual LLM-generated failures from users
+- [ ] **Real-world corpus** - Test with actual real-world failures from users
 - [ ] **Fuzzing integration** - Continuous fuzzing in CI pipeline
 - [ ] **Golden master tests** - Compare against known-good repairs
 - [ ] **Locale-specific tests** - Test Unicode and locale-specific content
@@ -227,46 +210,10 @@
 - [ ] **Performance guide** - Tuning and optimization guide
 - [ ] **Security considerations** - Security best practices document
 
-### Plugin System Enhancements
-- [ ] **Plugin marketplace/registry** - Central plugin repository
-- [ ] **Plugin sandboxing** - WASM-based plugin isolation
-- [ ] **Remote plugin loading** - Load plugins from HTTP endpoints
-- [ ] **Plugin templates** - Starter templates for plugin development
-- [ ] **Plugin versioning** - Semver version constraints for plugins
-- [ ] **Plugin dependencies** - Handle plugin-to-plugin dependencies
-- [ ] **Built-in plugins** - More official plugin examples
-- [ ] **Plugin testing framework** - Test harness for plugins
-- [ ] **Plugin hot-reload** - Reload plugins without restart
-
-### Enterprise Features
-- [ ] **RBAC** - Role-based access control for repairs
-- [ ] **Multi-tenancy** - Isolated repair contexts per tenant
-- [ ] **Distributed processing** - Rayon/distributed for large batch jobs
-- [ ] **Real-time analytics** - WebSocket-based metrics streaming
-- [ ] **Analytics dashboard** - Web UI for repair metrics
-- [ ] **SLA monitoring** - Track repair performance against SLAs
-- [ ] **Compliance reports** - Generate compliance documentation
-- [ ] **Data retention policies** - Automatic cleanup of old logs
-- [ ] **Encryption at rest** - Encrypt audit logs and analytics
-
-### Developer Experience
-- [ ] **LSP integration** - Language server for editor integration
-- [ ] **VS Code extension** - Direct repair in VS Code
-- [ ] **Pre-commit hooks** - Git hooks for auto-repair
-- [ ] **GitHub Actions** - Official GitHub Action
-- [ ] **GitLab CI** - Official GitLab CI template
-- [ ] **Rust analyzer** - Custom analyzer diagnostics
-- [ ] **IDE integrations** - IntelliJ IDEA, PyCharm plugins
-- [ ] **WebAssembly** - WASM build for browser use
-- [ ] **Python bindings** - PyO3 Python native extension
-- [ ] **Node.js bindings** - NAPI-RS Node.js native module
-- [ ] **Go bindings** - cgo Go library
-
 ### Repair Quality Improvements
 - [ ] **Format-preserving repairs** - Maintain whitespace, comments, ordering
 - [ ] **Semantic repairs** - Understand meaning, not just syntax
 - [ ] **Context-aware repairs** - Use surrounding content for better decisions
-- [ ] **LLM-assisted repairs** - Optional LLM fallback for difficult cases
 - [ ] **Repair explanation** - Explain what was repaired and why
 - [ ] **Confidence thresholds** - Configurable confidence cutoffs
 - [ ] **Multi-pass repairs** - Iterative repair for complex issues
@@ -278,10 +225,7 @@
 - [ ] **Input sanitization** - Prevent code injection vulnerabilities
 - [ ] **Resource limits** - Configurable memory/CPU limits
 - [ ] **Rate limiting** - Prevent abuse in API/server mode
-- [ ] **Audit trail signing** - Cryptographic signing of audit logs
 - [ ] **PII detection** - Detect and redact sensitive data
-- [ ] **Sandboxed execution** - Container isolation for repairs
-- [ ] **Supply chain security** - SBOM generation and signing
 
 ### Streaming & Real-time
 - [ ] **WebSocket streaming** - Real-time repair over WebSocket
@@ -289,15 +233,6 @@
 - [ ] **gRPC streaming** - Bidirectional streaming API
 - [ ] **Live preview** - Show repair results as you type
 - [ ] **Incremental validation** - Validate before full repair
-
-### Configuration Management
-- [ ] **Global config file** - `~/.anyrepair/config.toml` for user settings
-- [ ] **Project config files** - `.anyrepair.toml` with directory inheritance
-- [ ] **Environment variables** - Full env var configuration support
-- [ ] **Config validation** - Schema validation for config files
-- [ ] **Config hot-reload** - Reload config without restart
-- [ ] **Profiles** - Named configuration profiles
-- [ ] **Config inheritance** - Override global settings per-project
 
 ### Error Handling & Diagnostics
 - [ ] **Structured error codes** - Machine-readable error codes
@@ -313,20 +248,6 @@
 - [ ] **Locale-specific formats** - Handle locale-specific number/date formats
 - [ ] **RTL text support** - Right-to-left text handling
 
-### Build & Distribution
-- [ ] **Cross-compilation** - Pre-built binaries for all platforms
-- [ ] **Homebrew formula** - Homebrew tap for macOS/Linux
-- [ ] **Scoop bucket** - Windows package via Scoop
-- [ ] **Chocolatey package** - Windows package via Chocolatey
-- [ ] **Snap package** - Linux Snap package
-- [ ] **Flatpak package** - Linux Flatpak package
-- [ ] **AUR package** - Arch User Repository package
-- [ ] **Nix flake** - NixOS package
-- [ ] **Guix package** - GNU Guix package
-- [ ] **Static binaries** - Fully static binaries with musl
-- [ ] **MSRV policy** - Document and test Minimum Supported Rust Version
-- [ ] **Release automation** - Automated release pipeline
-
 ### Code Quality
 - [ ] **Clippy lints** - Enforce all clippy suggestions
 - [ ] **Rustfmt strict** - Strict formatting compliance
@@ -336,11 +257,3 @@
 - [ ] **Dead code elimination** - Regular unused code cleanup
 - [ ] **Dependency review** - Regular dependency audit
 - [ ] **Security audit** - Regular security audits
-
-### Monitoring & Observability
-- [ ] **OpenTelemetry integration** - Distributed tracing support
-- [ ] **Prometheus metrics** - Prometheus metrics export
-- [ ] **Health checks** - Health check endpoints
-- [ ] **Performance profiling** - Built-in profiling support
-- [ ] **Usage analytics** - Anonymous usage tracking (opt-in)
-- [ ] **Crash reporting** - Automatic crash report collection

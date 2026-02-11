@@ -35,6 +35,7 @@ anyrepair/
 │   ├── diff.rs           # Diff/Unified diff repairer
 │   ├── mcp_server.rs     # MCP server implementation
 │   ├── streaming.rs      # Streaming repair support
+│   ├── format_detection.rs # Format detection heuristics
 │   ├── error.rs          # Error types
 │   ├── traits.rs         # Core trait definitions
 │   ├── repairer_base.rs  # Base repairer implementation
@@ -73,6 +74,7 @@ src/
 ├── diff.rs               # Diff/Unified diff repairer
 ├── mcp_server.rs        # MCP server implementation (312 lines)
 ├── streaming.rs         # Streaming repair support
+├── format_detection.rs  # Format detection heuristics (SoC)
 ├── error.rs             # Error types
 ├── traits.rs            # Core trait definitions
 ├── repairer_base.rs     # Base repairer implementation
@@ -81,44 +83,42 @@ src/
 ├── csv.rs               # CSV repairer
 ├── toml.rs              # TOML repairer
 ├── ini.rs               # INI repairer
-├── plugin.rs            # Plugin system
-├── plugin_config.rs     # Plugin configuration
-├── plugin_integration.rs # Plugin integration
 ├── config.rs            # Configuration management
 ├── custom_rules.rs      # Custom repair rules
-├── parallel.rs          # Parallel processing
-├── parallel_strategy.rs # Strategy application
 ├── advanced.rs          # Advanced features
 ├── context_parser.rs    # Context parsing
-├── enhanced_json.rs     # Enhanced JSON repair
-├── analytics.rs         # Analytics and metrics tracking
-├── batch_processor.rs   # Batch file processing
-├── validation_rules.rs  # Custom validation rules
-└── audit_log.rs         # Audit logging and compliance
+└── enhanced_json.rs     # Enhanced JSON repair
 ```
 
 ### Module Hierarchy
 
 - **Format-Specific Repairers**: Direct modules at root level (`json`, `yaml`, `markdown`, `xml`, `toml`, `csv`, `ini`, `diff`)
 - **Utility Modules**: Helper functions at root level (`advanced`, `parallel`, `context_parser`, `enhanced_json`)
-- **Plugin System**: Extensible plugin architecture
 - **Configuration**: User-defined repair rules and settings
 
 ## Core Components
 
-### 1. Format Detection (`src/lib.rs`)
+### 1. Format Registry & Detection (`src/lib.rs`, `src/format_detection.rs`)
 
-The main entry point provides automatic format detection and routing:
+The library provides a centralized format registry — the **single source of truth** for all format→repairer/validator mapping:
 
 ```rust
-pub fn repair(content: &str) -> Result<String>
-pub fn jsonrepair(json_str: &str) -> Result<String>  // Python-compatible API
+// Format registry (lib.rs)
+pub const SUPPORTED_FORMATS: &[&str];           // All canonical format names
+pub fn normalize_format(format: &str) -> &str;  // Resolve aliases (yml→yaml, md→markdown)
+pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>>;    // Factory
+pub fn create_validator(format: &str) -> Result<Box<dyn Validator>>; // Factory
+pub fn detect_format(content: &str) -> Option<&'static str>;        // Auto-detect
+pub fn repair(content: &str) -> Result<String>;                     // Auto-detect + repair
+pub fn repair_with_format(content: &str, format: &str) -> Result<String>; // Explicit format
+pub fn jsonrepair(json_str: &str) -> Result<String>;  // Python-compatible API
 ```
 
-**Detection Logic:**
+**Format Detection** (`format_detection.rs`) is separated into its own module (SoC):
 - JSON: Checks for `{}` or `[]` patterns
+- Diff: Checks for `@@` hunk headers and paired `---`/`+++` file headers
 - YAML: Looks for `:`, `---`, or key-value patterns
-- Markdown: Detects `#`, `**`, `*`, ````, or `[` patterns
+- XML, TOML, CSV, INI, Markdown: Format-specific heuristics
 
 **Python-Compatible API:**
 - `jsonrepair()` - Function-based API matching Python's jsonrepair
@@ -215,33 +215,20 @@ pub enum RepairError {
 
 ### 5. CLI Interface (`src/main.rs`)
 
-Command-line interface using `clap` with subcommands:
+Command-line interface using `clap` with a unified `repair` command:
 
-- `repair` - Auto-detect and repair content
-- `json` - Repair JSON specifically
-- `yaml` - Repair YAML specifically
-- `markdown` - Repair Markdown specifically
-- `xml` - Repair XML specifically
-- `toml` - Repair TOML specifically
-- `csv` - Repair CSV specifically
-- `ini` - Repair INI specifically
+- `repair [FILE]` - Auto-detect format and repair content
+- `repair --format <fmt>` - Repair with explicit format (json, yaml, markdown, xml, toml, csv, ini, diff)
 - `validate` - Validate content without repair
 - `batch` - Batch process multiple files
+- `stream` - Stream repair for large files
 - `stats` - Show repair statistics
 - `rules` - Manage custom repair rules
-- `plugins` - Manage plugins
 
-### 6. Plugin System (`src/plugin.rs`, `src/plugin_config.rs`, `src/plugin_integration.rs`)
+**Note:** Per-format subcommands (json, yaml, etc.) were removed in the KISS/DRY refactoring.
+Use `repair --format <fmt>` instead. All format dispatch goes through the centralized registry.
 
-Extensible plugin architecture:
-
-- **Plugin Trait**: Core interface for custom repair strategies
-- **Plugin Registry**: Manages loaded plugins
-- **Plugin Manager**: Handles plugin lifecycle and statistics
-- **Plugin Configuration**: TOML-based plugin settings
-- **Plugin Integration**: Seamless integration with repair system
-
-### 7. Custom Rules System (`src/config.rs`, `src/custom_rules.rs`)
+### 6. Custom Rules System (`src/config.rs`, `src/custom_rules.rs`)
 
 User-defined repair rules:
 
@@ -251,9 +238,8 @@ User-defined repair rules:
 - **Rule Templates**: Pre-built rule templates
 - **CLI Management**: Full command-line rule management
 
-### 8. Advanced Features
+### 7. Advanced Features
 
-- **Parallel Processing**: Multi-threaded strategy application
 - **Fuzz Testing**: Property-based testing for robustness
 - **Configuration Management**: TOML-based configuration
 - **Performance Optimization**: Regex caching and memory management
@@ -315,11 +301,6 @@ graph TB
         CUSTOM[Custom Rules Engine]
     end
     
-    subgraph "Plugin System"
-        PLUGIN_MGR[Plugin Manager]
-        PLUGIN_REG[Plugin Registry]
-        PLUGINS[Custom Plugins]
-    end
     
     subgraph "Validation & Testing"
         VALIDATORS[Validators]
@@ -329,7 +310,6 @@ graph TB
     
     CLI --> DETECTOR
     CONFIG --> CUSTOM
-    CONFIG --> PLUGIN_MGR
     
     DETECTOR --> ROUTER
     ROUTER --> JSON
@@ -352,9 +332,6 @@ graph TB
     PARALLEL --> CUSTOM
     CUSTOM --> VALIDATORS
     
-    PLUGIN_MGR --> PLUGIN_REG
-    PLUGIN_REG --> PLUGINS
-    PLUGINS --> STRATEGIES
     
     VALIDATORS --> FUZZ
     VALIDATORS --> SNAPSHOT
@@ -370,7 +347,6 @@ sequenceDiagram
     participant Repairer
     participant Strategies
     participant CustomRules
-    participant Plugins
     participant Validator
 
     User->>CLI: Input content
@@ -380,8 +356,7 @@ sequenceDiagram
     alt Needs repair
         Repairer->>Strategies: Apply built-in strategies
         Strategies->>CustomRules: Apply custom rules
-        CustomRules->>Plugins: Apply plugin strategies
-        Plugins->>Repairer: Return repaired content
+        CustomRules->>Repairer: Return repaired content
         Repairer->>Validator: Validate repaired content
     end
     Repairer->>CLI: Return repaired content
@@ -484,7 +459,6 @@ The project includes comprehensive test coverage with **326 test cases**:
 
 #### Advanced Tests (20+ test cases)
 - **Fuzz Tests**: Property-based testing for all formats (36 tests)
-- **Plugin Tests**: Plugin system functionality
 - **Custom Rules Tests**: Rule engine and configuration
 - **Parallel Processing Tests**: Multi-threaded strategy application
 - **Configuration Tests**: TOML configuration management
@@ -549,12 +523,13 @@ tests/
 
 ### Adding New Formats
 
-1. Create new module (e.g., `src/xml.rs`)
+1. Create new module (e.g., `src/newformat.rs`)
 2. Implement `Repair`, `RepairStrategy`, and `Validator` traits
-3. Add format detection logic
-4. Update main repair function
-5. Add CLI subcommand
-6. Add comprehensive test cases
+3. Add detection heuristic in `format_detection.rs`
+4. Register in `lib.rs`: add to `SUPPORTED_FORMATS`, `create_repairer()`, `create_validator()`
+5. Add comprehensive test cases
+
+**No CLI changes needed** — the unified `repair --format` command automatically supports any format registered in the registry.
 
 ### Adding New Strategies
 
@@ -654,51 +629,14 @@ The MCP (Model Context Protocol) server provides integration with Claude and oth
 - After: 1662 lines in organized modules + 36 source files
 - Overall reduction: 57% in complexity, 32% in file count
 
-## Enterprise Features
-
-### Analytics Module (`analytics.rs`)
-Tracks repair operations and provides detailed metrics:
-- Repair success metrics (total, successful, failed repairs)
-- Performance monitoring (average repair time, total time)
-- Format-specific metrics (per-format statistics)
-- Success rate calculation
-
-### Batch Processor (`batch_processor.rs`)
-Processes multiple files with automatic format detection:
-- Directory processing (recursive or single-level)
-- Multi-format support (automatic detection)
-- File filtering by extension
-- Detailed per-file results
-- Integrated analytics tracking
-
-### Validation Rules (`validation_rules.rs`)
-Custom validation rules engine:
-- Multiple rule types (Regex, Length, Format, Custom)
-- Rule management (add, remove, enable/disable)
-- Flexible validation against multiple rules
-- Detailed violation reporting
-
-### Audit Logging (`audit_log.rs`)
-Comprehensive audit logging for compliance:
-- Event tracking (repairs, validations, batch operations, config changes)
-- Detailed entries (timestamp, actor, resource, action, result)
-- File persistence for compliance
-- Query capabilities (filter by type or actor)
-- JSON format for easy parsing
-
 ## Future Enhancements
 
 1. **Additional Formats**: ✅ XML, TOML, CSV, INI support completed
-2. **Advanced Strategies**: ✅ Parallel strategy application completed
-3. **Configuration**: ✅ User-configurable repair rules completed
-4. **Plugins**: ✅ External strategy loading completed
-5. **Fuzz Testing**: ✅ Comprehensive property-based testing completed
-6. **Advanced Analytics**: ✅ Repair success rate tracking and performance monitoring completed
-7. **Enterprise Features**: ✅ Batch processing, validation rules, audit logging completed
-8. **Codebase Simplification**: ✅ Removed redundant directories, consolidated modules (32% file reduction)
-9. **Python-Compatible API**: ✅ Added jsonrepair() function and JsonRepair struct for easy migration
-10. **Comprehensive Testing**: ✅ 326 test cases with 100% pass rate
-11. **Web Interface**: Create a simple web interface for online repair
-12. **REST API**: Add REST API for programmatic access
-13. **Docker Container**: Create Docker image for easy deployment
-14. **Machine Learning**: ML-based repair strategies for complex cases
+2. **Configuration**: ✅ User-configurable repair rules completed
+3. **Fuzz Testing**: ✅ Comprehensive property-based testing completed
+4. **Codebase Simplification**: ✅ Removed redundant directories, consolidated modules
+5. **KISS/DRY/SoC Refactoring**: ✅ Centralized format registry, eliminated duplicated CLI handlers, extracted format detection module
+6. **Python-Compatible API**: ✅ Added jsonrepair() function and JsonRepair struct
+7. **Web Interface**: Create a simple web interface for online repair
+8. **REST API**: Add REST API for programmatic access
+9. **Additional Heuristics**: More sophisticated pattern-based repair strategies

@@ -1,6 +1,6 @@
 //! Rules management command handler
 
-use std::io::{self, Write};
+use std::io;
 
 pub fn handle_rules(
     action: &str,

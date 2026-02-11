@@ -69,15 +69,11 @@ impl StreamingRepair {
 
     /// Repair a chunk of content
     fn repair_chunk(&self, chunk: &str, format: &str) -> Result<String> {
-        match format.to_lowercase().as_str() {
-            "json" => crate::json::JsonRepairer::new().repair(chunk),
-            "yaml" | "yml" => crate::yaml::YamlRepairer::new().repair(chunk),
-            "markdown" | "md" => crate::markdown::MarkdownRepairer::new().repair(chunk),
-            "xml" => crate::xml::XmlRepairer::new().repair(chunk),
-            "toml" => crate::toml::TomlRepairer::new().repair(chunk),
-            "csv" => crate::csv::CsvRepairer::new().repair(chunk),
-            "ini" => crate::ini::IniRepairer::new().repair(chunk),
-            _ => crate::repair(chunk),
+        let normalized = crate::normalize_format(format);
+        if normalized == "auto" || crate::create_repairer(normalized).is_err() {
+            crate::repair(chunk)
+        } else {
+            crate::repair_with_format(chunk, normalized)
         }
     }
 }

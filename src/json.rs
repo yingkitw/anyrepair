@@ -471,23 +471,9 @@ impl JsonRepairer {
 
     /// Create a new JSON repairer with logging enabled
     pub fn with_logging(logging: bool) -> Self {
-        let strategies: Vec<Box<dyn RepairStrategy>> = vec![
-            Box::new(StripTrailingContentStrategy),
-            Box::new(StripJsCommentsStrategy),
-            Box::new(AddMissingQuotesStrategy),
-            Box::new(FixTrailingCommasStrategy),
-            Box::new(AddMissingBracesStrategy),
-            Box::new(FixSingleQuotesStrategy),
-            Box::new(FixMalformedNumbersStrategy),
-            Box::new(FixBooleanNullStrategy),
-            Box::new(FixAgenticAiResponseStrategy),
-        ];
-        
-        let validator: Box<dyn Validator> = Box::new(JsonValidator);
-        let inner = crate::repairer_base::GenericRepairer::new(validator, strategies)
-            .with_logging(logging);
-        
-        Self { inner }
+        let mut repairer = Self::new();
+        repairer.inner = repairer.inner.with_logging(logging);
+        repairer
     }
 
     /// Get the repair log

@@ -7,10 +7,6 @@ pub mod validate_cmd;
 pub mod batch_cmd;
 pub mod rules_cmd;
 pub mod stream_cmd;
-pub mod plugins_cmd;
-
-pub use repair_cmd::handle_repair;
-pub use validate_cmd::handle_validate;
 
 use std::fs;
 use std::io::{self, Read};

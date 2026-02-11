@@ -8,9 +8,8 @@
 //! ## Module Organization
 //!
 //! - Format-specific repairers: `json`, `yaml`, `markdown`, `xml`, `toml`, `csv`, `ini`
-//! - `plugins` - Plugin system and integration
 //! - `config` - Configuration and custom rule management
-//! - Utility modules: `advanced`, `parallel`, `context_parser`, `enhanced_json`
+//! - Utility modules: `advanced`, `context_parser`, `enhanced_json`
 //! - `traits` - Core trait definitions
 //! - `error` - Error types and handling
 
@@ -18,6 +17,7 @@
 pub mod error;
 pub mod traits;
 pub mod repairer_base;
+pub mod format_detection;
 
 // Format-specific repairers
 pub mod json;
@@ -30,23 +30,11 @@ pub mod ini;
 pub mod diff;
 
 // Utility and helper modules
-pub mod parallel;
-pub mod parallel_strategy;
 pub mod advanced;
-pub mod plugin;
-pub mod plugin_config;
-pub mod plugin_integration;
 pub mod context_parser;
 pub mod enhanced_json;
 pub mod config;
 pub mod custom_rules;
-
-// Enterprise features
-pub mod analytics;
-pub mod batch_processor;
-pub mod validation_rules;
-pub mod audit_log;
-pub mod confidence_scorer;
 
 // Streaming support
 pub mod streaming;
@@ -57,11 +45,6 @@ pub mod mcp_server;
 pub use error::{RepairError, Result};
 pub use traits::Repair;
 pub use enhanced_json::EnhancedJsonRepairer;
-pub use analytics::AnalyticsTracker;
-pub use batch_processor::BatchProcessor;
-pub use validation_rules::ValidationRulesEngine;
-pub use audit_log::AuditLogger;
-pub use confidence_scorer::ConfidenceScorer;
 pub use streaming::StreamingRepair;
 pub use mcp_server::AnyrepairMcpServer;
 pub use json::JsonRepairer;
@@ -71,40 +54,83 @@ use serde_json::Value;
 use std::fs::File;
 use std::io::Read;
 
+/// All supported format names
+pub const SUPPORTED_FORMATS: &[&str] = &[
+    "json", "yaml", "markdown", "xml", "toml", "csv", "ini", "diff",
+];
+
+/// Resolve format aliases to canonical names.
+/// Returns a static str for known formats, or the original input for unknown ones.
+pub fn normalize_format(format: &str) -> &str {
+    if format.eq_ignore_ascii_case("yml") {
+        return "yaml";
+    }
+    if format.eq_ignore_ascii_case("md") {
+        return "markdown";
+    }
+    for &fmt in SUPPORTED_FORMATS {
+        if format.eq_ignore_ascii_case(fmt) {
+            return fmt;
+        }
+    }
+    format
+}
+
+/// Create a repairer for the given format name.
+/// This is the single source of truth for format→repairer mapping.
+pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
+    match normalize_format(format) {
+        "json" => Ok(Box::new(json::JsonRepairer::new())),
+        "yaml" => Ok(Box::new(yaml::YamlRepairer::new())),
+        "markdown" => Ok(Box::new(markdown::MarkdownRepairer::new())),
+        "xml" => Ok(Box::new(xml::XmlRepairer::new())),
+        "toml" => Ok(Box::new(toml::TomlRepairer::new())),
+        "csv" => Ok(Box::new(csv::CsvRepairer::new())),
+        "ini" => Ok(Box::new(ini::IniRepairer::new())),
+        "diff" => Ok(Box::new(diff::DiffRepairer::new())),
+        other => Err(RepairError::FormatDetection(format!("Unknown format: {}", other))),
+    }
+}
+
+/// Create a validator for the given format name.
+/// Single source of truth for format→validator mapping.
+pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
+    match normalize_format(format) {
+        "json" => Ok(Box::new(json::JsonValidator)),
+        "yaml" => Ok(Box::new(yaml::YamlValidator)),
+        "markdown" => Ok(Box::new(markdown::MarkdownValidator)),
+        "xml" => Ok(Box::new(xml::XmlValidator)),
+        "toml" => Ok(Box::new(toml::TomlValidator)),
+        "csv" => Ok(Box::new(csv::CsvValidator)),
+        "ini" => Ok(Box::new(ini::IniValidator)),
+        "diff" => Ok(Box::new(diff::DiffValidator)),
+        other => Err(RepairError::FormatDetection(format!("Unknown format: {}", other))),
+    }
+}
+
+/// Repair content with a specific format (no auto-detection)
+pub fn repair_with_format(content: &str, format: &str) -> Result<String> {
+    let mut repairer = create_repairer(format)?;
+    repairer.repair(content)
+}
+
 /// Main repair function that automatically detects format and repairs content
 pub fn repair(content: &str) -> Result<String> {
     let trimmed = content.trim();
     
-    // Try to detect format and repair accordingly
-    if is_json_like(trimmed) {
-        let mut repairer = json::JsonRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_yaml_like(trimmed) {
-        let mut repairer = yaml::YamlRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_xml_like(trimmed) {
-        let mut repairer = xml::XmlRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_toml_like(trimmed) {
-        let mut repairer = toml::TomlRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_csv_like(trimmed) {
-        let mut repairer = csv::CsvRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_ini_like(trimmed) {
-        let mut repairer = ini::IniRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_diff_like(trimmed) {
-        let mut repairer = diff::DiffRepairer::new();
-        repairer.repair(trimmed)
-    } else if is_markdown_like(trimmed) {
-        let mut repairer = markdown::MarkdownRepairer::new();
+    if let Some(fmt) = detect_format(trimmed) {
+        let mut repairer = create_repairer(fmt)?;
         repairer.repair(trimmed)
     } else {
         // Default to markdown repair for unknown content
         let mut repairer = markdown::MarkdownRepairer::new();
         repairer.repair(trimmed)
     }
+}
+
+/// Detect the format of the given content, returns None if unknown
+pub fn detect_format(content: &str) -> Option<&'static str> {
+    format_detection::detect_format(content)
 }
 
 /// Repair JSON string - Python jsonrepair compatible API
@@ -253,149 +279,20 @@ pub fn repair_json_with_logging_main(json_str: &str) -> Result<(String, Vec<Stri
     Ok((result, log))
 }
 
-fn is_json_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    (trimmed.starts_with('{') && (trimmed.ends_with('}') || trimmed.contains(':'))) ||
-    (trimmed.starts_with('[') && (trimmed.ends_with(']') || trimmed.contains(',')))
-}
-
-fn is_yaml_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    if trimmed.contains("---") {
-        return true;
-    }
-    if trimmed.starts_with('{') || trimmed.starts_with('[') {
-        return false;
-    }
-    trimmed.contains(":") || trimmed.lines().any(|line| {
-        let line = line.trim();
-        line.contains(":") && !line.starts_with('"') && !line.starts_with('{')
-    })
-}
-
-fn is_xml_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    trimmed.starts_with("<?xml") ||
-    (trimmed.starts_with('<') && trimmed.contains('>') && !trimmed.starts_with('#')) ||
-    (trimmed.contains('<') && trimmed.contains('>') && trimmed.contains("</"))
-}
-
-fn is_toml_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    if trimmed.starts_with('[') {
-        return true;
-    }
-    if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') {
-        return false;
-    }
-    trimmed.contains('=') || trimmed.lines().any(|line| {
-        let line = line.trim();
-        line.starts_with('[') && line.ends_with(']')
-    })
-}
-
-fn is_csv_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    if !trimmed.contains(',') {
-        return false;
-    }
-    if trimmed.starts_with('{') || trimmed.starts_with('[') || trimmed.starts_with('<') || 
-       trimmed.starts_with('#') || trimmed.starts_with("<?xml") {
-        return false;
-    }
-    trimmed.lines().count() > 1
-}
-
-fn is_ini_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    if trimmed.starts_with('[') && trimmed.contains(']') {
-        return true;
-    }
-    if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') || 
-       trimmed.starts_with("<?xml") || trimmed.contains(',') || trimmed.contains(':') {
-        return false;
-    }
-    trimmed.contains('=') || trimmed.lines().any(|line| {
-        let line = line.trim();
-        line.starts_with('[') && line.contains(']') && !line.contains(',')
-    })
-}
-
-fn is_diff_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    // Check for hunk headers (@@)
-    if trimmed.contains("@@") {
-        return true;
-    }
-    // Check for file headers (--- or +++ at start of lines)
-    if trimmed.lines().any(|line| line.starts_with("---") || line.starts_with("+++")) {
-        return true;
-    }
-    // Check for diff line prefixes (+, -, space) in multiple lines
-    let lines: Vec<&str> = trimmed.lines().collect();
-    if lines.len() > 1 {
-        let diff_line_count = lines.iter()
-            .filter(|line| {
-                let line = line.trim();
-                line.starts_with('+') || line.starts_with('-') || 
-                (line.starts_with(' ') && !line.starts_with("@@"))
-            })
-            .count();
-        // If more than half the lines look like diff lines, it's probably a diff
-        if diff_line_count as f64 / lines.len() as f64 > 0.3 {
-            return true;
-        }
-    }
-    false
-}
-
-fn is_markdown_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    // Don't match diff as markdown
-    if is_diff_like(trimmed) {
-        return false;
-    }
-    trimmed.starts_with('#') ||
-    trimmed.contains("```") ||
-    trimmed.contains("**") ||
-    trimmed.contains("*") ||
-    trimmed.contains("`")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_format_detection() {
-        assert!(is_json_like(r#"{"key": "value"}"#));
-        assert!(is_json_like(r#"[1, 2, 3]"#));
-        assert!(!is_json_like("# Header\nContent"));
-        
-        assert!(is_yaml_like("key: value"));
-        assert!(is_yaml_like("---\nkey: value"));
-        assert!(!is_yaml_like(r#"{"key": "value"}"#));
-        
-        assert!(is_xml_like("<?xml version=\"1.0\"?><root></root>"));
-        assert!(is_xml_like("<root><item>value</item></root>"));
-        assert!(!is_xml_like(r#"{"key": "value"}"#));
-        
-        assert!(is_toml_like("[user]\nname = \"John\""));
-        assert!(is_toml_like("name = John"));
-        assert!(!is_toml_like(r#"{"key": "value"}"#));
-        
-        assert!(is_csv_like("name,age\nJohn,30"));
-        assert!(is_csv_like("John,30,Engineer\nJane,25,Designer"));
-        assert!(!is_csv_like(r#"{"key": "value"}"#));
-        
-        assert!(is_ini_like("[user]\nname = John"));
-        assert!(is_ini_like("name = John\nage = 30"));
-        assert!(!is_ini_like(r#"{"key": "value"}"#));
-        
-        assert!(is_markdown_like("# Header"));
-        assert!(is_markdown_like("**bold**"));
-        assert!(is_markdown_like("```code```"));
-        assert!(!is_markdown_like(r#"{"key": "value"}"#));
+        assert_eq!(detect_format(r#"{"key": "value"}"#), Some("json"));
+        assert_eq!(detect_format(r#"[1, 2, 3]"#), Some("json"));
+        assert_eq!(detect_format("key: value"), Some("yaml"));
+        assert_eq!(detect_format("---\nkey: value"), Some("yaml"));
+        assert_eq!(detect_format("<?xml version=\"1.0\"?><root></root>"), Some("xml"));
+        assert_eq!(detect_format("<root><item>value</item></root>"), Some("xml"));
+        assert_eq!(detect_format("name,age\nJohn,30"), Some("csv"));
+        assert_eq!(detect_format("# Header\n**bold**"), Some("markdown"));
     }
 
     #[test]
@@ -441,24 +338,18 @@ mod tests {
     #[test]
     fn test_format_detection_edge_cases() {
         // Test empty content
-        assert!(!is_json_like(""));
-        assert!(!is_yaml_like(""));
-        assert!(!is_markdown_like(""));
-
-        // Test whitespace only
-        assert!(!is_json_like("   \n\t  "));
-        assert!(!is_yaml_like("   \n\t  "));
-        assert!(!is_markdown_like("   \n\t  "));
+        assert_eq!(detect_format(""), None);
+        assert_eq!(detect_format("   \n\t  "), None);
 
         // Test mixed content
-        assert!(is_json_like(r#"{"key": "value", "nested": {"inner": "value"}}"#));
-        assert!(is_yaml_like("key: value\nnested:\n  inner: value"));
-        assert!(is_markdown_like("# Header\n\nSome **bold** text with `code`"));
+        assert_eq!(detect_format(r#"{"key": "value", "nested": {"inner": "value"}}"#), Some("json"));
+        assert_eq!(detect_format("key: value\nnested:\n  inner: value"), Some("yaml"));
+        assert_eq!(detect_format("# Header\n\nSome **bold** text with `code`"), Some("markdown"));
 
-        // Test malformed content
-        assert!(is_json_like(r#"{"key": "value""#)); // Missing closing brace
-        assert!(is_yaml_like("key: value\n  invalid: indentation"));
-        assert!(is_markdown_like("#Header\n**bold")); // Missing closing bold
+        // Test malformed content still detected
+        assert_eq!(detect_format(r#"{"key": "value""#), Some("json"));
+        assert_eq!(detect_format("key: value\n  invalid: indentation"), Some("yaml"));
+        assert_eq!(detect_format("#Header\n**bold"), Some("markdown"));
     }
 
     #[test]

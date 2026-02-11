@@ -1,6 +1,5 @@
 //! Validate command handler
 
-use anyrepair::traits::Validator;
 use std::io;
 
 pub fn handle_validate(
@@ -14,41 +13,32 @@ pub fn handle_validate(
         eprintln!("Validating content...");
     }
     
-    let format_to_use = format.unwrap_or("auto");
-    
-    let is_valid = match format_to_use {
-        "json" => {
-            let validator = anyrepair::json::JsonValidator;
-            validator.is_valid(&content)
-        }
-        "yaml" => {
-            let validator = anyrepair::yaml::YamlValidator;
-            validator.is_valid(&content)
-        }
-        "markdown" => {
-            let validator = anyrepair::markdown::MarkdownValidator;
-            validator.is_valid(&content)
-        }
-        "auto" => {
-            // Try to detect format and validate
-            let json_validator = anyrepair::json::JsonValidator;
-            if json_validator.is_valid(&content) {
-                true
-            } else {
-                let yaml_validator = anyrepair::yaml::YamlValidator;
-                if yaml_validator.is_valid(&content) {
-                    true
-                } else {
-                    let md_validator = anyrepair::markdown::MarkdownValidator;
-                    md_validator.is_valid(&content)
+    let format_to_use = match format {
+        Some(fmt) => Some(fmt),
+        None => {
+            let detected = anyrepair::detect_format(&content);
+            if verbose {
+                if let Some(fmt) = detected {
+                    eprintln!("Detected format: {}", fmt);
                 }
             }
+            detected
         }
-        _ => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("Unknown format: {}", format_to_use),
-            ));
+    };
+    
+    let is_valid = match format_to_use {
+        Some(fmt) => {
+            let validator = anyrepair::create_validator(fmt)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
+            validator.is_valid(&content)
+        }
+        None => {
+            // No format detected, try all validators
+            anyrepair::SUPPORTED_FORMATS.iter().any(|fmt| {
+                anyrepair::create_validator(fmt)
+                    .map(|v| v.is_valid(&content))
+                    .unwrap_or(false)
+            })
         }
     };
     

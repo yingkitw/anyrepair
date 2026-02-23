@@ -164,11 +164,11 @@ All public functions return `Result<T>` using this error type.
 
 ## Testing
 
-402+ tests across multiple categories:
+280+ tests across multiple categories:
 
 | Category              | Count | Location                        |
 |-----------------------|-------|---------------------------------|
-| Library unit tests    | 216   | `src/*.rs` `#[cfg(test)]`       |
+| Library unit tests    | 190   | `src/*.rs` `#[cfg(test)]`       |
 | Diff tests            | 35    | `tests/diff_tests.rs`           |
 | Fuzz tests            | 36    | `tests/fuzz_tests.rs`           |
 | Streaming tests       | 26    | `tests/streaming_tests.rs`      |

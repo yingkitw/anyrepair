@@ -4,7 +4,6 @@
 //! without loading entire content into memory.
 
 use crate::error::Result;
-use crate::traits::Repair;
 use std::io::{BufRead, Write};
 
 /// Streaming repair processor for large files

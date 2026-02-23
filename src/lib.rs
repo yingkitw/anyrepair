@@ -51,7 +51,6 @@ pub use json::JsonRepairer;
 pub use diff::DiffRepairer;
 
 use serde_json::Value;
-use std::fs::File;
 use std::io::Read;
 
 /// All supported format names

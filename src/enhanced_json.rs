@@ -3,7 +3,7 @@ use crate::error::{RepairError, Result};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufReader, Read};
 
 /// Enhanced JSON repairer with advanced capabilities inspired by json_repair-main
 pub struct EnhancedJsonRepairer {
@@ -203,7 +203,7 @@ impl EnhancedJsonRepairer {
         Ok(Value::Array(arr))
     }
 
-    fn parse_string(&mut self, parser: &mut ContextAwareStringParser, context: &mut ContextStack) -> Result<Value> {
+    fn parse_string(&mut self, parser: &mut ContextAwareStringParser, _context: &mut ContextStack) -> Result<Value> {
         let value = parser.parse_string();
         Ok(Value::String(value))
     }

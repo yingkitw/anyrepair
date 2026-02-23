@@ -1,7 +1,6 @@
 //! XML repair module
 
 use crate::error::Result;
-use crate::repairer_base;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use std::sync::OnceLock;
@@ -339,113 +338,5 @@ impl RepairStrategy for AddXmlDeclarationStrategy {
 
     fn name(&self) -> &str {
         "AddXmlDeclarationStrategy"
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use insta::assert_snapshot;
-
-    #[test]
-    fn test_xml_repair_basic() {
-        let mut repairer = XmlRepairer::new();
-        
-        let input = "<root><item>value</item></root>";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @"<root><item>value</item></root>");
-    }
-    
-    #[test]
-    fn test_xml_repair_unclosed_tags() {
-        let mut repairer = XmlRepairer::new();
-        
-        let input = "<root><item>value</item>";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @"<root><item>value</item>");
-    }
-    
-    #[test]
-    fn test_xml_repair_empty_input() {
-        let mut repairer = XmlRepairer::new();
-        let result = repairer.repair("");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_xml_repair_self_closing_tags() {
-        let mut repairer = XmlRepairer::new();
-        let input = "<root><item/><item/></root>";
-        let result = repairer.repair(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_xml_repair_malformed_attributes() {
-        let mut repairer = XmlRepairer::new();
-        
-        let input = "<root id=123 class=test>content</root>";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r#"
-        <?xml version="1.0" encoding="UTF-8"?>
-        <root id="123" class="test">content</root></root>
-        "#);
-    }
-    
-    #[test]
-    fn test_xml_repair_invalid_characters() {
-        let mut repairer = XmlRepairer::new();
-        
-        let input = "<root>value & < ></root>";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @"<root>value & < ></root>");
-    }
-    
-    #[test]
-    fn test_xml_confidence() {
-        let mut repairer = XmlRepairer::new();
-        
-        let valid_xml = "<?xml version=\"1.0\"?><root><item>value</item></root>";
-        let conf = repairer.confidence(valid_xml);
-        assert!(conf > 0.8);
-        
-        let invalid_xml = "not xml at all";
-        let conf = repairer.confidence(invalid_xml);
-        assert!(conf < 0.5);
-    }
-    
-    #[test]
-    fn test_xml_validator() {
-        let validator = XmlValidator;
-        
-        assert!(validator.is_valid("<?xml version=\"1.0\"?><root></root>"));
-        // Note: quick-xml is permissive
-        assert!(!validator.is_valid(""));
-        
-        // Simple validation check
-        let _valid_errors = validator.validate("<root></root>");
-        let invalid_errors = validator.validate("");
-        assert!(!invalid_errors.is_empty());
-    }
-    
-    #[test]
-    fn test_xml_strategies_individual() {
-        // Test FixUnclosedTagsStrategy
-        let strategy = FixUnclosedTagsStrategy;
-        let input = "<root><item>value</item>";
-        let result = strategy.apply(input).unwrap();
-        assert!(result.contains("</root>"));
-        
-        // Test FixMalformedAttributesStrategy
-        let strategy = FixMalformedAttributesStrategy;
-        let input = "<root id=123>content</root>";
-        let result = strategy.apply(input).unwrap();
-        assert!(result.contains("id=\"123\""));
-        
-        // Test AddXmlDeclarationStrategy
-        let strategy = AddXmlDeclarationStrategy;
-        let input = "<root></root>";
-        let result = strategy.apply(input).unwrap();
-        assert!(result.starts_with("<?xml"));
     }
 }

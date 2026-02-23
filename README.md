@@ -8,7 +8,7 @@ A Rust crate for repairing malformed structured data across multiple formats (JS
 
 ```toml
 [dependencies]
-anyrepair = "0.1.10"
+anyrepair = "0.2.1"
 ```
 
 ### Basic Usage
@@ -57,7 +57,7 @@ anyrepair stats
 
 ## What's New
 
-### v0.2.0 - Latest Release
+### v0.2.1 - Latest Release
 
 **🏗️ KISS/DRY/SoC Refactoring**
 - Centralized format registry: single source of truth for format→repairer/validator mapping
@@ -80,9 +80,10 @@ anyrepair stats
 - 10 MCP tools for all 8 formats plus auto-detect and validate
 
 **⚡ Performance & Quality**
-- **402+ test cases** with 100% pass rate
+- **280+ test cases** with 100% pass rate
 - **99.6% improvement** from regex caching
 - **Streaming support** for files larger than RAM
+- **Zero compilation warnings**
 
 See [CHANGELOG.md](docs/CHANGELOG.md) for complete version history.
 
@@ -101,7 +102,7 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 - ✅ High performance (regex caching, optimized binaries)
 - ✅ MCP server for Claude integration
 - ✅ Streaming support for large files
-- ✅ 402+ tests, 100% pass rate
+- ✅ 280+ tests, 100% pass rate
 
 ## Usage Examples
 
@@ -309,19 +310,18 @@ cargo build --profile dist
 
 ## Testing
 
-- **402+ test cases** with 100% pass rate
-  - 216 library tests (incl. 73 MCP server tests)
+- **280+ test cases** with 100% pass rate
+  - 190 library tests (incl. 73 MCP server tests)
   - 35 diff tests
   - 26 streaming tests
-  - 36 fuzz tests
   - 18 complex damage tests
   - 18 complex streaming tests
+  - 36 fuzz tests
   - 18 damage scenarios
   - 17 integration tests
   - 15 CLI tests
   - 2 doctests
 - **Fuzz testing** using proptest for robustness
-- **Snapshot testing** with insta for regression prevention
 - **Integration tests** for end-to-end workflows
 
 See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for details.
@@ -342,7 +342,8 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for details.
 **Why AnyRepair?**
 - Most comprehensive format support (8 formats vs JSON-only alternatives)
 - Only Rust crate with Python-compatible API and MCP integration
-- Battle-tested with 402+ tests covering real-world failures
+- Battle-tested with 280+ tests covering real-world failures
+- Zero compilation warnings
 
 ## Documentation
 

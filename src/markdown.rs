@@ -4,7 +4,6 @@
 //! for fixing common Markdown issues from LLM outputs.
 
 use crate::error::Result;
-use crate::repairer_base;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use std::sync::OnceLock;
@@ -25,7 +24,7 @@ impl Validator for MarkdownValidator {
         
         // Check for balanced markers
         let bold_count = content.matches("**").count();
-        let italic_count = content.matches('*').count();
+        let _italic_count = content.matches('*').count();
         let code_fence_count = content.matches("```").count();
         
         // Bold should be balanced
@@ -323,7 +322,7 @@ impl RepairStrategy for FixTableFormattingStrategy {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = String::new();
         
-        for (i, line) in lines.iter().enumerate() {
+        for (_i, line) in lines.iter().enumerate() {
             if line.contains('|') {
                 // Ensure proper spacing around pipes
                 let fixed = line

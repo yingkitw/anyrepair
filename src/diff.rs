@@ -1,12 +1,12 @@
 //! Diff/Unified diff repair module
 
 use crate::error::Result;
-use crate::repairer_base;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for diff performance optimization
+#[allow(dead_code)]
 struct DiffRegexCache {
     hunk_header: Regex,
     file_header: Regex,

@@ -264,13 +264,6 @@ All repairers implement the same `Repair` trait, enabling:
 
 Uses `thiserror` for automatic error trait implementations and proper error chaining.
 
-### 4. Snapshot Testing
-
-Uses `insta` for snapshot testing to ensure:
-- Output consistency
-- Regression prevention
-- Easy test maintenance
-
 ## System Architecture
 
 ```mermaid
@@ -300,17 +293,16 @@ graph TB
         PARALLEL[Parallel Processor]
         CUSTOM[Custom Rules Engine]
     end
-    
-    
+
+
     subgraph "Validation & Testing"
         VALIDATORS[Validators]
         FUZZ[Fuzz Testing]
-        SNAPSHOT[Snapshot Tests]
     end
-    
+
     CLI --> DETECTOR
     CONFIG --> CUSTOM
-    
+
     DETECTOR --> ROUTER
     ROUTER --> JSON
     ROUTER --> YAML
@@ -319,7 +311,7 @@ graph TB
     ROUTER --> TOML
     ROUTER --> CSV
     ROUTER --> INI
-    
+
     JSON --> STRATEGIES
     YAML --> STRATEGIES
     MD --> STRATEGIES
@@ -327,14 +319,13 @@ graph TB
     TOML --> STRATEGIES
     CSV --> STRATEGIES
     INI --> STRATEGIES
-    
+
     STRATEGIES --> PARALLEL
     PARALLEL --> CUSTOM
     CUSTOM --> VALIDATORS
-    
-    
+
+
     VALIDATORS --> FUZZ
-    VALIDATORS --> SNAPSHOT
 ```
 
 ## Data Flow
@@ -373,14 +364,7 @@ Each module has comprehensive unit tests covering:
 - Edge cases
 - Strategy-specific behavior
 
-### 2. Snapshot Tests
-
-Uses `insta` for snapshot testing to ensure:
-- Output format consistency
-- Regression detection
-- Easy test maintenance
-
-### 3. Integration Tests
+### 2. Integration Tests
 
 CLI integration tests verify:
 - End-to-end functionality
@@ -413,7 +397,7 @@ Validation is performed:
 
 ### Test Coverage
 
-The project includes comprehensive test coverage with **326 test cases**:
+The project includes comprehensive test coverage with **280+ test cases**:
 
 #### Library Tests (204 test cases)
 - **Basic repair tests**: Core functionality validation
@@ -494,14 +478,6 @@ The project includes comprehensive test coverage with **326 test cases**:
 - API documentation examples
 - Python-compatible interface examples
 
-### Snapshot Testing
-
-Uses `insta` for snapshot testing:
-- Captures expected outputs
-- Prevents regressions
-- Easy to update when behavior changes
-- Comprehensive coverage of repair scenarios
-
 ### Test Organization
 
 ```
@@ -509,14 +485,11 @@ tests/
 ├── integration_tests.rs    # Integration tests
 ├── damage_scenarios.rs     # Comprehensive damage scenario tests
 ├── fuzz_tests.rs          # Property-based fuzz testing
-└── snapshots/              # Snapshot files
-    ├── json_repair_*.snap
-    ├── yaml_repair_*.snap
-    ├── markdown_repair_*.snap
-    ├── xml_repair_*.snap
-    ├── toml_repair_*.snap
-    ├── csv_repair_*.snap
-    └── ini_repair_*.snap
+├── diff_tests.rs          # Diff format tests
+├── streaming_tests.rs     # Streaming repair tests
+├── complex_damage_tests.rs
+├── complex_streaming_tests.rs
+└── cli_tests.rs           # CLI tests
 ```
 
 ## Extensibility
@@ -536,7 +509,7 @@ tests/
 1. Create new struct implementing `RepairStrategy`
 2. Add to repairer's strategy list
 3. Set appropriate priority
-4. Add tests with snapshots
+4. Add comprehensive tests
 
 ### Adding New Validators
 
@@ -562,7 +535,6 @@ tests/
 - `futures` - Async utilities
 
 ### Development Dependencies
-- `insta` - Snapshot testing
 - `criterion` - Benchmarking
 - `tempfile` - Temporary file handling
 - `proptest` - Property-based testing

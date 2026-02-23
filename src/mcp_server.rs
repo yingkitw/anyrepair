@@ -3,7 +3,6 @@
 //! Exposes anyrepair repair functionality as an MCP server for integration
 //! with Claude and other MCP-compatible clients.
 
-use crate::traits::Repair;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -160,8 +159,6 @@ impl AnyrepairMcpServer {
             .get("format")
             .and_then(|v| v.as_str())
             .ok_or("Missing 'format' parameter")?;
-
-        use crate::traits::Validator;
 
         let validator = crate::create_validator(format)
             .map_err(|e| format!("Validation failed: {}", e))?;

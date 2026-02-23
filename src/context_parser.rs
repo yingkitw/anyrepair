@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 
 /// Context for parsing JSON strings
 #[derive(Debug, Clone, PartialEq)]
@@ -102,6 +101,7 @@ impl ContextAwareStringParser {
         }
     }
 
+    #[allow(dead_code)]
     fn skip_to_character(&mut self, characters: &[char]) -> Option<char> {
         while let Some(ch) = self.get_char_at(0) {
             if characters.contains(&ch) {
@@ -116,14 +116,13 @@ impl ContextAwareStringParser {
     pub fn parse_string(&mut self) -> String {
         let mut result = String::new();
         let mut missing_quotes = false;
-        let mut lstring_delimiter = '"';
         let mut rstring_delimiter = '"';
 
         // Skip leading whitespace
         self.skip_whitespace();
 
         let mut char = self.get_char_at(0);
-        
+
         // Handle comments
         if let Some(ch) = char {
             if ch == '#' || ch == '/' {
@@ -150,15 +149,9 @@ impl ContextAwareStringParser {
         if let Some(ch) = char {
             match ch {
                 '\'' => {
-                    lstring_delimiter = '\'';
                     rstring_delimiter = '\'';
                 }
                 '"' => {
-                    lstring_delimiter = '"';
-                    rstring_delimiter = '"';
-                }
-                '"' => {
-                    lstring_delimiter = '"';
                     rstring_delimiter = '"';
                 }
                 _ if ch.is_alphanumeric() => {

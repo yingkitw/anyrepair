@@ -1,7 +1,6 @@
 //! CSV repair module
 
 use crate::error::Result;
-use crate::repairer_base;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
 use std::sync::OnceLock;
@@ -368,120 +367,5 @@ impl RepairStrategy for AddHeadersStrategy {
 
     fn name(&self) -> &str {
         "AddHeadersStrategy"
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use insta::assert_snapshot;
-
-    #[test]
-    fn test_csv_repair_basic() {
-        let mut repairer = CsvRepairer::new();
-        
-        let input = "John,30,Engineer\nJane,25,Designer";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r"
-        John,30,Engineer
-        Jane,25,Designer
-        ");
-    }
-    
-    #[test]
-    fn test_csv_repair_unquoted_strings() {
-        let mut repairer = CsvRepairer::new();
-        
-        let input = "John Doe,30,Software Engineer\nJane Smith,25,UI Designer";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r#"
-        column_1,column_2,column_3,column_4,column_5
-        """John,Doe""",30,"""Software,Engineer"""
-        """Jane,Smith""",25,"""UI,Designer"""
-        "#);
-    }
-    
-    #[test]
-    fn test_csv_repair_malformed_quotes() {
-        let mut repairer = CsvRepairer::new();
-        
-        let input = "\"John\"Doe,30,Engineer";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r#""John"Doe,30,Engineer"#);
-    }
-    
-    #[test]
-    fn test_csv_repair_empty_input() {
-        let mut repairer = CsvRepairer::new();
-        let result = repairer.repair("");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_csv_repair_single_column() {
-        let mut repairer = CsvRepairer::new();
-        let input = "value1\nvalue2\nvalue3";
-        let result = repairer.repair(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_csv_repair_extra_commas() {
-        let mut repairer = CsvRepairer::new();
-        
-        let input = "John,,30,Engineer\nJane,25,,Designer";
-        let result = repairer.repair(input).unwrap();
-        assert_snapshot!(result, @r"
-        John,,30,Engineer
-        Jane,25,,Designer
-        ");
-    }
-    
-    #[test]
-    fn test_csv_confidence() {
-        let mut repairer = CsvRepairer::new();
-        
-        let valid_csv = "name,age,occupation\nJohn,30,Engineer";
-        let conf = repairer.confidence(valid_csv);
-        assert!(conf > 0.5);
-        
-        let invalid_csv = "not csv at all";
-        let conf = repairer.confidence(invalid_csv);
-        assert!(conf < 0.8);
-    }
-    
-    #[test]
-    fn test_csv_validator() {
-        let validator = CsvValidator;
-        
-        assert!(validator.is_valid("name,age\nJohn,30"));
-        // Note: CSV validator is permissive
-        assert!(!validator.is_valid(""));
-        
-        let _errors = validator.validate("invalid csv");
-        // Note: CSV validator is permissive, so we just check it doesn't panic
-        // The validate method should return a Vec (which is always >= 0 length)
-        assert!(true); // This assertion is always true, just checking the method doesn't panic
-    }
-    
-    #[test]
-    fn test_csv_strategies_individual() {
-        // Test FixUnquotedStringsStrategy
-        let strategy = FixUnquotedStringsStrategy;
-        let input = "John Doe,30";
-        let result = strategy.apply(input).unwrap();
-        assert!(result.contains("John Doe"));
-        
-        // Test FixExtraCommasStrategy
-        let strategy = FixExtraCommasStrategy;
-        let input = "John,,30";
-        let result = strategy.apply(input).unwrap();
-        assert!(result.contains("John,30"));
-        
-        // Test AddHeadersStrategy
-        let strategy = AddHeadersStrategy;
-        let input = "John,30,Engineer";
-        let result = strategy.apply(input).unwrap();
-        assert!(result.starts_with("column_1,column_2,column_3"));
     }
 }

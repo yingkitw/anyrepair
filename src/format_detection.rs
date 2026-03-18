@@ -30,8 +30,8 @@ pub fn detect_format(content: &str) -> Option<&'static str> {
 
 fn is_json_like(content: &str) -> bool {
     let trimmed = content.trim();
-    (trimmed.starts_with('{') && (trimmed.ends_with('}') || trimmed.contains(':'))) ||
-    (trimmed.starts_with('[') && (trimmed.ends_with(']') || trimmed.contains(',')))
+    (trimmed.starts_with('{') && (trimmed.ends_with('}') || trimmed.contains(':')))
+        || (trimmed.starts_with('[') && (trimmed.ends_with(']') || trimmed.contains(',')))
 }
 
 fn is_yaml_like(content: &str) -> bool {
@@ -42,17 +42,18 @@ fn is_yaml_like(content: &str) -> bool {
     if trimmed.starts_with('{') || trimmed.starts_with('[') {
         return false;
     }
-    trimmed.contains(":") || trimmed.lines().any(|line| {
-        let line = line.trim();
-        line.contains(":") && !line.starts_with('"') && !line.starts_with('{')
-    })
+    trimmed.contains(":")
+        || trimmed.lines().any(|line| {
+            let line = line.trim();
+            line.contains(":") && !line.starts_with('"') && !line.starts_with('{')
+        })
 }
 
 fn is_xml_like(content: &str) -> bool {
     let trimmed = content.trim();
-    trimmed.starts_with("<?xml") ||
-    (trimmed.starts_with('<') && trimmed.contains('>') && !trimmed.starts_with('#')) ||
-    (trimmed.contains('<') && trimmed.contains('>') && trimmed.contains("</"))
+    trimmed.starts_with("<?xml")
+        || (trimmed.starts_with('<') && trimmed.contains('>') && !trimmed.starts_with('#'))
+        || (trimmed.contains('<') && trimmed.contains('>') && trimmed.contains("</"))
 }
 
 fn is_toml_like(content: &str) -> bool {
@@ -63,10 +64,11 @@ fn is_toml_like(content: &str) -> bool {
     if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') {
         return false;
     }
-    trimmed.contains('=') || trimmed.lines().any(|line| {
-        let line = line.trim();
-        line.starts_with('[') && line.ends_with(']')
-    })
+    trimmed.contains('=')
+        || trimmed.lines().any(|line| {
+            let line = line.trim();
+            line.starts_with('[') && line.ends_with(']')
+        })
 }
 
 fn is_csv_like(content: &str) -> bool {
@@ -74,8 +76,12 @@ fn is_csv_like(content: &str) -> bool {
     if !trimmed.contains(',') {
         return false;
     }
-    if trimmed.starts_with('{') || trimmed.starts_with('[') || trimmed.starts_with('<') || 
-       trimmed.starts_with('#') || trimmed.starts_with("<?xml") {
+    if trimmed.starts_with('{')
+        || trimmed.starts_with('[')
+        || trimmed.starts_with('<')
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("<?xml")
+    {
         return false;
     }
     trimmed.lines().count() > 1
@@ -86,46 +92,66 @@ fn is_ini_like(content: &str) -> bool {
     if trimmed.starts_with('[') && trimmed.contains(']') {
         return true;
     }
-    if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') || 
-       trimmed.starts_with("<?xml") || trimmed.contains(',') || trimmed.contains(':') {
+    if trimmed.starts_with('{')
+        || trimmed.starts_with('<')
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("<?xml")
+        || trimmed.contains(',')
+        || trimmed.contains(':')
+    {
         return false;
     }
-    trimmed.contains('=') || trimmed.lines().any(|line| {
-        let line = line.trim();
-        line.starts_with('[') && line.contains(']') && !line.contains(',')
-    })
+    trimmed.contains('=')
+        || trimmed.lines().any(|line| {
+            let line = line.trim();
+            line.starts_with('[') && line.contains(']') && !line.contains(',')
+        })
 }
 
 fn is_diff_like(content: &str) -> bool {
     let trimmed = content.trim();
     let lines: Vec<&str> = trimmed.lines().collect();
-    
+
     // Check for hunk headers (@@ ... @@)
-    if lines.iter().any(|line| line.starts_with("@@") && line.matches("@@").count() >= 2) {
+    if lines
+        .iter()
+        .any(|line| line.starts_with("@@") && line.matches("@@").count() >= 2)
+    {
         return true;
     }
-    
+
     // Check for paired file headers (--- a/... and +++ b/...)
     // Require both --- and +++ with a space after (not bare "---" which is YAML)
-    let has_minus_header = lines.iter().any(|line| line.starts_with("--- ") || line.starts_with("---\t"));
-    let has_plus_header = lines.iter().any(|line| line.starts_with("+++ ") || line.starts_with("+++\t"));
+    let has_minus_header = lines
+        .iter()
+        .any(|line| line.starts_with("--- ") || line.starts_with("---\t"));
+    let has_plus_header = lines
+        .iter()
+        .any(|line| line.starts_with("+++ ") || line.starts_with("+++\t"));
     if has_minus_header && has_plus_header {
         return true;
     }
-    
+
     // Check for diff line prefixes (+, -, space) in multiple lines
     // Exclude bare "---"/"+++" (YAML separators) and "- item" (YAML lists)
     if lines.len() > 2 {
-        let diff_line_count = lines.iter()
+        let diff_line_count = lines
+            .iter()
             .filter(|line| {
                 let l = line.trim();
-                if l == "---" || l == "+++" { return false; }
-                // YAML list items start with "- " followed by content
-                if l.starts_with("- ") && l.len() > 2 && l.chars().nth(2).map_or(false, |c| c.is_alphanumeric()) {
+                if l == "---" || l == "+++" {
                     return false;
                 }
-                l.starts_with('+') || l.starts_with('-') || 
-                (l.starts_with(' ') && !l.starts_with("@@"))
+                // YAML list items start with "- " followed by content
+                if l.starts_with("- ")
+                    && l.len() > 2
+                    && l.chars().nth(2).map_or(false, |c| c.is_alphanumeric())
+                {
+                    return false;
+                }
+                l.starts_with('+')
+                    || l.starts_with('-')
+                    || (l.starts_with(' ') && !l.starts_with("@@"))
             })
             .count();
         if diff_line_count as f64 / lines.len() as f64 > 0.5 {
@@ -141,11 +167,11 @@ fn is_markdown_like(content: &str) -> bool {
     if is_diff_like(trimmed) {
         return false;
     }
-    trimmed.starts_with('#') ||
-    trimmed.contains("```") ||
-    trimmed.contains("**") ||
-    trimmed.contains("*") ||
-    trimmed.contains("`")
+    trimmed.starts_with('#')
+        || trimmed.contains("```")
+        || trimmed.contains("**")
+        || trimmed.contains("*")
+        || trimmed.contains("`")
 }
 
 #[cfg(test)]
@@ -158,8 +184,14 @@ mod tests {
         assert_eq!(detect_format(r#"[1, 2, 3]"#), Some("json"));
         assert_eq!(detect_format("key: value"), Some("yaml"));
         assert_eq!(detect_format("---\nkey: value"), Some("yaml"));
-        assert_eq!(detect_format("<?xml version=\"1.0\"?><root></root>"), Some("xml"));
-        assert_eq!(detect_format("<root><item>value</item></root>"), Some("xml"));
+        assert_eq!(
+            detect_format("<?xml version=\"1.0\"?><root></root>"),
+            Some("xml")
+        );
+        assert_eq!(
+            detect_format("<root><item>value</item></root>"),
+            Some("xml")
+        );
         assert_eq!(detect_format("name,age\nJohn,30"), Some("csv"));
         assert_eq!(detect_format("# Header\n**bold**"), Some("markdown"));
     }
@@ -168,14 +200,26 @@ mod tests {
     fn test_format_detection_edge_cases() {
         assert_eq!(detect_format(""), None);
         assert_eq!(detect_format("   \n\t  "), None);
-        assert_eq!(detect_format(r#"{"key": "value", "nested": {"inner": "value"}}"#), Some("json"));
-        assert_eq!(detect_format("key: value\nnested:\n  inner: value"), Some("yaml"));
+        assert_eq!(
+            detect_format(r#"{"key": "value", "nested": {"inner": "value"}}"#),
+            Some("json")
+        );
+        assert_eq!(
+            detect_format("key: value\nnested:\n  inner: value"),
+            Some("yaml")
+        );
     }
 
     #[test]
     fn test_diff_detection() {
-        assert_eq!(detect_format("@@ -1,3 +1,4 @@\n-line 1\n+line 2"), Some("diff"));
-        assert_eq!(detect_format("--- a/file\n+++ b/file\n@@ -1 +1 @@"), Some("diff"));
+        assert_eq!(
+            detect_format("@@ -1,3 +1,4 @@\n-line 1\n+line 2"),
+            Some("diff")
+        );
+        assert_eq!(
+            detect_format("--- a/file\n+++ b/file\n@@ -1 +1 @@"),
+            Some("diff")
+        );
     }
 
     #[test]

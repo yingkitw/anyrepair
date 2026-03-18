@@ -36,9 +36,8 @@ impl StreamingRepair {
         let mut buffer = String::with_capacity(self.buffer_size);
 
         for line_result in reader.lines() {
-            let line = line_result.map_err(|e| {
-                crate::error::RepairError::Generic(format!("IO error: {}", e))
-            })?;
+            let line = line_result
+                .map_err(|e| crate::error::RepairError::Generic(format!("IO error: {}", e)))?;
 
             buffer.push_str(&line);
             buffer.push('\n');
@@ -57,9 +56,9 @@ impl StreamingRepair {
         // Process remaining buffer
         if !buffer.is_empty() {
             let repaired = self.repair_chunk(&buffer, format)?;
-            writer.write_all(repaired.as_bytes()).map_err(|e| {
-                crate::error::RepairError::Generic(format!("Write error: {}", e))
-            })?;
+            writer
+                .write_all(repaired.as_bytes())
+                .map_err(|e| crate::error::RepairError::Generic(format!("Write error: {}", e)))?;
             total_bytes += repaired.len();
         }
 

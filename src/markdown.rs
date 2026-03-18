@@ -21,22 +21,22 @@ impl Validator for MarkdownValidator {
         if content.is_empty() {
             return true;
         }
-        
+
         // Check for balanced markers
         let bold_count = content.matches("**").count();
         let _italic_count = content.matches('*').count();
         let code_fence_count = content.matches("```").count();
-        
+
         // Bold should be balanced
         if bold_count % 2 != 0 {
             return false;
         }
-        
+
         // Code fences should be balanced
         if code_fence_count % 2 != 0 {
             return false;
         }
-        
+
         // Check for malformed headers (# without space)
         for line in content.lines() {
             let trimmed = line.trim_start();
@@ -53,37 +53,37 @@ impl Validator for MarkdownValidator {
                 }
             }
         }
-        
+
         // Basic structure check
         let has_valid_structure = !content.contains("[[") && !content.contains("]]");
-        
+
         has_valid_structure
     }
-    
+
     fn validate(&self, content: &str) -> Vec<String> {
         let mut errors = Vec::new();
-        
+
         if content.is_empty() {
             return errors;
         }
-        
+
         // Check for unbalanced bold markers
         let bold_count = content.matches("**").count();
         if bold_count % 2 != 0 {
             errors.push("Unbalanced bold markers (**)".to_string());
         }
-        
+
         // Check for unbalanced code fences
         let code_fence_count = content.matches("```").count();
         if code_fence_count % 2 != 0 {
             errors.push("Unbalanced code block fences (```)".to_string());
         }
-        
+
         // Check for malformed links
         if content.contains("[[") || content.contains("]]") {
             errors.push("Malformed link syntax".to_string());
         }
-        
+
         errors
     }
 }
@@ -146,7 +146,9 @@ impl MarkdownRegexCache {
 static MARKDOWN_REGEX_CACHE: OnceLock<MarkdownRegexCache> = OnceLock::new();
 
 pub fn get_markdown_regex_cache() -> &'static MarkdownRegexCache {
-    MARKDOWN_REGEX_CACHE.get_or_init(|| MarkdownRegexCache::new().expect("Failed to initialize Markdown regex cache"))
+    MARKDOWN_REGEX_CACHE.get_or_init(|| {
+        MarkdownRegexCache::new().expect("Failed to initialize Markdown regex cache")
+    })
 }
 
 // ============================================================================
@@ -163,9 +165,12 @@ impl RepairStrategy for FixHeaderSpacingStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_markdown_regex_cache();
-        Ok(cache.header_spacing.replace_all(content, "$1 $2").to_string())
+        Ok(cache
+            .header_spacing
+            .replace_all(content, "$1 $2")
+            .to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         100
     }
@@ -183,7 +188,7 @@ impl RepairStrategy for FixCodeBlockFencesStrategy {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = String::new();
         let mut in_code_block = false;
-        
+
         for line in lines {
             if line.trim().starts_with("```") {
                 in_code_block = !in_code_block;
@@ -193,10 +198,10 @@ impl RepairStrategy for FixCodeBlockFencesStrategy {
             }
             result.push('\n');
         }
-        
+
         Ok(result.trim_end().to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         90
     }
@@ -214,7 +219,7 @@ impl RepairStrategy for FixListFormattingStrategy {
         let cache = get_markdown_regex_cache();
         Ok(cache.list_items.replace_all(content, "$1$2 $3").to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         85
     }
@@ -231,16 +236,16 @@ impl RepairStrategy for FixLinkFormattingStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         // Validate and fix link syntax
         let mut result = content.to_string();
-        
+
         // Fix common link issues
         result = result.replace("[ ", "[");
         result = result.replace(" ]", "]");
         result = result.replace("( ", "(");
         result = result.replace(" )", ")");
-        
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         80
     }
@@ -256,22 +261,22 @@ impl RepairStrategy for FixBoldItalicStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let mut result = content.to_string();
-        
+
         // Fix unmatched bold markers
         let bold_count = result.matches("**").count();
         if bold_count % 2 != 0 {
             result.push_str("**");
         }
-        
+
         // Fix unmatched italic markers
         let italic_count = result.matches('*').count();
         if italic_count % 2 != 0 {
             result.push('*');
         }
-        
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         75
     }
@@ -288,23 +293,23 @@ impl RepairStrategy for AddMissingNewlinesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = String::new();
-        
+
         for (i, line) in lines.iter().enumerate() {
             result.push_str(line);
-            
+
             // Add newline after headers and code blocks
             if line.trim().starts_with('#') || line.trim().starts_with("```") {
                 if i < lines.len() - 1 && !lines[i + 1].is_empty() {
                     result.push('\n');
                 }
             }
-            
+
             result.push('\n');
         }
-        
+
         Ok(result.trim_end().to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         70
     }
@@ -321,13 +326,11 @@ impl RepairStrategy for FixTableFormattingStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = String::new();
-        
+
         for (_i, line) in lines.iter().enumerate() {
             if line.contains('|') {
                 // Ensure proper spacing around pipes
-                let fixed = line
-                    .replace("| ", "|")
-                    .replace(" |", "|");
+                let fixed = line.replace("| ", "|").replace(" |", "|");
                 let fixed = fixed.replace("|", " | ");
                 result.push_str(&fixed);
             } else {
@@ -335,10 +338,10 @@ impl RepairStrategy for FixTableFormattingStrategy {
             }
             result.push('\n');
         }
-        
+
         Ok(result.trim_end().to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         65
     }
@@ -355,25 +358,30 @@ impl RepairStrategy for FixNestedListsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = String::new();
-        
+
         for line in lines {
             let trimmed = line.trim_start();
             let indent = line.len() - trimmed.len();
-            
+
             // Fix list item formatting
             if trimmed.starts_with('-') || trimmed.starts_with('*') || trimmed.starts_with('+') {
                 let marker = trimmed.chars().next().unwrap();
                 let content_part = trimmed.trim_start_matches(|c| c == marker || c == ' ');
-                result.push_str(&format!("{}{} {}", " ".repeat(indent), marker, content_part));
+                result.push_str(&format!(
+                    "{}{} {}",
+                    " ".repeat(indent),
+                    marker,
+                    content_part
+                ));
             } else {
                 result.push_str(line);
             }
             result.push('\n');
         }
-        
+
         Ok(result.trim_end().to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         60
     }
@@ -389,16 +397,16 @@ impl RepairStrategy for FixImageSyntaxStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let mut result = content.to_string();
-        
+
         // Fix common image syntax issues
         result = result.replace("![ ", "![");
         result = result.replace(" ]", "]");
         result = result.replace("( ", "(");
         result = result.replace(" )", ")");
-        
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         55
     }
@@ -409,7 +417,7 @@ impl RepairStrategy for FixImageSyntaxStrategy {
 // ============================================================================
 
 /// Markdown repairer that can fix common Markdown issues
-/// 
+///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct MarkdownRepairer {
     inner: crate::repairer_base::GenericRepairer,
@@ -429,10 +437,10 @@ impl MarkdownRepairer {
             Box::new(FixNestedListsStrategy),
             Box::new(FixImageSyntaxStrategy),
         ];
-        
+
         let validator: Box<dyn Validator> = Box::new(MarkdownValidator);
         let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
-        
+
         Self { inner }
     }
 }
@@ -447,39 +455,39 @@ impl Repair for MarkdownRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
         self.inner.repair(content)
     }
-    
+
     fn needs_repair(&self, content: &str) -> bool {
         self.inner.needs_repair(content)
     }
-    
+
     fn confidence(&self, content: &str) -> f64 {
         if self.inner.validator().is_valid(content) {
             return 1.0;
         }
-        
+
         let mut score: f64 = 0.0;
-        
+
         // Check for markdown structure
         if content.contains('#') {
             score += 0.2;
         }
-        
+
         if content.contains("```") {
             score += 0.2;
         }
-        
+
         if content.contains('[') && content.contains(']') {
             score += 0.2;
         }
-        
+
         if content.contains('*') || content.contains('_') {
             score += 0.2;
         }
-        
+
         if content.contains('-') || content.contains('+') {
             score += 0.1;
         }
-        
+
         score.min(1.0_f64)
     }
 }
@@ -522,4 +530,3 @@ mod tests {
         assert!(repairer.needs_repair("**bold text"));
     }
 }
-

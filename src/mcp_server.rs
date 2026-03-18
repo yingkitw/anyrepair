@@ -117,8 +117,7 @@ impl AnyrepairMcpServer {
             .and_then(|v| v.as_str())
             .ok_or("Missing 'content' parameter")?;
 
-        let repaired = crate::repair(content)
-            .map_err(|e| format!("Repair failed: {}", e))?;
+        let repaired = crate::repair(content).map_err(|e| format!("Repair failed: {}", e))?;
 
         Ok(json!({
             "repaired": repaired,
@@ -160,8 +159,8 @@ impl AnyrepairMcpServer {
             .and_then(|v| v.as_str())
             .ok_or("Missing 'format' parameter")?;
 
-        let validator = crate::create_validator(format)
-            .map_err(|e| format!("Validation failed: {}", e))?;
+        let validator =
+            crate::create_validator(format).map_err(|e| format!("Validation failed: {}", e))?;
         let is_valid = validator.is_valid(content);
 
         Ok(json!({
@@ -200,9 +199,9 @@ mod tests {
     fn test_mcp_server_tool_count() {
         let server = AnyrepairMcpServer::new();
         let tools = server.get_tools();
-        // Should have: repair, repair_json, repair_yaml, repair_markdown, repair_xml, 
-        // repair_toml, repair_csv, repair_ini, repair_diff, validate = 10 tools
-        assert_eq!(tools.len(), 10);
+        // Should have: repair, repair_json, repair_yaml, repair_markdown, repair_xml,
+        // repair_toml, repair_csv, repair_ini, repair_diff, repair_properties, repair_env, validate = 12 tools
+        assert_eq!(tools.len(), 12);
     }
 
     #[test]
@@ -771,7 +770,11 @@ mod tests {
         let result = server.process_tool_call("repair_json", &input);
         let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
         let confidence = parsed["confidence"].as_f64().unwrap();
-        assert!(confidence >= 0.0 && confidence <= 1.0, "confidence {} out of range", confidence);
+        assert!(
+            confidence >= 0.0 && confidence <= 1.0,
+            "confidence {} out of range",
+            confidence
+        );
     }
 
     #[test]
@@ -783,7 +786,11 @@ mod tests {
         let result = server.process_tool_call("repair_json", &input);
         let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
         let confidence = parsed["confidence"].as_f64().unwrap();
-        assert!(confidence >= 0.0 && confidence <= 1.0, "confidence {} out of range", confidence);
+        assert!(
+            confidence >= 0.0 && confidence <= 1.0,
+            "confidence {} out of range",
+            confidence
+        );
     }
 
     #[test]
@@ -805,8 +812,12 @@ mod tests {
             assert!(result.is_ok(), "tool {} failed", tool);
             let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
             let confidence = parsed["confidence"].as_f64().unwrap();
-            assert!(confidence >= 0.0 && confidence <= 1.0,
-                "tool {} confidence {} out of range", tool, confidence);
+            assert!(
+                confidence >= 0.0 && confidence <= 1.0,
+                "tool {} confidence {} out of range",
+                tool,
+                confidence
+            );
         }
     }
 
@@ -821,7 +832,11 @@ mod tests {
             let result = server.process_tool_call(&tool_name, &input);
             assert!(result.is_ok(), "repair_{} should succeed", format);
             let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
-            assert_eq!(parsed["success"], true, "repair_{} success should be true", format);
+            assert_eq!(
+                parsed["success"], true,
+                "repair_{} success should be true",
+                format
+            );
         }
     }
 
@@ -836,7 +851,11 @@ mod tests {
             let result = server.process_tool_call("validate", &input);
             assert!(result.is_ok(), "validate {} should succeed", format);
             let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
-            assert!(parsed.get("valid").is_some(), "validate {} should have valid field", format);
+            assert!(
+                parsed.get("valid").is_some(),
+                "validate {} should have valid field",
+                format
+            );
             assert_eq!(parsed["format"], *format);
         }
     }
@@ -865,8 +884,11 @@ mod tests {
         assert!(result.is_ok());
         let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
         let repaired = parsed["repaired"].as_str().unwrap();
-        assert!(serde_json::from_str::<Value>(repaired).is_ok(),
-            "repaired JSON should be valid: {}", repaired);
+        assert!(
+            serde_json::from_str::<Value>(repaired).is_ok(),
+            "repaired JSON should be valid: {}",
+            repaired
+        );
     }
 
     #[test]
@@ -927,12 +949,23 @@ mod tests {
         for tool in server.get_tools() {
             let schema = &tool.input_schema;
             assert_eq!(schema["type"], "object", "tool {} schema type", tool.name);
-            assert!(schema.get("properties").is_some(), "tool {} has properties", tool.name);
-            assert!(schema.get("required").is_some(), "tool {} has required", tool.name);
+            assert!(
+                schema.get("properties").is_some(),
+                "tool {} has properties",
+                tool.name
+            );
+            assert!(
+                schema.get("required").is_some(),
+                "tool {} has required",
+                tool.name
+            );
             // All tools require "content"
             let required = schema["required"].as_array().unwrap();
-            assert!(required.iter().any(|v| v == "content"),
-                "tool {} requires content", tool.name);
+            assert!(
+                required.iter().any(|v| v == "content"),
+                "tool {} requires content",
+                tool.name
+            );
         }
     }
 
@@ -942,12 +975,18 @@ mod tests {
         let tools = server.get_tools();
         let validate_tool = tools.iter().find(|t| t.name == "validate").unwrap();
         let format_prop = &validate_tool.input_schema["properties"]["format"];
-        assert!(format_prop.get("enum").is_some(), "validate tool should have format enum");
+        assert!(
+            format_prop.get("enum").is_some(),
+            "validate tool should have format enum"
+        );
         let enum_values = format_prop["enum"].as_array().unwrap();
         // Should include all supported formats
         for fmt in crate::SUPPORTED_FORMATS {
-            assert!(enum_values.iter().any(|v| v.as_str() == Some(fmt)),
-                "validate enum should include {}", fmt);
+            assert!(
+                enum_values.iter().any(|v| v.as_str() == Some(fmt)),
+                "validate enum should include {}",
+                fmt
+            );
         }
     }
 
@@ -1015,7 +1054,9 @@ mod tests {
         let server = AnyrepairMcpServer::new();
         // Repair malformed JSON
         let repair_input = json!({ "content": r#"{"key": "value",}"# });
-        let repair_result = server.process_tool_call("repair_json", &repair_input).unwrap();
+        let repair_result = server
+            .process_tool_call("repair_json", &repair_input)
+            .unwrap();
         let repair_parsed: Value = serde_json::from_str(&repair_result).unwrap();
         let repaired = repair_parsed["repaired"].as_str().unwrap();
 
@@ -1024,22 +1065,31 @@ mod tests {
             "content": repaired,
             "format": "json"
         });
-        let validate_result = server.process_tool_call("validate", &validate_input).unwrap();
+        let validate_result = server
+            .process_tool_call("validate", &validate_input)
+            .unwrap();
         let validate_parsed: Value = serde_json::from_str(&validate_result).unwrap();
-        assert_eq!(validate_parsed["valid"], true,
-            "repaired JSON should validate: {}", repaired);
+        assert_eq!(
+            validate_parsed["valid"], true,
+            "repaired JSON should validate: {}",
+            repaired
+        );
     }
 
     #[test]
     fn test_mcp_repair_then_validate_yaml() {
         let server = AnyrepairMcpServer::new();
         let repair_input = json!({ "content": "name: John\nage: 30" });
-        let repair_result = server.process_tool_call("repair_yaml", &repair_input).unwrap();
+        let repair_result = server
+            .process_tool_call("repair_yaml", &repair_input)
+            .unwrap();
         let repair_parsed: Value = serde_json::from_str(&repair_result).unwrap();
         let repaired = repair_parsed["repaired"].as_str().unwrap();
 
         let validate_input = json!({ "content": repaired, "format": "yaml" });
-        let validate_result = server.process_tool_call("validate", &validate_input).unwrap();
+        let validate_result = server
+            .process_tool_call("validate", &validate_input)
+            .unwrap();
         let validate_parsed: Value = serde_json::from_str(&validate_result).unwrap();
         assert_eq!(validate_parsed["valid"], true);
     }
@@ -1048,14 +1098,21 @@ mod tests {
     fn test_mcp_repair_then_validate_xml() {
         let server = AnyrepairMcpServer::new();
         let repair_input = json!({ "content": "<root><item>value</root>" });
-        let repair_result = server.process_tool_call("repair_xml", &repair_input).unwrap();
+        let repair_result = server
+            .process_tool_call("repair_xml", &repair_input)
+            .unwrap();
         let repair_parsed: Value = serde_json::from_str(&repair_result).unwrap();
         let repaired = repair_parsed["repaired"].as_str().unwrap();
 
         let validate_input = json!({ "content": repaired, "format": "xml" });
-        let validate_result = server.process_tool_call("validate", &validate_input).unwrap();
+        let validate_result = server
+            .process_tool_call("validate", &validate_input)
+            .unwrap();
         let validate_parsed: Value = serde_json::from_str(&validate_result).unwrap();
-        assert_eq!(validate_parsed["valid"], true,
-            "repaired XML should validate: {}", repaired);
+        assert_eq!(
+            validate_parsed["valid"], true,
+            "repaired XML should validate: {}",
+            repaired
+        );
     }
 }

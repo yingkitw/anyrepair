@@ -1,7 +1,7 @@
 //! # AnyRepair
-//! 
+//!
 //! A Rust crate for repairing LLM responses including JSON, YAML, and Markdown.
-//! 
+//!
 //! This crate provides robust repair mechanisms for common issues found in LLM-generated content,
 //! such as malformed JSON, incomplete YAML, and broken Markdown formatting.
 //!
@@ -15,26 +15,28 @@
 
 // Core modules
 pub mod error;
-pub mod traits;
-pub mod repairer_base;
 pub mod format_detection;
+pub mod repairer_base;
+pub mod traits;
 
 // Format-specific repairers
-pub mod json;
-pub mod yaml;
-pub mod markdown;
-pub mod xml;
-pub mod toml;
 pub mod csv;
-pub mod ini;
 pub mod diff;
+pub mod env;
+pub mod ini;
+pub mod json;
+pub mod markdown;
+pub mod properties;
+pub mod toml;
+pub mod xml;
+pub mod yaml;
 
 // Utility and helper modules
 pub mod advanced;
-pub mod context_parser;
-pub mod enhanced_json;
 pub mod config;
+pub mod context_parser;
 pub mod custom_rules;
+pub mod enhanced_json;
 
 // Streaming support
 pub mod streaming;
@@ -42,20 +44,29 @@ pub mod streaming;
 // MCP server support
 pub mod mcp_server;
 
-pub use error::{RepairError, Result};
-pub use traits::Repair;
-pub use enhanced_json::EnhancedJsonRepairer;
-pub use streaming::StreamingRepair;
-pub use mcp_server::AnyrepairMcpServer;
-pub use json::JsonRepairer;
 pub use diff::DiffRepairer;
+pub use enhanced_json::EnhancedJsonRepairer;
+pub use error::{RepairError, Result};
+pub use json::JsonRepairer;
+pub use mcp_server::AnyrepairMcpServer;
+pub use streaming::StreamingRepair;
+pub use traits::Repair;
 
 use serde_json::Value;
 use std::io::Read;
 
 /// All supported format names
 pub const SUPPORTED_FORMATS: &[&str] = &[
-    "json", "yaml", "markdown", "xml", "toml", "csv", "ini", "diff",
+    "json",
+    "yaml",
+    "markdown",
+    "xml",
+    "toml",
+    "csv",
+    "ini",
+    "diff",
+    "properties",
+    "env",
 ];
 
 /// Resolve format aliases to canonical names.
@@ -87,7 +98,12 @@ pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
         "csv" => Ok(Box::new(csv::CsvRepairer::new())),
         "ini" => Ok(Box::new(ini::IniRepairer::new())),
         "diff" => Ok(Box::new(diff::DiffRepairer::new())),
-        other => Err(RepairError::FormatDetection(format!("Unknown format: {}", other))),
+        "properties" => Ok(Box::new(properties::PropertiesRepairer::new())),
+        "env" => Ok(Box::new(env::EnvRepairer::new())),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown format: {}",
+            other
+        ))),
     }
 }
 
@@ -103,7 +119,12 @@ pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
         "csv" => Ok(Box::new(csv::CsvValidator)),
         "ini" => Ok(Box::new(ini::IniValidator)),
         "diff" => Ok(Box::new(diff::DiffValidator)),
-        other => Err(RepairError::FormatDetection(format!("Unknown format: {}", other))),
+        "properties" => Ok(Box::new(properties::PropertiesValidator)),
+        "env" => Ok(Box::new(env::EnvValidator)),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown format: {}",
+            other
+        ))),
     }
 }
 
@@ -116,7 +137,7 @@ pub fn repair_with_format(content: &str, format: &str) -> Result<String> {
 /// Main repair function that automatically detects format and repairs content
 pub fn repair(content: &str) -> Result<String> {
     let trimmed = content.trim();
-    
+
     if let Some(fmt) = detect_format(trimmed) {
         let mut repairer = create_repairer(fmt)?;
         repairer.repair(trimmed)
@@ -133,24 +154,24 @@ pub fn detect_format(content: &str) -> Option<&'static str> {
 }
 
 /// Repair JSON string - Python jsonrepair compatible API
-/// 
+///
 /// This function provides a simple interface matching Python's jsonrepair library:
 /// ```python
 /// from jsonrepair import repair_json
 /// repaired = repair_json('{"key": "value",}')
 /// ```
-/// 
+///
 /// # Arguments
 /// * `json_str` - The malformed JSON string to repair
-/// 
+///
 /// # Returns
 /// * `Ok(String)` - The repaired JSON string
 /// * `Err(RepairError)` - If repair fails
-/// 
+///
 /// # Example
 /// ```
 /// use anyrepair::jsonrepair;
-/// 
+///
 /// let malformed = r#"{"name": "John", age: 30,}"#;
 /// let repaired = jsonrepair(malformed).unwrap();
 /// assert!(repaired.contains("\"age\""));
@@ -162,18 +183,18 @@ pub fn jsonrepair(json_str: &str) -> Result<String> {
 }
 
 /// JsonRepair - Python jsonrepair compatible class-like interface
-/// 
+///
 /// This struct provides a class-based API matching Python's jsonrepair library:
 /// ```python
 /// from jsonrepair import JsonRepair
 /// jr = JsonRepair()
 /// repaired = jr.jsonrepair('{"key": "value",}')
 /// ```
-/// 
+///
 /// # Example
 /// ```
 /// use anyrepair::JsonRepair;
-/// 
+///
 /// let mut jr = JsonRepair::new();
 /// let malformed = r#"{"name": "John", age: 30,}"#;
 /// let repaired = jr.jsonrepair(malformed).unwrap();
@@ -193,10 +214,10 @@ impl JsonRepair {
     }
 
     /// Repair a JSON string (Python jsonrepair compatible method)
-    /// 
+    ///
     /// # Arguments
     /// * `json_str` - The malformed JSON string to repair
-    /// 
+    ///
     /// # Returns
     /// * `Ok(String)` - The repaired JSON string
     /// * `Err(RepairError)` - If repair fails
@@ -212,16 +233,16 @@ impl Default for JsonRepair {
 }
 
 /// Enhanced JSON repair with advanced capabilities
-/// 
+///
 /// This function provides drop-in replacement for json.loads() with advanced repair capabilities
 /// inspired by json_repair-main.
-/// 
+///
 /// # Arguments
 /// * `json_str` - The JSON string to repair
 /// * `skip_json_loads` - Skip initial JSON validation for performance
 /// * `logging` - Enable detailed repair logging
 /// * `stream_stable` - Enable streaming support for partial JSON
-/// 
+///
 /// # Returns
 /// * `Ok(Value)` - The parsed JSON value
 /// * `Err(RepairError)` - If repair fails
@@ -235,7 +256,7 @@ pub fn repair_json_advanced(
         .with_skip_json_loads(skip_json_loads)
         .with_logging(logging)
         .with_stream_stable(stream_stable);
-    
+
     repairer.loads(json_str)
 }
 
@@ -288,8 +309,14 @@ mod tests {
         assert_eq!(detect_format(r#"[1, 2, 3]"#), Some("json"));
         assert_eq!(detect_format("key: value"), Some("yaml"));
         assert_eq!(detect_format("---\nkey: value"), Some("yaml"));
-        assert_eq!(detect_format("<?xml version=\"1.0\"?><root></root>"), Some("xml"));
-        assert_eq!(detect_format("<root><item>value</item></root>"), Some("xml"));
+        assert_eq!(
+            detect_format("<?xml version=\"1.0\"?><root></root>"),
+            Some("xml")
+        );
+        assert_eq!(
+            detect_format("<root><item>value</item></root>"),
+            Some("xml")
+        );
         assert_eq!(detect_format("name,age\nJohn,30"), Some("csv"));
         assert_eq!(detect_format("# Header\n**bold**"), Some("markdown"));
     }
@@ -341,13 +368,25 @@ mod tests {
         assert_eq!(detect_format("   \n\t  "), None);
 
         // Test mixed content
-        assert_eq!(detect_format(r#"{"key": "value", "nested": {"inner": "value"}}"#), Some("json"));
-        assert_eq!(detect_format("key: value\nnested:\n  inner: value"), Some("yaml"));
-        assert_eq!(detect_format("# Header\n\nSome **bold** text with `code`"), Some("markdown"));
+        assert_eq!(
+            detect_format(r#"{"key": "value", "nested": {"inner": "value"}}"#),
+            Some("json")
+        );
+        assert_eq!(
+            detect_format("key: value\nnested:\n  inner: value"),
+            Some("yaml")
+        );
+        assert_eq!(
+            detect_format("# Header\n\nSome **bold** text with `code`"),
+            Some("markdown")
+        );
 
         // Test malformed content still detected
         assert_eq!(detect_format(r#"{"key": "value""#), Some("json"));
-        assert_eq!(detect_format("key: value\n  invalid: indentation"), Some("yaml"));
+        assert_eq!(
+            detect_format("key: value\n  invalid: indentation"),
+            Some("yaml")
+        );
         assert_eq!(detect_format("#Header\n**bold"), Some("markdown"));
     }
 
@@ -370,7 +409,7 @@ mod tests {
         let repaired = jsonrepair(malformed).unwrap();
         assert!(repaired.contains("\"age\""));
         assert!(!repaired.ends_with(','));
-        
+
         // Test with trailing comma
         let with_comma = r#"{"key": "value",}"#;
         let repaired = jsonrepair(with_comma).unwrap();
@@ -385,7 +424,7 @@ mod tests {
         let repaired = jr.jsonrepair(malformed).unwrap();
         assert!(repaired.contains("\"age\""));
         assert!(!repaired.ends_with(','));
-        
+
         // Test default
         let mut jr = JsonRepair::default();
         let with_comma = r#"{"key": "value",}"#;
@@ -400,12 +439,12 @@ mod tests {
         let repaired = jsonrepair(input).unwrap();
         assert!(!repaired.contains(",\n}"));
         assert!(!repaired.contains(",}"));
-        
+
         // Test trailing commas in arrays
         let input = r#"[1, 2, 3,]"#;
         let repaired = jsonrepair(input).unwrap();
         assert!(!repaired.contains(",]"));
-        
+
         // Test multiple trailing commas
         let input = r#"{"a": 1, "b": 2, "c": 3,}"#;
         let repaired = jsonrepair(input).unwrap();
@@ -421,7 +460,7 @@ mod tests {
         assert!(repaired.contains("\"age\""));
         // Verify it's valid JSON
         assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
-        
+
         // Test missing quotes around values - this case may not be fully repairable
         // as "John" without quotes could be interpreted as an identifier
         // The repairer focuses on keys, so we test a case that should work
@@ -430,7 +469,7 @@ mod tests {
         assert!(repaired.contains("\"age\""));
         // Verify it's valid JSON
         assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
-        
+
         // Test mixed missing quotes
         let input = r#"{name: "John", age: 30}"#;
         let repaired = jsonrepair(input).unwrap();
@@ -448,7 +487,7 @@ mod tests {
         assert!(repaired.contains("\"name\""));
         assert!(repaired.contains("\"John\""));
         assert!(!repaired.contains("'"));
-        
+
         // Test mixed single and double quotes
         let input = r#"{'name': "John", "age": 30}"#;
         let repaired = jsonrepair(input).unwrap();
@@ -462,7 +501,7 @@ mod tests {
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.contains("true"));
         assert!(repaired.contains("false"));
-        
+
         // Test various null representations
         let input = r#"{"value1": null, "value2": None, "value3": NULL, "value4": undefined}"#;
         let repaired = jsonrepair(input).unwrap();
@@ -476,7 +515,7 @@ mod tests {
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.contains("29.99"));
         assert!(repaired.contains("10"));
-        
+
         // Test multiple dots
         let input = r#"{"value": 123.45.67}"#;
         let repaired = jsonrepair(input).unwrap();
@@ -501,7 +540,7 @@ mod tests {
         assert!(repaired.contains("\"age\""));
         assert!(repaired.contains("\"street\""));
         assert!(repaired.contains("\"city\""));
-        
+
         // Test nested arrays
         let input = r#"{"items": [1, 2, 3,], "tags": ['a', 'b',],}"#;
         let repaired = jsonrepair(input).unwrap();
@@ -515,12 +554,12 @@ mod tests {
         let input = r#"{"name": "John", "age": 30"#;
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.ends_with('}'));
-        
+
         // Test missing opening brace
         let input = r#""name": "John", "age": 30}"#;
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.starts_with('{'));
-        
+
         // Test missing brackets
         let input = r#"[1, 2, 3"#;
         let repaired = jsonrepair(input).unwrap();
@@ -532,21 +571,21 @@ mod tests {
         // Test empty string (may return empty or empty object)
         let repaired = jsonrepair("").unwrap();
         assert!(repaired.is_empty() || repaired == "{}");
-        
+
         // Test already valid JSON
         let valid = r#"{"name": "John", "age": 30}"#;
         let repaired = jsonrepair(valid).unwrap();
         // Should be valid JSON (may have whitespace differences)
         assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
-        
+
         // Test whitespace only (may return empty or empty object)
         let repaired = jsonrepair("   \n\t  ").unwrap();
         assert!(repaired.trim().is_empty() || repaired.trim() == "{}");
-        
+
         // Test just braces
         let repaired = jsonrepair("{}").unwrap();
         assert_eq!(repaired.trim(), "{}");
-        
+
         // Test just brackets
         let repaired = jsonrepair("[]").unwrap();
         assert_eq!(repaired.trim(), "[]");
@@ -578,7 +617,7 @@ mod tests {
                 has_more: False,
             },
         }"#;
-        
+
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.contains("\"users\""));
         assert!(repaired.contains("\"Alice\""));
@@ -588,7 +627,7 @@ mod tests {
         assert!(!repaired.contains("'"));
         assert!(!repaired.contains(",]"));
         assert!(!repaired.contains(",}"));
-        
+
         // Verify it's valid JSON
         assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
     }
@@ -597,15 +636,15 @@ mod tests {
     fn test_jsonrepair_struct_multiple_calls() {
         // Test that JsonRepair can be reused for multiple repairs
         let mut jr = JsonRepair::new();
-        
+
         let input1 = r#"{"key1": "value1",}"#;
         let repaired1 = jr.jsonrepair(input1).unwrap();
         assert!(!repaired1.ends_with(','));
-        
+
         let input2 = r#"{key2: "value2"}"#;
         let repaired2 = jr.jsonrepair(input2).unwrap();
         assert!(repaired2.contains("\"key2\""));
-        
+
         let input3 = r#"['a', 'b',]"#;
         let repaired3 = jr.jsonrepair(input3).unwrap();
         assert!(!repaired3.contains("'"));
@@ -616,15 +655,15 @@ mod tests {
     fn test_jsonrepair_function_vs_struct_consistency() {
         // Test that function and struct produce same results
         let input = r#"{"name": "John", age: 30,}"#;
-        
+
         let repaired_func = jsonrepair(input).unwrap();
         let mut jr = JsonRepair::new();
         let repaired_struct = jr.jsonrepair(input).unwrap();
-        
+
         // Both should produce valid JSON
         assert!(serde_json::from_str::<serde_json::Value>(&repaired_func).is_ok());
         assert!(serde_json::from_str::<serde_json::Value>(&repaired_struct).is_ok());
-        
+
         // Both should have same structure (may differ in whitespace)
         let parsed_func: serde_json::Value = serde_json::from_str(&repaired_func).unwrap();
         let parsed_struct: serde_json::Value = serde_json::from_str(&repaired_struct).unwrap();
@@ -638,12 +677,12 @@ mod tests {
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.contains("José"));
         assert!(repaired.contains("🚀"));
-        
+
         // Test escaped characters
         let input = r#"{"message": "He said \"Hello\""}"#;
         let repaired = jsonrepair(input).unwrap();
         assert!(repaired.contains("\\\"Hello\\\""));
-        
+
         // Test newlines in strings
         let input = r#"{"text": "Line 1\nLine 2"}"#;
         let repaired = jsonrepair(input).unwrap();

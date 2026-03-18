@@ -19,7 +19,9 @@ impl YamlRegexCache {
         Ok(Self {
             missing_colons: Regex::new(r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s+([^:].*)$"#)?,
             list_items: Regex::new(r#"^\s*-\s*(.+)$"#)?,
-            quoted_strings: Regex::new(r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([^'"].*[^'"])\s*$"#)?,
+            quoted_strings: Regex::new(
+                r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([^'"].*[^'"])\s*$"#,
+            )?,
         })
     }
 }
@@ -27,11 +29,12 @@ impl YamlRegexCache {
 static YAML_REGEX_CACHE: OnceLock<YamlRegexCache> = OnceLock::new();
 
 fn get_yaml_regex_cache() -> &'static YamlRegexCache {
-    YAML_REGEX_CACHE.get_or_init(|| YamlRegexCache::new().expect("Failed to initialize YAML regex cache"))
+    YAML_REGEX_CACHE
+        .get_or_init(|| YamlRegexCache::new().expect("Failed to initialize YAML regex cache"))
 }
 
 /// YAML repairer that can fix common YAML issues
-/// 
+///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct YamlRepairer {
     inner: crate::repairer_base::GenericRepairer,
@@ -49,10 +52,10 @@ impl YamlRepairer {
             Box::new(AdvancedIndentationStrategy),
             Box::new(ComplexStructureStrategy),
         ];
-        
+
         let validator: Box<dyn Validator> = Box::new(YamlValidator);
         let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
-        
+
         Self { inner }
     }
 }
@@ -67,36 +70,36 @@ impl Repair for YamlRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
         self.inner.repair(content)
     }
-    
+
     fn needs_repair(&self, content: &str) -> bool {
         self.inner.needs_repair(content)
     }
-    
+
     fn confidence(&self, content: &str) -> f64 {
         if self.inner.validator().is_valid(content) {
             return 1.0;
         }
-        
+
         // Calculate confidence based on YAML-like patterns
         let mut score: f64 = 0.0;
-        
+
         // Check for key-value pairs with colons
         if content.contains(':') {
             score += 0.3;
         }
-        
+
         // Check for proper indentation patterns
         let lines: Vec<&str> = content.lines().collect();
         let mut has_consistent_indentation = true;
         let mut last_indent = 0;
         let mut has_content = false;
-        
+
         for line in &lines {
             if line.trim().is_empty() || line.starts_with('#') {
                 continue;
             }
             has_content = true;
-            
+
             let indent = line.chars().take_while(|c| c.is_whitespace()).count();
             if last_indent > 0 && indent != last_indent && indent != last_indent + 2 {
                 has_consistent_indentation = false;
@@ -104,26 +107,26 @@ impl Repair for YamlRepairer {
             }
             last_indent = indent;
         }
-        
+
         if has_consistent_indentation && has_content {
             score += 0.3;
         }
-        
+
         // Check for list indicators
         if content.contains('-') {
             score += 0.2;
         }
-        
+
         // Check for document separator
         if content.contains("---") {
             score += 0.1;
         }
-        
+
         // Check for quoted strings
         if content.contains('"') || content.contains("'") {
             score += 0.1;
         }
-        
+
         score.min(1.0_f64)
     }
 }
@@ -136,7 +139,7 @@ impl Validator for YamlValidator {
         if content.trim().is_empty() {
             return false;
         }
-        
+
         // Check for basic YAML syntax issues
         let lines: Vec<&str> = content.lines().collect();
         for line in lines {
@@ -144,17 +147,21 @@ impl Validator for YamlValidator {
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-            
+
             // Check for missing colons in key-value pairs
-            if !trimmed.starts_with('-') && !trimmed.starts_with('[') && !trimmed.starts_with('{') && 
-               !trimmed.contains(':') && trimmed.contains(' ') {
+            if !trimmed.starts_with('-')
+                && !trimmed.starts_with('[')
+                && !trimmed.starts_with('{')
+                && !trimmed.contains(':')
+                && trimmed.contains(' ')
+            {
                 return false;
             }
         }
-        
+
         serde_yaml::from_str::<Value>(content).is_ok()
     }
-    
+
     fn validate(&self, content: &str) -> Vec<String> {
         match serde_yaml::from_str::<Value>(content) {
             Ok(_) => vec![],
@@ -171,16 +178,16 @@ impl RepairStrategy for FixIndentationStrategy {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::<String>::new();
         let mut indent_stack = vec![0];
-        
+
         for line in lines {
             if line.trim().is_empty() {
                 result.push(line.to_string());
                 continue;
             }
-            
+
             let _current_indent = line.chars().take_while(|c| c.is_whitespace()).count();
             let trimmed = line.trim();
-            
+
             // Determine expected indentation based on context
             let expected_indent = if trimmed.starts_with('-') {
                 indent_stack.last().copied().unwrap_or(0)
@@ -189,7 +196,7 @@ impl RepairStrategy for FixIndentationStrategy {
             } else {
                 indent_stack.last().copied().unwrap_or(0) + 2
             };
-            
+
             // Fix missing colons for key-value pairs
             let fixed_trimmed = if !trimmed.contains(':') && trimmed.contains(' ') {
                 // This looks like a key-value pair missing a colon
@@ -197,20 +204,20 @@ impl RepairStrategy for FixIndentationStrategy {
             } else {
                 trimmed.to_string()
             };
-            
+
             // Fix indentation
             let fixed_line = format!("{}{}", " ".repeat(expected_indent), fixed_trimmed);
             result.push(fixed_line);
-            
+
             // Update indent stack
             if fixed_trimmed.ends_with(':') || fixed_trimmed.starts_with('-') {
                 indent_stack.push(expected_indent + 2);
             }
         }
-        
+
         Ok(result.join("\n"))
     }
-    
+
     fn priority(&self) -> u8 {
         5
     }
@@ -228,7 +235,7 @@ impl RepairStrategy for AddMissingColonsStrategy {
         let cache = get_yaml_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
-        
+
         for line in lines {
             if cache.missing_colons.is_match(line) {
                 let fixed = cache.missing_colons.replace(line, "$1$2: $3");
@@ -237,10 +244,10 @@ impl RepairStrategy for AddMissingColonsStrategy {
                 result.push(line.to_string());
             }
         }
-        
+
         Ok(result.join("\n"))
     }
-    
+
     fn priority(&self) -> u8 {
         4
     }
@@ -258,7 +265,7 @@ impl RepairStrategy for FixListFormattingStrategy {
         let cache = get_yaml_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
-        
+
         for line in lines {
             if cache.list_items.is_match(line) {
                 let fixed = cache.list_items.replace(line, "- $1");
@@ -267,10 +274,10 @@ impl RepairStrategy for FixListFormattingStrategy {
                 result.push(line.to_string());
             }
         }
-        
+
         Ok(result.join("\n"))
     }
-    
+
     fn priority(&self) -> u8 {
         3
     }
@@ -292,7 +299,7 @@ impl RepairStrategy for AddDocumentSeparatorStrategy {
             Ok(trimmed.to_string())
         }
     }
-    
+
     fn priority(&self) -> u8 {
         2
     }
@@ -312,7 +319,7 @@ impl RepairStrategy for FixQuotedStringsStrategy {
         let result = single_quote_re.replace_all(content, r#""$1""#);
         Ok(result.to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         1
     }
@@ -331,16 +338,16 @@ impl RepairStrategy for AdvancedIndentationStrategy {
         let mut result = Vec::new();
         let _indent_stack: Vec<usize> = Vec::new();
         let mut current_indent = 0;
-        
+
         for line in lines {
             if line.trim().is_empty() || line.starts_with('#') {
                 result.push(line.to_string());
                 continue;
             }
-            
+
             let line_indent = line.chars().take_while(|c| c.is_whitespace()).count();
             let trimmed = line.trim();
-            
+
             // Detect list items
             if trimmed.starts_with('-') {
                 // List items should be indented 2 spaces more than their parent
@@ -370,10 +377,10 @@ impl RepairStrategy for AdvancedIndentationStrategy {
                 current_indent = line_indent;
             }
         }
-        
+
         Ok(result.join("\n"))
     }
-    
+
     fn priority(&self) -> u8 {
         6
     }
@@ -392,15 +399,15 @@ impl RepairStrategy for ComplexStructureStrategy {
         let mut result = Vec::new();
         let mut in_multiline_string = false;
         let mut multiline_indent = 0;
-        
+
         for (_i, line) in lines.iter().enumerate() {
             if line.trim().is_empty() || line.starts_with('#') {
                 result.push(line.to_string());
                 continue;
             }
-            
+
             let trimmed = line.trim();
-            
+
             // Handle multiline strings
             if trimmed.starts_with('|') || trimmed.starts_with('>') {
                 in_multiline_string = true;
@@ -408,7 +415,7 @@ impl RepairStrategy for ComplexStructureStrategy {
                 result.push(line.to_string());
                 continue;
             }
-            
+
             if in_multiline_string {
                 let line_indent = line.chars().take_while(|c| c.is_whitespace()).count();
                 if line_indent > multiline_indent || line.trim().is_empty() {
@@ -418,7 +425,7 @@ impl RepairStrategy for ComplexStructureStrategy {
                     in_multiline_string = false;
                 }
             }
-            
+
             // Fix nested object/array structures
             if trimmed.starts_with('-') && trimmed.contains(':') {
                 // List item with key-value pair
@@ -451,10 +458,10 @@ impl RepairStrategy for ComplexStructureStrategy {
                 result.push(line.to_string());
             }
         }
-        
+
         Ok(result.join("\n"))
     }
-    
+
     fn priority(&self) -> u8 {
         5
     }

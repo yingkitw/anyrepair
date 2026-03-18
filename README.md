@@ -1,5 +1,7 @@
 # AnyRepair
 
+[![GitHub stars](https://img.shields.io/github/stars/yingkitw/anyrepair?style=social)](https://github.com/yingkitw/anyrepair)
+
 A Rust crate for repairing malformed structured data across multiple formats (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff).
 
 ## Quick Start
@@ -390,5 +392,9 @@ See [TODO.md](TODO.md) for planned features and improvement areas. Highlights in
 Apache-2.0
 
 ## Repository
+
+**⭐ If you find AnyRepair useful, please consider starring the repo on GitHub!** It helps others discover the project and motivates continued development.
+
+**💬 Feedback welcome!** Share your experience, suggestions, or report issues via [GitHub Issues](https://github.com/yingkitw/anyrepair/issues), or leave a review on [crates.io](https://crates.io/crates/anyrepair).
 
 https://github.com/yingkitw/anyrepair

@@ -1,4 +1,4 @@
-use crate::config::{CustomRule, RepairConfig, RuleCondition, ConditionOperator};
+use crate::config::{ConditionOperator, CustomRule, RepairConfig, RuleCondition};
 use crate::error::RepairError;
 use regex::Regex;
 use std::collections::HashMap;
@@ -29,9 +29,10 @@ impl CustomRuleEngine {
             }
 
             // Compile regex pattern
-            let regex = Regex::new(&rule.pattern)
-                .map_err(|e| RepairError::generic(format!("Invalid regex pattern '{}': {}", rule.pattern, e)))?;
-            
+            let regex = Regex::new(&rule.pattern).map_err(|e| {
+                RepairError::generic(format!("Invalid regex pattern '{}': {}", rule.pattern, e))
+            })?;
+
             self.compiled_patterns.insert(rule.id.clone(), regex);
 
             // Group rules by format
@@ -52,7 +53,7 @@ impl CustomRuleEngine {
     /// Apply custom rules to content
     pub fn apply_rules(&self, content: &str, format: &str) -> Result<String, RepairError> {
         let mut result = content.to_string();
-        
+
         if let Some(rules) = self.rules.get(format) {
             for rule in rules {
                 if let Some(regex) = self.compiled_patterns.get(&rule.id) {
@@ -60,7 +61,7 @@ impl CustomRuleEngine {
                     if self.evaluate_conditions(&rule.conditions, &result)? {
                         // Apply the rule
                         result = regex.replace_all(&result, &rule.replacement).to_string();
-                        
+
                         if crate::config::GlobalConfig::default().verbose {
                             println!("Applied custom rule '{}' to {} content", rule.name, format);
                         }
@@ -73,11 +74,16 @@ impl CustomRuleEngine {
     }
 
     /// Evaluate rule conditions
-    fn evaluate_conditions(&self, conditions: &[RuleCondition], content: &str) -> Result<bool, RepairError> {
+    fn evaluate_conditions(
+        &self,
+        conditions: &[RuleCondition],
+        content: &str,
+    ) -> Result<bool, RepairError> {
         for condition in conditions {
             let field_value = self.extract_field_value(&condition.field, content)?;
-            let matches = self.compare_values(&field_value, &condition.operator, &condition.value)?;
-            
+            let matches =
+                self.compare_values(&field_value, &condition.operator, &condition.value)?;
+
             if !matches {
                 return Ok(false);
             }
@@ -95,9 +101,10 @@ impl CustomRuleEngine {
             "ends_with_whitespace" => Ok(content.ends_with(char::is_whitespace).to_string()),
             _ => {
                 // Try to extract using regex
-                let regex = Regex::new(field)
-                    .map_err(|e| RepairError::generic(format!("Invalid field pattern '{}': {}", field, e)))?;
-                
+                let regex = Regex::new(field).map_err(|e| {
+                    RepairError::generic(format!("Invalid field pattern '{}': {}", field, e))
+                })?;
+
                 if let Some(captures) = regex.captures(content) {
                     Ok(captures.get(1).map_or("", |m| m.as_str()).to_string())
                 } else {
@@ -108,7 +115,12 @@ impl CustomRuleEngine {
     }
 
     /// Compare values based on operator
-    fn compare_values(&self, field_value: &str, operator: &ConditionOperator, expected_value: &str) -> Result<bool, RepairError> {
+    fn compare_values(
+        &self,
+        field_value: &str,
+        operator: &ConditionOperator,
+        expected_value: &str,
+    ) -> Result<bool, RepairError> {
         match operator {
             ConditionOperator::Equals => Ok(field_value == expected_value),
             ConditionOperator::NotEquals => Ok(field_value != expected_value),
@@ -117,13 +129,15 @@ impl CustomRuleEngine {
             ConditionOperator::StartsWith => Ok(field_value.starts_with(expected_value)),
             ConditionOperator::EndsWith => Ok(field_value.ends_with(expected_value)),
             ConditionOperator::Matches => {
-                let regex = Regex::new(expected_value)
-                    .map_err(|e| RepairError::generic(format!("Invalid regex in condition: {}", e)))?;
+                let regex = Regex::new(expected_value).map_err(|e| {
+                    RepairError::generic(format!("Invalid regex in condition: {}", e))
+                })?;
                 Ok(regex.is_match(field_value))
             }
             ConditionOperator::NotMatches => {
-                let regex = Regex::new(expected_value)
-                    .map_err(|e| RepairError::generic(format!("Invalid regex in condition: {}", e)))?;
+                let regex = Regex::new(expected_value).map_err(|e| {
+                    RepairError::generic(format!("Invalid regex in condition: {}", e))
+                })?;
                 Ok(!regex.is_match(field_value))
             }
         }
@@ -131,18 +145,24 @@ impl CustomRuleEngine {
 
     /// Get available rules for a format
     pub fn get_rules_for_format(&self, format: &str) -> Vec<&CustomRule> {
-        self.rules.get(format).map_or_else(Vec::new, |rules| rules.iter().collect())
+        self.rules
+            .get(format)
+            .map_or_else(Vec::new, |rules| rules.iter().collect())
     }
 
     /// Check if there are any rules for a format
     pub fn has_rules_for_format(&self, format: &str) -> bool {
-        self.rules.get(format).map_or(false, |rules| !rules.is_empty())
+        self.rules
+            .get(format)
+            .map_or(false, |rules| !rules.is_empty())
     }
 
     /// Get rule statistics
     pub fn get_statistics(&self) -> RuleStatistics {
         let total_rules = self.rules.values().map(|rules| rules.len()).sum();
-        let enabled_rules = self.rules.values()
+        let enabled_rules = self
+            .rules
+            .values()
             .flat_map(|rules| rules.iter())
             .filter(|rule| rule.enabled)
             .count();
@@ -273,7 +293,7 @@ mod tests {
     fn test_custom_rule_engine() {
         let mut engine = CustomRuleEngine::new();
         let mut config = RepairConfig::new();
-        
+
         let rule = CustomRule {
             id: "test_rule".to_string(),
             name: "Test Rule".to_string(),
@@ -285,10 +305,10 @@ mod tests {
             replacement: r#""$1""#.to_string(),
             conditions: vec![],
         };
-        
+
         config.add_custom_rule(rule);
         engine.load_from_config(&config).unwrap();
-        
+
         let result = engine.apply_rules("hello world", "json").unwrap();
         assert_eq!(result, r#""hello" "world""#);
     }
@@ -297,7 +317,7 @@ mod tests {
     fn test_rule_conditions() {
         let mut engine = CustomRuleEngine::new();
         let mut config = RepairConfig::new();
-        
+
         let rule = CustomRule {
             id: "conditional_rule".to_string(),
             name: "Conditional Rule".to_string(),
@@ -307,22 +327,20 @@ mod tests {
             enabled: true,
             pattern: r#"(\w+)"#.to_string(),
             replacement: r#""$1""#.to_string(),
-            conditions: vec![
-                RuleCondition {
-                    field: "content_length".to_string(),
-                    operator: ConditionOperator::NotEquals,
-                    value: "2".to_string(),
-                }
-            ],
+            conditions: vec![RuleCondition {
+                field: "content_length".to_string(),
+                operator: ConditionOperator::NotEquals,
+                value: "2".to_string(),
+            }],
         };
-        
+
         config.add_custom_rule(rule);
         engine.load_from_config(&config).unwrap();
-        
+
         // Short content should not trigger the rule
         let result = engine.apply_rules("hi", "json").unwrap();
         assert_eq!(result, "hi");
-        
+
         // Long content should trigger the rule
         let result = engine.apply_rules("hello world", "json").unwrap();
         assert_eq!(result, r#""hello" "world""#);
@@ -332,8 +350,9 @@ mod tests {
     fn test_rule_templates() {
         let templates = RuleTemplates::get_all_templates();
         assert!(!templates.is_empty());
-        
-        let json_quote_rule = templates.iter()
+
+        let json_quote_rule = templates
+            .iter()
             .find(|r| r.id == "add_quotes_json")
             .unwrap();
         assert_eq!(json_quote_rule.target_format, "json");

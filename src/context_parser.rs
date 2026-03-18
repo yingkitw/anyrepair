@@ -1,4 +1,3 @@
-
 /// Context for parsing JSON strings
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseContext {
@@ -232,7 +231,7 @@ impl ContextAwareStringParser {
     fn try_parse_boolean_or_null(&mut self) -> Option<String> {
         let start_index = self.index;
         let mut word = String::new();
-        
+
         while let Some(ch) = self.get_char_at(0) {
             if ch.is_alphanumeric() {
                 word.push(ch);
@@ -298,7 +297,7 @@ impl ContextAwareStringParser {
                 return None;
             }
         }
-        
+
         if let Ok(code) = u32::from_str_radix(&hex, 16) {
             char::from_u32(code)
         } else {
@@ -320,7 +319,7 @@ impl ContextAwareStringParser {
                 return None;
             }
         }
-        
+
         if let Ok(code) = u32::from_str_radix(&hex, 16) {
             char::from_u32(code)
         } else {
@@ -394,9 +393,9 @@ mod tests {
     #[test]
     fn test_context_aware_string_parsing() {
         let content = r#"{"key": "value with \"quotes\" inside"}"#.to_string();
-        let mut parser = ContextAwareStringParser::new(content, true)
-            .with_context(ParseContext::ObjectKey);
-        
+        let mut parser =
+            ContextAwareStringParser::new(content, true).with_context(ParseContext::ObjectKey);
+
         let result = parser.parse_string();
         assert_eq!(result, "key");
     }
@@ -405,9 +404,9 @@ mod tests {
     fn test_escape_sequence_handling() {
         // Test escape sequence parsing with simple content
         let content = r#""test\nline""#.to_string();
-        let mut parser = ContextAwareStringParser::new(content, false)
-            .with_context(ParseContext::ObjectValue);
-        
+        let mut parser =
+            ContextAwareStringParser::new(content, false).with_context(ParseContext::ObjectValue);
+
         let result = parser.parse_string();
         // The parser should convert \n to newline
         assert_eq!(result, "test\nline");
@@ -416,9 +415,9 @@ mod tests {
     #[test]
     fn test_unicode_escape() {
         let content = "\"\\u263a\"".to_string();
-        let mut parser = ContextAwareStringParser::new(content, false)
-            .with_context(ParseContext::ObjectValue);
-        
+        let mut parser =
+            ContextAwareStringParser::new(content, false).with_context(ParseContext::ObjectValue);
+
         let result = parser.parse_string();
         assert_eq!(result, "☺");
     }

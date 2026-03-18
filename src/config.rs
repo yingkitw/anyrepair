@@ -172,14 +172,19 @@ impl RepairConfig {
     }
 
     /// Load configuration from a file
-    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_file<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let config: RepairConfig = toml::from_str(&content)?;
         Ok(config)
     }
 
     /// Save configuration to a file
-    pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn to_file<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let content = toml::to_string_pretty(self)?;
         std::fs::write(path, content)?;
         Ok(())
@@ -227,7 +232,10 @@ impl RepairConfig {
             }
 
             if rule.priority > 10 {
-                errors.push(format!("Custom rule '{}' priority must be between 0 and 10", rule.id));
+                errors.push(format!(
+                    "Custom rule '{}' priority must be between 0 and 10",
+                    rule.id
+                ));
             }
         }
 

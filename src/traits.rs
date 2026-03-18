@@ -6,10 +6,10 @@ use crate::error::Result;
 pub trait Repair {
     /// Repair the given content and return the repaired version
     fn repair(&mut self, content: &str) -> Result<String>;
-    
+
     /// Check if the content needs repair
     fn needs_repair(&self, content: &str) -> bool;
-    
+
     /// Get the confidence score for repair (0.0 to 1.0)
     fn confidence(&self, content: &str) -> f64;
 }
@@ -38,7 +38,7 @@ pub trait ParallelRepairStrategy: RepairStrategy + Send + Sync {
 pub trait Validator {
     /// Validate the content and return true if valid
     fn is_valid(&self, content: &str) -> bool;
-    
+
     /// Get validation errors if any
     fn validate(&self, content: &str) -> Vec<String>;
 }

@@ -1,5 +1,5 @@
 //! JSON repair module
-//! 
+//!
 //! Provides comprehensive JSON repair functionality with multiple strategies
 //! for fixing common JSON issues from LLM outputs.
 
@@ -20,7 +20,7 @@ impl Validator for JsonValidator {
     fn is_valid(&self, content: &str) -> bool {
         serde_json::from_str::<Value>(content).is_ok()
     }
-    
+
     fn validate(&self, content: &str) -> Vec<String> {
         match serde_json::from_str::<Value>(content) {
             Ok(_) => vec![],
@@ -117,16 +117,16 @@ impl RepairStrategy for StripTrailingContentStrategy {
         let mut found_json_end = false;
         let chars: Vec<char> = content.chars().collect();
         let len = chars.len();
-        
+
         for i in 0..len {
             let ch = chars[i];
-            
+
             if escape_next {
                 result.push(ch);
                 escape_next = false;
                 continue;
             }
-            
+
             match ch {
                 '\\' if in_string => {
                     result.push(ch);
@@ -145,10 +145,15 @@ impl RepairStrategy for StripTrailingContentStrategy {
                     brace_count -= 1;
                     if brace_count == 0 && bracket_count == 0 {
                         let mut j = i + 1;
-                        while j < len && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r') {
+                        while j < len
+                            && (chars[j] == ' '
+                                || chars[j] == '\n'
+                                || chars[j] == '\t'
+                                || chars[j] == '\r')
+                        {
                             j += 1;
                         }
-                        
+
                         if j < len && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
                             found_json_end = false;
                         } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
@@ -165,10 +170,15 @@ impl RepairStrategy for StripTrailingContentStrategy {
                     bracket_count -= 1;
                     if brace_count == 0 && bracket_count == 0 {
                         let mut j = i + 1;
-                        while j < len && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r') {
+                        while j < len
+                            && (chars[j] == ' '
+                                || chars[j] == '\n'
+                                || chars[j] == '\t'
+                                || chars[j] == '\r')
+                        {
                             j += 1;
                         }
-                        
+
                         if j < len && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
                             found_json_end = false;
                         } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
@@ -183,10 +193,10 @@ impl RepairStrategy for StripTrailingContentStrategy {
                 }
             }
         }
-        
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         100
     }
@@ -204,7 +214,7 @@ impl RepairStrategy for FixTrailingCommasStrategy {
         let cache = get_regex_cache();
         Ok(cache.trailing_commas.replace_all(content, "$1").to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         90
     }
@@ -220,9 +230,12 @@ impl RepairStrategy for FixSingleQuotesStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_regex_cache();
-        Ok(cache.single_quotes.replace_all(content, "\"$1\"").to_string())
+        Ok(cache
+            .single_quotes
+            .replace_all(content, "\"$1\"")
+            .to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         85
     }
@@ -238,9 +251,12 @@ impl RepairStrategy for AddMissingQuotesStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_regex_cache();
-        Ok(cache.missing_quotes.replace_all(content, "$1\"$2\":").to_string())
+        Ok(cache
+            .missing_quotes
+            .replace_all(content, "$1\"$2\":")
+            .to_string())
     }
-    
+
     fn priority(&self) -> u8 {
         80
     }
@@ -257,15 +273,27 @@ impl RepairStrategy for FixMalformedNumbersStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_regex_cache();
         let mut result = content.to_string();
-        
-        result = cache.malformed_numbers_leading_zeros.replace_all(&result, "$1").to_string();
-        result = cache.malformed_numbers_trailing_dots.replace_all(&result, "$1$2").to_string();
-        result = cache.malformed_numbers_multiple_dots.replace_all(&result, "$1$2").to_string();
-        result = cache.malformed_numbers_scientific.replace_all(&result, "$1e$2$3").to_string();
-        
+
+        result = cache
+            .malformed_numbers_leading_zeros
+            .replace_all(&result, "$1")
+            .to_string();
+        result = cache
+            .malformed_numbers_trailing_dots
+            .replace_all(&result, "$1$2")
+            .to_string();
+        result = cache
+            .malformed_numbers_multiple_dots
+            .replace_all(&result, "$1$2")
+            .to_string();
+        result = cache
+            .malformed_numbers_scientific
+            .replace_all(&result, "$1e$2$3")
+            .to_string();
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         75
     }
@@ -282,21 +310,27 @@ impl RepairStrategy for FixBooleanNullStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         let cache = get_regex_cache();
         let mut result = content.to_string();
-        
-        result = cache.boolean_values.replace_all(&result, |caps: &regex::Captures| {
-            match caps[0].to_lowercase().as_str() {
-                s if s == "true" => "true".to_string(),
-                s if s == "false" => "false".to_string(),
-                _ => "true".to_string(),
-            }
-        }).to_string();
-        
+
+        result = cache
+            .boolean_values
+            .replace_all(&result, |caps: &regex::Captures| {
+                match caps[0].to_lowercase().as_str() {
+                    s if s == "true" => "true".to_string(),
+                    s if s == "false" => "false".to_string(),
+                    _ => "true".to_string(),
+                }
+            })
+            .to_string();
+
         result = cache.null_values.replace_all(&result, "null").to_string();
-        result = cache.undefined_values.replace_all(&result, "null").to_string();
-        
+        result = cache
+            .undefined_values
+            .replace_all(&result, "null")
+            .to_string();
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         70
     }
@@ -312,32 +346,32 @@ impl RepairStrategy for AddMissingBracesStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let trimmed = content.trim();
-        
+
         if trimmed.is_empty() {
             return Ok("{}".to_string());
         }
-        
+
         let mut result = trimmed.to_string();
         let open_braces = trimmed.matches('{').count();
         let close_braces = trimmed.matches('}').count();
         let open_brackets = trimmed.matches('[').count();
         let close_brackets = trimmed.matches(']').count();
-        
+
         if open_braces > close_braces {
             result.push_str(&"}".repeat(open_braces - close_braces));
         }
-        
+
         if open_brackets > close_brackets {
             result.push_str(&"]".repeat(open_brackets - close_brackets));
         }
-        
+
         if !result.starts_with('{') && !result.starts_with('[') {
             result = format!("{{{}}}", result);
         }
-        
+
         Ok(result)
     }
-    
+
     fn priority(&self) -> u8 {
         60
     }
@@ -355,9 +389,15 @@ impl RepairStrategy for FixAgenticAiResponseStrategy {
         let cache = get_regex_cache();
         let mut result = content.to_string();
 
-        result = cache.undefined_values.replace_all(&result, "null").to_string();
+        result = cache
+            .undefined_values
+            .replace_all(&result, "null")
+            .to_string();
         result = cache.trailing_commas.replace_all(&result, "$1").to_string();
-        result = cache.single_quotes.replace_all(&result, "\"$1\"").to_string();
+        result = cache
+            .single_quotes
+            .replace_all(&result, "\"$1\"")
+            .to_string();
 
         Ok(result)
     }
@@ -441,7 +481,7 @@ impl RepairStrategy for StripJsCommentsStrategy {
 // ============================================================================
 
 /// JSON repairer that can fix common JSON issues
-/// 
+///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct JsonRepairer {
     inner: crate::repairer_base::GenericRepairer,
@@ -461,10 +501,10 @@ impl JsonRepairer {
             Box::new(FixBooleanNullStrategy),
             Box::new(FixAgenticAiResponseStrategy),
         ];
-        
+
         let validator: Box<dyn Validator> = Box::new(JsonValidator);
         let inner = crate::repairer_base::GenericRepairer::new(validator, strategies);
-        
+
         Self { inner }
     }
 
@@ -496,44 +536,44 @@ impl Repair for JsonRepairer {
     fn repair(&mut self, content: &str) -> Result<String> {
         self.inner.repair(content)
     }
-    
+
     fn needs_repair(&self, content: &str) -> bool {
         self.inner.needs_repair(content)
     }
-    
+
     fn confidence(&self, content: &str) -> f64 {
         // Use custom confidence calculation for JSON
         if self.inner.validator().is_valid(content) {
             return 1.0;
         }
-        
+
         let mut score: f64 = 0.0;
-        
+
         if content.contains('{') || content.contains('[') {
             score += 0.3;
         }
-        
+
         if content.contains(':') {
             score += 0.2;
         }
-        
+
         if content.contains('"') {
             score += 0.2;
         }
-        
+
         if content.contains(',') {
             score += 0.1;
         }
-        
+
         let open_braces = content.matches('{').count();
         let close_braces = content.matches('}').count();
         let open_brackets = content.matches('[').count();
         let close_brackets = content.matches(']').count();
-        
+
         if open_braces == close_braces && open_brackets == close_brackets {
             score += 0.2;
         }
-        
+
         score.min(1.0_f64)
     }
 }
@@ -557,7 +597,10 @@ mod tests {
     #[test]
     fn test_json_repairer_with_logging() {
         let repairer = JsonRepairer::with_logging(true);
-        assert!(!repairer.inner.get_repair_log().is_empty() || repairer.inner.get_repair_log().is_empty());
+        assert!(
+            !repairer.inner.get_repair_log().is_empty()
+                || repairer.inner.get_repair_log().is_empty()
+        );
     }
 
     #[test]
@@ -745,4 +788,3 @@ mod tests {
         assert!(serde_json::from_str::<serde_json::Value>(&result).is_ok());
     }
 }
-

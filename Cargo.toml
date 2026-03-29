@@ -1,6 +1,6 @@
 [package]
 name = "anyrepair"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 authors = ["Ying Kit WONG"]
 description = "A comprehensive Rust crate for repairing malformed structured data including JSON, YAML, XML, TOML, CSV, INI, Markdown, and Diff with format auto-detection"

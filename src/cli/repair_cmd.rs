@@ -24,16 +24,15 @@ pub fn handle_repair(
             eprintln!("Repairing content (auto-detect format)...");
         }
         let detected = anyrepair::detect_format(&content);
-        if verbose {
-            if let Some(fmt) = detected {
+        if verbose
+            && let Some(fmt) = detected {
                 eprintln!("Detected format: {}", fmt);
             }
-        }
         match detected {
             Some(fmt) => repair_format(&content, fmt)?,
             None => {
                 let repaired = anyrepair::repair(&content)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| io::Error::other(e.to_string()))?;
                 (repaired, 0.0)
             }
         }
@@ -55,7 +54,7 @@ fn repair_format(content: &str, format: &str) -> io::Result<(String, f64)> {
     let mut repairer = anyrepair::create_repairer(format)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
     let repaired = repairer.repair(content)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| io::Error::other(e.to_string()))?;
     let confidence = repairer.confidence(&repaired);
     Ok((repaired, confidence))
 }

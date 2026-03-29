@@ -189,12 +189,11 @@ impl RepairStrategy for FixIndentationStrategy {
             let trimmed = line.trim();
 
             // Determine expected indentation based on context
-            let expected_indent = if trimmed.starts_with('-') {
-                indent_stack.last().copied().unwrap_or(0)
-            } else if trimmed.ends_with(':') {
-                indent_stack.last().copied().unwrap_or(0)
+            let base_indent = indent_stack.last().copied().unwrap_or(0);
+            let expected_indent = if trimmed.starts_with('-') || trimmed.ends_with(':') {
+                base_indent
             } else {
-                indent_stack.last().copied().unwrap_or(0) + 2
+                base_indent + 2
             };
 
             // Fix missing colons for key-value pairs
@@ -349,11 +348,11 @@ impl RepairStrategy for AdvancedIndentationStrategy {
             let trimmed = line.trim();
 
             // Detect list items
-            if trimmed.starts_with('-') {
+            if let Some(stripped) = trimmed.strip_prefix('-') {
                 // List items should be indented 2 spaces more than their parent
                 let expected_indent = current_indent + 2;
                 if line_indent != expected_indent {
-                    let fixed = format!("{}- {}", " ".repeat(expected_indent), trimmed[1..].trim());
+                    let fixed = format!("{}- {}", " ".repeat(expected_indent), stripped.trim());
                     result.push(fixed);
                     current_indent = expected_indent;
                 } else {
@@ -400,7 +399,7 @@ impl RepairStrategy for ComplexStructureStrategy {
         let mut in_multiline_string = false;
         let mut multiline_indent = 0;
 
-        for (_i, line) in lines.iter().enumerate() {
+        for line in lines.iter() {
             if line.trim().is_empty() || line.starts_with('#') {
                 result.push(line.to_string());
                 continue;

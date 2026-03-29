@@ -5,6 +5,92 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-03-18
+
+### Changed
+- Removed unused dependencies: pulldown-cmark and anyhow
+- Enhanced README with GitHub star badge and feedback invitation
+- Cleaned up whitespace in various source files for improved readability
+
+### Fixed
+- Refactored code for consistency and clarity across multiple modules
+
+## [0.2.1] - 2026-02-18
+
+### Added
+- Python-compatible API with `jsonrepair()` function and `JsonRepair` class
+- Diff/Unified diff format support
+
+### Changed
+- Improved JSON repair with better handling of edge cases
+
+## [0.2.0] - 2026-02-11
+
+### Added
+- Centralized format registry with single source of truth for format→repairer/validator mapping
+- Format detection module for clean separation of concerns
+
+### Changed
+- KISS/DRY/SoC refactoring - unified CLI: replaced 8 per-format subcommands with single `repair --format` command
+- Removed unused dependencies: tokio, futures, rayon, chrono
+- Removed BaseRepairer trait and standalone apply_strategies (dead code elimination)
+- Updated description to emphasize structured data repair with format auto-detection
+
+### Performance
+- Eliminated ~400 lines of duplicated code through centralized dispatch logic
+
+## [0.1.10] - 2026-01-31
+
+### Added
+- Comprehensive CLI examples and usage documentation
+- Python-compatible API documentation
+- Enterprise feature documentation
+
+### Changed
+- Updated rmcp dependency from 0.8 to 0.14 for improved MCP functionality
+- Enhanced README with detailed examples for batch processing, validation rules, and streaming
+- Updated test statistics to 326+ test cases with detailed breakdown
+
+## [0.1.9] - 2025-11-24
+
+### Added
+- Diff/Unified diff format support
+
+### Changed
+- Updated rmcp dependency from 0.1 to 0.8
+- Consolidated documentation in INDEX.md for better organization
+
+### Removed
+- Outdated documentation files (FOLDER_STRUCTURE.md, OPTIMIZATION.md, SIMPLIFICATION_SUMMARY.md, etc.)
+
+## [0.1.8] - 2025-11-15
+
+### Added
+- Enhanced markdown repair strategies
+- Improved CSV validation
+
+### Changed
+- Better error messages for format detection failures
+
+## [0.1.7] - 2025-11-10
+
+### Added
+- Enhanced documentation for all formats
+- Improved test coverage for edge cases
+
+### Changed
+- Optimized regex patterns for better performance
+- Improved format detection accuracy
+
+## [0.1.6] - 2025-11-05
+
+### Added
+- Initial streaming support for large files
+- Custom rules framework
+
+### Changed
+- Improved confidence scoring algorithms
+
 ## [0.1.5] - 2025-10-26
 
 ### Added
@@ -143,6 +229,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic CLI interface
 - Comprehensive test suite
 
+[0.2.2]: https://github.com/yingkitw/anyrepair/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/yingkitw/anyrepair/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/yingkitw/anyrepair/compare/v0.1.10...v0.2.0
+[0.1.10]: https://github.com/yingkitw/anyrepair/compare/v0.1.9...v0.1.10
+[0.1.9]: https://github.com/yingkitw/anyrepair/compare/v0.1.8...v0.1.9
+[0.1.8]: https://github.com/yingkitw/anyrepair/compare/v0.1.7...v0.1.8
+[0.1.7]: https://github.com/yingkitw/anyrepair/compare/v0.1.6...v0.1.7
+[0.1.6]: https://github.com/yingkitw/anyrepair/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/yingkitw/anyrepair/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/yingkitw/anyrepair/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/yingkitw/anyrepair/compare/v0.1.2...v0.1.3

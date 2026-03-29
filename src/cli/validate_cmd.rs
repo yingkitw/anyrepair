@@ -17,11 +17,10 @@ pub fn handle_validate(
         Some(fmt) => Some(fmt),
         None => {
             let detected = anyrepair::detect_format(&content);
-            if verbose {
-                if let Some(fmt) = detected {
+            if verbose
+                && let Some(fmt) = detected {
                     eprintln!("Detected format: {}", fmt);
                 }
-            }
             detected
         }
     };

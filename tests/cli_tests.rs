@@ -55,7 +55,7 @@ fn test_json_repair_with_comments() {
 #[test]
 fn test_all_format_repairers() {
     use anyrepair::traits::Repair;
-    use anyrepair::{xml, toml, csv, ini, diff};
+    use anyrepair::{csv, diff, key_value, toml, xml};
 
     // Test XML repairer
     let mut xml_repairer = xml::XmlRepairer::new();
@@ -76,7 +76,7 @@ fn test_all_format_repairers() {
     assert!(csv_result.contains("John,30"));
 
     // Test INI repairer
-    let mut ini_repairer = ini::IniRepairer::new();
+    let mut ini_repairer = key_value::IniRepairer::new();
     let ini_input = "[user]\nname = John\nage = 30";
     let ini_result = ini_repairer.repair(ini_input).unwrap();
     assert!(ini_result.contains("[user]"));
@@ -110,7 +110,7 @@ fn test_confidence_scoring() {
 #[test]
 fn test_needs_repair() {
     use anyrepair::traits::Repair;
-    use anyrepair::{json::JsonRepairer, yaml::YamlRepairer, markdown::MarkdownRepairer};
+    use anyrepair::{json::JsonRepairer, markdown::MarkdownRepairer, yaml::YamlRepairer};
 
     let json_repairer = JsonRepairer::new();
     let yaml_repairer = YamlRepairer::new();
@@ -215,8 +215,8 @@ fn test_repair_with_comments_preserves_urls() {
 
 #[test]
 fn test_xml_edge_cases() {
-    use anyrepair::xml::XmlRepairer;
     use anyrepair::traits::Repair;
+    use anyrepair::xml::XmlRepairer;
 
     let mut xml_repairer = XmlRepairer::new();
 
@@ -254,7 +254,7 @@ fn test_csv_edge_cases() {
 
 #[test]
 fn test_ini_edge_cases() {
-    use anyrepair::ini::IniRepairer;
+    use anyrepair::key_value::IniRepairer;
     use anyrepair::traits::Repair;
 
     let mut ini_repairer = IniRepairer::new();

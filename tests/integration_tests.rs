@@ -1,6 +1,6 @@
 //! Integration tests for the anyrepair library
 
-use anyrepair::{repair, json, yaml, markdown, xml, toml, csv, ini, diff, traits::Repair};
+use anyrepair::{csv, diff, json, key_value, markdown, repair, toml, traits::Repair, xml, yaml};
 
 #[test]
 fn test_library_integration() {
@@ -62,16 +62,16 @@ fn test_error_handling() {
 #[test]
 fn test_performance() {
     use std::time::Instant;
-    
+
     let input = r#"{"name": "John", "age": 30, "city": "New York", "country": "USA", "hobbies": ["reading", "coding", "gaming"]}"#;
     let mut repairer = json::JsonRepairer::new();
-    
+
     let start = Instant::now();
     for _ in 0..1000 {
         let _ = repairer.repair(input);
     }
     let duration = start.elapsed();
-    
+
     // Should complete 1000 repairs in less than 1 second
     assert!(duration.as_secs() < 1);
 }
@@ -81,11 +81,11 @@ fn test_memory_usage() {
     // Test that we don't have memory leaks with large inputs
     let large_input = r#"{"data": "}"#.repeat(10000);
     let mut repairer = json::JsonRepairer::new();
-    
+
     for _ in 0..100 {
         let _ = repairer.repair(&large_input);
     }
-    
+
     // If we get here without panicking, memory usage is reasonable
     assert!(true);
 }
@@ -111,7 +111,7 @@ fn test_all_format_repairers() {
     assert!(csv_result.contains("John,30"));
 
     // Test INI repairer
-    let mut ini_repairer = ini::IniRepairer::new();
+    let mut ini_repairer = key_value::IniRepairer::new();
     let ini_input = "[user]\nname = John\nage = 30";
     let ini_result = ini_repairer.repair(ini_input).unwrap();
     assert!(ini_result.contains("[user]"));
@@ -210,7 +210,7 @@ fn test_csv_edge_cases() {
 
 #[test]
 fn test_ini_edge_cases() {
-    let mut ini_repairer = ini::IniRepairer::new();
+    let mut ini_repairer = key_value::IniRepairer::new();
 
     // Missing equals
     let input1 = "[user]\nname John\nage = 30";
@@ -337,4 +337,3 @@ fn test_empty_and_minimal_inputs() {
     assert!(result3.contains("["));
     assert!(result3.contains("]"));
 }
-

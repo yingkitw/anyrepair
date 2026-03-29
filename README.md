@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across multiple formats (JS
 
 ```toml
 [dependencies]
-anyrepair = "0.2.1"
+anyrepair = "0.2.2"
 ```
 
 ### Basic Usage
@@ -59,9 +59,16 @@ anyrepair stats
 
 ## What's New
 
-### v0.2.1 - Latest Release
+### v0.2.2 - Latest Release
 
-**🏗️ KISS/DRY/SoC Refactoring**
+**📝 Documentation & Maintenance**
+- Updated version to 0.2.2 with comprehensive documentation
+- Removed unused dependencies (pulldown-cmark, anyhow)
+- Enhanced README with GitHub star badge and feedback invitation
+- Added CHANGELOG entries for versions 0.1.6 through 0.2.2
+- Updated documentation index to reflect current project state
+
+**🏗️ v0.2.0 - KISS/DRY/SoC Refactoring**
 - Centralized format registry: single source of truth for format→repairer/validator mapping
 - Unified CLI: `repair --format <fmt>` replaces 8 per-format subcommands
 - Extracted `format_detection` module for clean separation of concerns
@@ -82,7 +89,7 @@ anyrepair stats
 - 10 MCP tools for all 8 formats plus auto-detect and validate
 
 **⚡ Performance & Quality**
-- **280+ test cases** with 100% pass rate
+- **318 test cases** with 100% pass rate
 - **99.6% improvement** from regex caching
 - **Streaming support** for files larger than RAM
 - **Zero compilation warnings**
@@ -104,7 +111,7 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 - ✅ High performance (regex caching, optimized binaries)
 - ✅ MCP server for Claude integration
 - ✅ Streaming support for large files
-- ✅ 280+ tests, 100% pass rate
+- ✅ 318 tests, 100% pass rate
 
 ## Usage Examples
 
@@ -312,17 +319,16 @@ cargo build --profile dist
 
 ## Testing
 
-- **280+ test cases** with 100% pass rate
-  - 190 library tests (incl. 73 MCP server tests)
+- **318 test cases** with 100% pass rate
+  - 137 library tests (incl. format repairers, validators)
   - 35 diff tests
+  - 34 fuzz tests
   - 26 streaming tests
   - 18 complex damage tests
   - 18 complex streaming tests
-  - 36 fuzz tests
   - 18 damage scenarios
   - 17 integration tests
   - 15 CLI tests
-  - 2 doctests
 - **Fuzz testing** using proptest for robustness
 - **Integration tests** for end-to-end workflows
 
@@ -344,7 +350,7 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for details.
 **Why AnyRepair?**
 - Most comprehensive format support (8 formats vs JSON-only alternatives)
 - Only Rust crate with Python-compatible API and MCP integration
-- Battle-tested with 280+ tests covering real-world failures
+- Battle-tested with 318 tests covering real-world failures
 - Zero compilation warnings
 
 ## Documentation

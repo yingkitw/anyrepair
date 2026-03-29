@@ -2,19 +2,20 @@
 
 ## Overview
 
-AnyRepair includes **347+ comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
+AnyRepair includes **318 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
 
 ## Test Organization
 
 ### Test Files
 
-- **`tests/integration_tests.rs`** - Integration tests (4 tests)
+- **`tests/integration_tests.rs`** - Integration tests (17 tests)
 - **`tests/streaming_tests.rs`** - Streaming repair tests (26 tests)
 - **`tests/complex_damage_tests.rs`** - Complex damage scenarios (18 tests)
 - **`tests/complex_streaming_tests.rs`** - Complex streaming scenarios (18 tests)
 - **`tests/damage_scenarios.rs`** - Damage scenario tests (18 tests)
-- **`tests/fuzz_tests.rs`** - Property-based fuzz testing (36 tests)
+- **`tests/fuzz_tests.rs`** - Property-based fuzz testing (34 tests)
 - **`tests/diff_tests.rs`** - Diff/Unified diff repair tests (35 tests)
+- **`tests/cli_tests.rs`** - CLI functionality tests (15 tests)
 
 ### Test Coverage by Format
 
@@ -29,14 +30,14 @@ AnyRepair includes **347+ comprehensive tests** covering all formats, damage pat
 
 ## Test Statistics
 
-- **Total Tests**: 347+ tests
+- **Total Tests**: 318 tests
 - **Pass Rate**: 100%
 - **Test Files**: 7
 - **Coverage**: All formats and major features
 
 ## Test Suite Breakdown
 
-### 1. Unit Tests (209+ tests)
+### 1. Unit Tests (137 tests)
 **Location**: `src/lib.rs` and format-specific modules
 
 **Coverage**:
@@ -48,19 +49,13 @@ AnyRepair includes **347+ comprehensive tests** covering all formats, damage pat
 - CSV: 9+ tests
 - INI: 10+ tests
 - Diff: Unit tests in module
-- Advanced: 9+ tests
-- Config: 4+ tests
-- Plugins: 9+ tests
-- Parallel: 4+ tests
 - Error handling: 4+ tests
-- Enhanced JSON: 4+ tests
-- Validation: 4+ tests
-- Context parsing: 3+ tests
-- Custom rules: 3+ tests
+- Format detection: Tests in `format_detection.rs`
+- Repairer base: Tests in `repairer_base.rs`
 
 **Focus**: Core functionality, edge cases, format-specific features
 
-### 2. Integration Tests (4 tests)
+### 2. Integration Tests (17 tests)
 **Location**: `tests/integration_tests.rs`
 
 **Coverage**: End-to-end integration testing
@@ -124,53 +119,39 @@ AnyRepair includes **347+ comprehensive tests** covering all formats, damage pat
 
 ### Total Coverage
 ```
-Unit Tests:              209+ ✅
+Unit Tests:              137 ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
 Complex Streaming:        18 ✅
-Fuzz Tests:               36 ✅
-Integration Tests:         4 ✅
+Fuzz Tests:               34 ✅
+Integration Tests:        17 ✅
 Streaming Tests:          26 ✅
 Diff Tests:               35 ✅
+CLI Tests:                15 ✅
 ─────────────────────────────
-TOTAL:                   364+ ✅
+TOTAL:                   318 ✅
 ```
 
 ### Pass Rate
-- **Overall**: 100% (364+/364+ passing)
+- **Overall**: 100% (318/318 passing)
 - **All Formats**: 8/8 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
-- **All Features**: Streaming, plugins, custom rules, validation, analytics
-
-### Coverage by Format
-
-| Format | Unit | Damage | Complex | Streaming | Fuzz | Diff | Total |
-|--------|------|--------|---------|-----------|------|------|-------|
-| JSON | 35+ | 1 | 4 | 7 | 6 | - | 53+ |
-| YAML | 14+ | 1 | 3 | 7 | 6 | - | 31+ |
-| Markdown | 14+ | 1 | 3 | 7 | 6 | - | 31+ |
-| XML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
-| TOML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
-| CSV | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
-| INI | 10+ | 1 | 2 | 7 | 6 | - | 26+ |
-| Diff | - | - | - | - | - | 35 | 35 |
-| Advanced | 9+ | 6 | - | - | - | - | 15+ |
-| Streaming | - | - | - | - | - | - | 26 |
-| **Total** | **209+** | **18** | **18** | **18** | **36** | **35** | **364+** |
+- **All Features**: Streaming, MCP integration, format detection, validation
 
 ## Test Statistics
 
 ### Total Coverage
 ```
-Unit Tests:              209+ ✅
+Unit Tests:              137 ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
 Complex Streaming:        18 ✅
-Fuzz Tests:               36 ✅
-Integration Tests:         4 ✅
+Fuzz Tests:               34 ✅
+Integration Tests:        17 ✅
 Streaming Tests:          26 ✅
 Diff Tests:               35 ✅
+CLI Tests:                15 ✅
 ─────────────────────────────
-TOTAL:                   364+ ✅
+TOTAL:                   318 ✅
 ```
 
 ### Pass Rate
@@ -223,9 +204,12 @@ TOTAL:                   364+ ✅
 | CSV | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
 | INI | 10+ | 1 | 2 | 7 | 6 | - | 26+ |
 | Diff | - | - | - | - | - | 35 | 35 |
-| Advanced | 9+ | 6 | - | - | - | - | 15+ |
-| Streaming | - | - | - | - | - | - | 26 |
-| **Total** | **209+** | **18** | **18** | **18** | **36** | **35** | **364+** |
+| **Total** | **100+** | **18** | **18** | **18** | **34** | **35** | **223+** |
+
+**Additional Tests**:
+- Integration tests: 17
+- CLI tests: 15
+- Streaming tests: 26 (included in format totals above)
 
 ## Key Test Scenarios
 

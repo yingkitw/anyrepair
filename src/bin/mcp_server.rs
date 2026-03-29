@@ -42,8 +42,8 @@ fn main() -> io::Result<()> {
             Ok(0) => break, // EOF
             Ok(_) => {
                 if let Ok(request) = serde_json::from_str::<Value>(&line) {
-                    if let Some(tool_name) = request.get("tool").and_then(|v| v.as_str()) {
-                        if let Some(input) = request.get("input") {
+                    if let Some(tool_name) = request.get("tool").and_then(|v| v.as_str())
+                        && let Some(input) = request.get("input") {
                             match server.process_tool_call(tool_name, input) {
                                 Ok(result) => {
                                     let response = json!({
@@ -63,7 +63,6 @@ fn main() -> io::Result<()> {
                                 }
                             }
                         }
-                    }
                     stdout.flush()?;
                 }
             }

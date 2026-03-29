@@ -188,13 +188,12 @@ impl RepairStrategy for FixUnclosedTagsStrategy {
             }
 
             // Check if it's a closing tag
-            if tag_name.starts_with('/') {
-                if let Some(expected_tag) = open_tags.pop() {
-                    if expected_tag != tag_name[1..] {
+            if let Some(stripped) = tag_name.strip_prefix('/') {
+                if let Some(expected_tag) = open_tags.pop()
+                    && expected_tag != stripped {
                         // Mismatched closing tag
                         open_tags.push(expected_tag);
                     }
-                }
             } else {
                 open_tags.push(tag_name.to_string());
             }

@@ -1,4 +1,8 @@
-use anyrepair::{repair, json, yaml, markdown, xml, toml, csv, ini, traits::{Repair, Validator}};
+use anyrepair::{
+    csv, json, key_value, markdown, repair, toml,
+    traits::{Repair, Validator},
+    xml, yaml,
+};
 use proptest::prelude::*;
 
 /// Fuzz testing for JSON repair functionality
@@ -19,7 +23,7 @@ mod json_fuzz_tests {
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             // Repair should either maintain validity or improve it
             prop_assert!(repaired_valid || !original_valid);
         }
@@ -36,11 +40,11 @@ mod json_fuzz_tests {
             let mut repairer = json::JsonRepairer::new();
             let first_repair = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let second_repair = repairer.repair(&first_repair).unwrap_or_else(|_| first_repair.clone());
-            
+
             // Second repair should not change the first repair significantly
             // Allow for some variance due to quote escaping and other repairs
             // The tolerance is higher to account for edge cases with special characters and unicode
-            prop_assert!(first_repair == second_repair || 
+            prop_assert!(first_repair == second_repair ||
                         (first_repair.len() as i32 - second_repair.len() as i32).abs() < 100);
         }
     }
@@ -64,7 +68,7 @@ mod yaml_fuzz_tests {
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             prop_assert!(repaired_valid || !original_valid);
         }
 
@@ -95,7 +99,7 @@ mod markdown_fuzz_tests {
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             prop_assert!(repaired_valid || !original_valid);
         }
 
@@ -126,7 +130,7 @@ mod xml_fuzz_tests {
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             prop_assert!(repaired_valid || !original_valid);
         }
 
@@ -157,7 +161,7 @@ mod toml_fuzz_tests {
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             prop_assert!(repaired_valid || !original_valid);
         }
 
@@ -188,7 +192,7 @@ mod csv_fuzz_tests {
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             prop_assert!(repaired_valid || !original_valid);
         }
 
@@ -209,23 +213,23 @@ mod ini_fuzz_tests {
     proptest! {
         #[test]
         fn test_ini_repair_never_panics(input in prop::string::string_regex(".*").unwrap()) {
-            let _ = ini::IniRepairer::new().repair(&input);
+            let _ = key_value::IniRepairer::new().repair(&input);
         }
 
         #[test]
         fn test_ini_repair_improves_validity(input in prop::string::string_regex(".*").unwrap()) {
-            let mut repairer = ini::IniRepairer::new();
-            let validator = ini::IniValidator;
+            let mut repairer = key_value::IniRepairer::new();
+            let validator = key_value::IniValidator;
             let original_valid = validator.is_valid(&input);
             let repaired = repairer.repair(&input).unwrap_or_else(|_| input.clone());
             let repaired_valid = validator.is_valid(&repaired);
-            
+
             prop_assert!(repaired_valid || !original_valid);
         }
 
         #[test]
         fn test_ini_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
-            let mut repairer = ini::IniRepairer::new();
+            let mut repairer = key_value::IniRepairer::new();
             let confidence = repairer.confidence(&input);
             prop_assert!(confidence >= 0.0 && confidence <= 1.0);
         }
@@ -319,7 +323,7 @@ mod performance_fuzz_tests {
             let start = Instant::now();
             let _ = repair(&input);
             let duration = start.elapsed();
-            
+
             // Repair should complete within reasonable time (1 second)
             prop_assert!(duration.as_secs() < 1);
         }
@@ -327,7 +331,7 @@ mod performance_fuzz_tests {
         #[test]
         fn test_repair_memory_usage_reasonable(input in prop::string::string_regex(".{0,5000}").unwrap()) {
             let result = repair(&input).unwrap();
-            
+
             // Output should not be excessively larger than input
             // For empty input, result should also be empty or minimal
             if input.is_empty() {
@@ -335,65 +339,6 @@ mod performance_fuzz_tests {
             } else {
                 prop_assert!(result.len() < input.len() * 10);
             }
-        }
-    }
-}
-
-/// Fuzz testing for custom rules integration
-#[cfg(test)]
-mod custom_rules_fuzz_tests {
-    use super::*;
-    use anyrepair::config::{RepairConfig, CustomRule};
-    use anyrepair::custom_rules::CustomRuleEngine;
-
-    proptest! {
-        #[test]
-        fn test_custom_rule_engine_never_panics(
-            input in prop::string::string_regex(".*").unwrap(),
-            format in prop::string::string_regex("[a-z]+").unwrap()
-        ) {
-            let mut config = RepairConfig::new();
-            let rule = CustomRule {
-                id: "test_rule".to_string(),
-                name: "Test Rule".to_string(),
-                description: "Test".to_string(),
-                target_format: format.clone(),
-                priority: 5,
-                enabled: true,
-                pattern: ".*".to_string(),
-                replacement: "test".to_string(),
-                conditions: vec![],
-            };
-            config.add_custom_rule(rule);
-            
-            let mut engine = CustomRuleEngine::new();
-            let _ = engine.load_from_config(&config);
-            let _ = engine.apply_rules(&input, &format);
-        }
-
-        #[test]
-        fn test_custom_rule_engine_with_invalid_regex(
-            _input in prop::string::string_regex(".*").unwrap(),
-            format in prop::string::string_regex("[a-z]+").unwrap()
-        ) {
-            let mut config = RepairConfig::new();
-            let rule = CustomRule {
-                id: "test_rule".to_string(),
-                name: "Test Rule".to_string(),
-                description: "Test".to_string(),
-                target_format: format.clone(),
-                priority: 5,
-                enabled: true,
-                pattern: "[invalid".to_string(), // Invalid regex
-                replacement: "test".to_string(),
-                conditions: vec![],
-            };
-            config.add_custom_rule(rule);
-            
-            let mut engine = CustomRuleEngine::new();
-            let result = engine.load_from_config(&config);
-            // Should handle invalid regex gracefully
-            prop_assert!(result.is_err());
         }
     }
 }

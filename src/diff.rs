@@ -237,15 +237,14 @@ impl Validator for DiffValidator {
 
         // Validate hunk headers
         for (line_num, line) in lines.iter().enumerate() {
-            if line.starts_with("@@") {
-                if !get_diff_regex_cache().hunk_header.is_match(line) {
+            if line.starts_with("@@")
+                && !get_diff_regex_cache().hunk_header.is_match(line) {
                     errors.push(format!(
                         "Invalid hunk header at line {}: {}",
                         line_num + 1,
                         line
                     ));
                 }
-            }
         }
 
         // Check for proper line prefixes in hunks
@@ -253,8 +252,8 @@ impl Validator for DiffValidator {
         for (line_num, line) in lines.iter().enumerate() {
             if line.starts_with("@@") {
                 in_hunk = true;
-            } else if in_hunk && !line.trim().is_empty() {
-                if !line.starts_with('+')
+            } else if in_hunk && !line.trim().is_empty()
+                && !line.starts_with('+')
                     && !line.starts_with('-')
                     && !line.starts_with(' ')
                     && !line.starts_with("---")
@@ -265,7 +264,6 @@ impl Validator for DiffValidator {
                         line_num + 1
                     ));
                 }
-            }
         }
 
         errors

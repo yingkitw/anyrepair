@@ -4,7 +4,7 @@ use anyrepair::{repair, json, yaml, markdown, traits::Repair};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_json_repair(c: &mut Criterion) {
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     let input = r#"{"name": "John", "age": 30, "city": "New York", "hobbies": ["reading", "coding"], "address": {"street": "123 Main St", "zip": "12345"}}"#;
     
     c.bench_function("json_repair_simple", |b| {
@@ -19,7 +19,7 @@ fn benchmark_json_repair(c: &mut Criterion) {
 }
 
 fn benchmark_yaml_repair(c: &mut Criterion) {
-    let repairer = yaml::YamlRepairer::new();
+    let mut repairer = yaml::YamlRepairer::new();
     let input = "name: John\nage: 30\ncity: New York\nhobbies:\n  - reading\n  - coding\naddress:\n  street: 123 Main St\n  zip: 12345";
     
     c.bench_function("yaml_repair_simple", |b| {
@@ -34,7 +34,7 @@ fn benchmark_yaml_repair(c: &mut Criterion) {
 }
 
 fn benchmark_markdown_repair(c: &mut Criterion) {
-    let repairer = markdown::MarkdownRepairer::new();
+    let mut repairer = markdown::MarkdownRepairer::new();
     let input = "# Header\n\nSome **bold** and *italic* text.\n\n## Subsection\n\n- item1\n- item2\n\n```code\nblock\n```";
     
     c.bench_function("markdown_repair_simple", |b| {
@@ -89,7 +89,7 @@ fn benchmark_confidence_scoring(c: &mut Criterion) {
 }
 
 fn benchmark_large_documents(c: &mut Criterion) {
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     
     // Create a large JSON document
     let mut large_json = String::from(r#"{"users": ["#);
@@ -108,7 +108,7 @@ fn benchmark_large_documents(c: &mut Criterion) {
 }
 
 fn benchmark_strategy_application(c: &mut Criterion) {
-    let repairer = json::JsonRepairer::new();
+    let mut repairer = json::JsonRepairer::new();
     
     // Test with input that needs multiple strategies
     let complex_input = r#"{name: "John", age: 30, city: "New York", hobbies: ["reading", "coding",], address: {street: "123 Main St", zip: "12345",},}"#;

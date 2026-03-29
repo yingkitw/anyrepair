@@ -148,8 +148,8 @@ impl Validator for TomlValidator {
                         && !value.starts_with('\'')
                         && !value.starts_with('[')
                         && !value.starts_with('{')
-                        && !value.parse::<i64>().is_ok()
-                        && !value.parse::<f64>().is_ok()
+                        && value.parse::<i64>().is_err()
+                        && value.parse::<f64>().is_err()
                         && value != "true"
                         && value != "false"
                     {

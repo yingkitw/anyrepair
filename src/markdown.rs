@@ -28,12 +28,12 @@ impl Validator for MarkdownValidator {
         let code_fence_count = content.matches("```").count();
 
         // Bold should be balanced
-        if bold_count % 2 != 0 {
+        if !bold_count.is_multiple_of(2) {
             return false;
         }
 
         // Code fences should be balanced
-        if code_fence_count % 2 != 0 {
+        if !code_fence_count.is_multiple_of(2) {
             return false;
         }
 
@@ -45,19 +45,18 @@ impl Validator for MarkdownValidator {
                 let hash_count = trimmed.chars().take_while(|c| *c == '#').count();
                 if hash_count <= 6 {
                     // Check if there's a space after the hashes
-                    if let Some(ch) = trimmed.chars().nth(hash_count) {
-                        if ch != ' ' && ch != '\n' {
+                    if let Some(ch) = trimmed.chars().nth(hash_count)
+                        && ch != ' ' && ch != '\n' {
                             return false; // Malformed header
                         }
-                    }
                 }
             }
         }
 
         // Basic structure check
-        let has_valid_structure = !content.contains("[[") && !content.contains("]]");
+        
 
-        has_valid_structure
+        !content.contains("[[") && !content.contains("]]")
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
@@ -69,13 +68,13 @@ impl Validator for MarkdownValidator {
 
         // Check for unbalanced bold markers
         let bold_count = content.matches("**").count();
-        if bold_count % 2 != 0 {
+        if !bold_count.is_multiple_of(2) {
             errors.push("Unbalanced bold markers (**)".to_string());
         }
 
         // Check for unbalanced code fences
         let code_fence_count = content.matches("```").count();
-        if code_fence_count % 2 != 0 {
+        if !code_fence_count.is_multiple_of(2) {
             errors.push("Unbalanced code block fences (```)".to_string());
         }
 
@@ -264,13 +263,13 @@ impl RepairStrategy for FixBoldItalicStrategy {
 
         // Fix unmatched bold markers
         let bold_count = result.matches("**").count();
-        if bold_count % 2 != 0 {
+        if !bold_count.is_multiple_of(2) {
             result.push_str("**");
         }
 
         // Fix unmatched italic markers
         let italic_count = result.matches('*').count();
-        if italic_count % 2 != 0 {
+        if !italic_count.is_multiple_of(2) {
             result.push('*');
         }
 
@@ -298,11 +297,10 @@ impl RepairStrategy for AddMissingNewlinesStrategy {
             result.push_str(line);
 
             // Add newline after headers and code blocks
-            if line.trim().starts_with('#') || line.trim().starts_with("```") {
-                if i < lines.len() - 1 && !lines[i + 1].is_empty() {
+            if (line.trim().starts_with('#') || line.trim().starts_with("```"))
+                && i < lines.len() - 1 && !lines[i + 1].is_empty() {
                     result.push('\n');
                 }
-            }
 
             result.push('\n');
         }
@@ -327,7 +325,7 @@ impl RepairStrategy for FixTableFormattingStrategy {
         let lines: Vec<&str> = content.lines().collect();
         let mut result = String::new();
 
-        for (_i, line) in lines.iter().enumerate() {
+        for line in lines.iter() {
             if line.contains('|') {
                 // Ensure proper spacing around pipes
                 let fixed = line.replace("| ", "|").replace(" |", "|");
@@ -366,7 +364,7 @@ impl RepairStrategy for FixNestedListsStrategy {
             // Fix list item formatting
             if trimmed.starts_with('-') || trimmed.starts_with('*') || trimmed.starts_with('+') {
                 let marker = trimmed.chars().next().unwrap();
-                let content_part = trimmed.trim_start_matches(|c| c == marker || c == ' ');
+                let content_part = trimmed.trim_start_matches([marker, ' ']);
                 result.push_str(&format!(
                     "{}{} {}",
                     " ".repeat(indent),

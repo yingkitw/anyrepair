@@ -315,8 +315,7 @@ impl RepairStrategy for FixBooleanNullStrategy {
             .boolean_values
             .replace_all(&result, |caps: &regex::Captures| {
                 match caps[0].to_lowercase().as_str() {
-                    s if s == "true" => "true".to_string(),
-                    s if s == "false" => "false".to_string(),
+                    "true" | "false" => caps[0].to_lowercase(),
                     _ => "true".to_string(),
                 }
             })

@@ -39,8 +39,7 @@ pub fn handle_stream(
             Ok(())
         }
         Err(e) => {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
+            Err(io::Error::other(
                 format!("Streaming repair failed: {}", e),
             ))
         }

@@ -48,16 +48,13 @@ pub fn handle_batch(
                     }
 
                     let content = fs::read_to_string(&path)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                            format!("Failed to read {}: {}", path.display(), e)))?;
+                        .map_err(|e| io::Error::other(format!("Failed to read {}: {}", path.display(), e)))?;
                     let repaired = anyrepair::repair(&content)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                            format!("Failed to repair {}: {}", path.display(), e)))?;
+                        .map_err(|e| io::Error::other(format!("Failed to repair {}: {}", path.display(), e)))?;
 
                     let output_path = Path::new(output_dir).join(&*file_name);
                     fs::write(&output_path, repaired)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                            format!("Failed to write {}: {}", output_path.display(), e)))?;
+                        .map_err(|e| io::Error::other(format!("Failed to write {}: {}", output_path.display(), e)))?;
 
                     count += 1;
                 }
@@ -99,29 +96,24 @@ fn process_directory_recursive(
                 }
 
                 let content = fs::read_to_string(&path)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                        format!("Failed to read {}: {}", path.display(), e)))?;
+                    .map_err(|e| io::Error::other(format!("Failed to read {}: {}", path.display(), e)))?;
                 let repaired = anyrepair::repair(&content)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                        format!("Failed to repair {}: {}", path.display(), e)))?;
+                    .map_err(|e| io::Error::other(format!("Failed to repair {}: {}", path.display(), e)))?;
 
                 // Preserve directory structure in output
                 let relative_path = path
                     .strip_prefix(input_dir)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                        format!("Failed to compute relative path for {}: {}", path.display(), e)))?;
+                    .map_err(|e| io::Error::other(format!("Failed to compute relative path for {}: {}", path.display(), e)))?;
                 let output_path = Path::new(output_dir).join(relative_path);
 
                 // Create parent directories if needed
                 if let Some(parent) = output_path.parent() {
                     fs::create_dir_all(parent)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                            format!("Failed to create directory {}: {}", parent.display(), e)))?;
+                        .map_err(|e| io::Error::other(format!("Failed to create directory {}: {}", parent.display(), e)))?;
                 }
 
                 fs::write(&output_path, repaired)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, 
-                        format!("Failed to write {}: {}", output_path.display(), e)))?;
+                    .map_err(|e| io::Error::other(format!("Failed to write {}: {}", output_path.display(), e)))?;
 
                 *count += 1;
             }

@@ -35,7 +35,7 @@ AnyRepair now exposes its repair functionality as an MCP (Model Context Protocol
 ### 3. Cargo Configuration
 
 **Added:**
-- `rmcp = "0.1"` dependency
+- `rmcp = "0.14"` dependency
 - `[[bin]]` entry for `anyrepair-mcp`
 - Fixed edition from "2024" to "2021"
 
@@ -259,7 +259,7 @@ To add a new tool:
 
 ### Versioning
 
-- MCP Server version: 0.1.5 (matches anyrepair version)
+- MCP Server version: 0.2.2 (matches anyrepair version)
 - Protocol version: 1.0
 - Backward compatible with previous versions
 

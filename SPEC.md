@@ -164,20 +164,19 @@ All public functions return `Result<T>` using this error type.
 
 ## Testing
 
-280+ tests across multiple categories:
+318 tests across multiple categories:
 
 | Category              | Count | Location                        |
 |-----------------------|-------|---------------------------------|
-| Library unit tests    | 190   | `src/*.rs` `#[cfg(test)]`       |
+| Library unit tests    | 137   | `src/*.rs` `#[cfg(test)]`       |
 | Diff tests            | 35    | `tests/diff_tests.rs`           |
-| Fuzz tests            | 36    | `tests/fuzz_tests.rs`           |
+| Fuzz tests            | 34    | `tests/fuzz_tests.rs`           |
 | Streaming tests       | 26    | `tests/streaming_tests.rs`      |
 | Damage scenarios      | 18    | `tests/damage_scenarios.rs`     |
 | Complex damage        | 18    | `tests/complex_damage_tests.rs` |
 | Complex streaming     | 18    | `tests/complex_streaming_tests.rs` |
 | Integration tests     | 17    | `tests/integration_tests.rs`    |
 | CLI tests             | 15    | `tests/cli_tests.rs`            |
-| Doc tests             | 2     | `src/lib.rs`                    |
 
 All tests pass. Zero failures, zero binary warnings.
 

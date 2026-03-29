@@ -145,7 +145,7 @@ fn is_diff_like(content: &str) -> bool {
                 // YAML list items start with "- " followed by content
                 if l.starts_with("- ")
                     && l.len() > 2
-                    && l.chars().nth(2).map_or(false, |c| c.is_alphanumeric())
+                    && l.chars().nth(2).is_some_and(|c| c.is_alphanumeric())
                 {
                     return false;
                 }

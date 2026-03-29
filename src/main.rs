@@ -78,12 +78,6 @@ enum Commands {
         #[arg(short, long)]
         recursive: bool,
     },
-    /// Manage repair rules
-    Rules {
-        /// Action: list, show, add, remove, enable, disable
-        #[arg(value_name = "ACTION")]
-        action: String,
-    },
     /// Stream repair for large files
     Stream {
         /// Input file (stdin if not provided)
@@ -102,8 +96,6 @@ enum Commands {
         #[arg(long)]
         buffer_size: Option<usize>,
     },
-    /// Show repair statistics
-    Stats,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -121,15 +113,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Batch { input, output, pattern, recursive } => {
             cli::batch_cmd::handle_batch(&input, &output, pattern.as_deref(), recursive, cli.verbose)?;
         }
-        Commands::Rules { action } => {
-            cli::rules_cmd::handle_rules(&action, cli.verbose)?;
-        }
         Commands::Stream { input, output, format, buffer_size } => {
             let fmt = format.as_deref().unwrap_or("auto");
             cli::stream_cmd::handle_stream(input.as_deref(), output.as_deref(), fmt, buffer_size, cli.verbose)?;
-        }
-        Commands::Stats => {
-            handle_stats(cli.verbose)?;
         }
     }
 
@@ -137,26 +123,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let duration = start_time.elapsed();
         eprintln!("Completed in {:?}", duration);
     }
-
-    Ok(())
-}
-
-/// Handle stats command
-fn handle_stats(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
-    if verbose {
-        eprintln!("Showing repair statistics...");
-    }
-
-    let formats = anyrepair::SUPPORTED_FORMATS;
-    println!("AnyRepair Statistics:");
-    println!("====================");
-    println!();
-    println!("Supported formats: {}", formats.len());
-    for fmt in formats {
-        println!("  - {}", fmt);
-    }
-    println!();
-    println!("Use `anyrepair repair --format <FORMAT>` to repair a specific format.");
 
     Ok(())
 }

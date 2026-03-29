@@ -13,16 +13,11 @@
 
 ### Features
 - **[MCP_SERVER.md](MCP_SERVER.md)** - MCP server documentation and integration guide
+- **[MCP_IMPLEMENTATION.md](MCP_IMPLEMENTATION.md)** - MCP server implementation details
 - **[STREAMING_FEATURE.md](STREAMING_FEATURE.md)** - Streaming repair for large files
-- **[PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)** - Plugin system development guide
-- **[enterprise_features.md](enterprise_features.md)** - Enterprise features overview
-
-### Development Guides
-- **[MODULIZATION_GUIDE.md](MODULIZATION_GUIDE.md)** - Code organization principles and patterns
-- **[BUILD_OPTIMIZATION.md](BUILD_OPTIMIZATION.md)** - Build optimization and binary size reduction
 
 ### Testing
-- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (364+ tests)
+- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (280+ tests)
 
 ### Version History
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
@@ -41,21 +36,21 @@
 
 ### For Developers
 1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for system design
-2. Review [MODULIZATION_GUIDE.md](MODULIZATION_GUIDE.md) for code organization
-3. Check [TEST_SUMMARY.md](TEST_SUMMARY.md) for test coverage
+2. Check [TEST_SUMMARY.md](TEST_SUMMARY.md) for test coverage
+3. Review [CHANGELOG.md](CHANGELOG.md) for recent changes
 
 ### For Contributors
-1. Review [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for extending functionality
-2. Check [BUILD_OPTIMIZATION.md](BUILD_OPTIMIZATION.md) for build guidelines
-3. See [CHANGELOG.md](CHANGELOG.md) for recent changes
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for system design
+2. Check [MCP_IMPLEMENTATION.md](MCP_IMPLEMENTATION.md) for MCP integration
+3. Review [STREAMING_FEATURE.md](STREAMING_FEATURE.md) for streaming implementation
 
 ## Project Statistics
 
 - **Formats Supported**: 8 (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff/Unified diff)
-- **Test Coverage**: 364+ tests (100% pass rate)
+- **Test Coverage**: 318 tests (100% pass rate)
 - **Binary Size**: 1.5 MB (optimized)
 - **MCP Tools**: 10 available
-- **Documentation Files**: 10 core files (consolidated from 22+)
+- **Documentation Files**: 8 core files
 
 ## Key Files Location
 
@@ -63,17 +58,18 @@
 anyrepair/
 ├── README.md              # Main project overview
 ├── TODO.md               # Task tracking
+├── SPEC.md               # Technical specification
 ├── Cargo.toml            # Project configuration
 ├── src/                  # Source code
 │   ├── lib.rs           # Library entry point
 │   ├── main.rs          # CLI entry point
-│   ├── mcp_server.rs   # MCP server
+│   ├── bin/mcp_server.rs # MCP server
 │   ├── diff.rs         # Diff repairer
 │   └── ...              # Other modules
 ├── examples/            # Usage examples
 │   ├── README.md
 │   └── data/           # Test data files
-├── tests/               # Test suites (7 files, 364+ tests)
+├── tests/               # Test suites (280+ tests)
 ├── docs/                # Documentation (this folder)
 │   ├── INDEX.md        # This file
 │   ├── ARCHITECTURE.md # System design
@@ -81,20 +77,12 @@ anyrepair/
 └── target/             # Build output
 ```
 
-## Archived Documentation
-
-Historical and redundant documentation has been moved to `docs/archive/`:
-- Modulization progress files
-- Implementation summaries
-- Test detail files
-- Optimization summaries
-
 ## Last Updated
 
-November 24, 2024
+March 29, 2026
 
 ## Status
 
 ✅ **PRODUCTION READY**
 
-All features implemented, tested, and documented. Documentation consolidated for better maintainability.
+All features implemented, tested, and documented. Version 0.2.2 with KISS/DRY/SoC refactoring and centralized format registry.

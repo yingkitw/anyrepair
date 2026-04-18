@@ -37,7 +37,7 @@ impl StreamingRepair {
 
         for line_result in reader.lines() {
             let line = line_result
-                .map_err(|e| crate::error::RepairError::Generic(format!("IO error: {}", e)))?;
+                .map_err(|e| crate::error::RepairError::Io(e))?;
 
             buffer.push_str(&line);
             buffer.push('\n');
@@ -46,7 +46,7 @@ impl StreamingRepair {
             if buffer.len() >= self.buffer_size {
                 let repaired = self.repair_chunk(&buffer, format)?;
                 writer.write_all(repaired.as_bytes()).map_err(|e| {
-                    crate::error::RepairError::Generic(format!("Write error: {}", e))
+                    crate::error::RepairError::Io(e)
                 })?;
                 total_bytes += repaired.len();
                 buffer.clear();
@@ -58,7 +58,7 @@ impl StreamingRepair {
             let repaired = self.repair_chunk(&buffer, format)?;
             writer
                 .write_all(repaired.as_bytes())
-                .map_err(|e| crate::error::RepairError::Generic(format!("Write error: {}", e)))?;
+                .map_err(|e| crate::error::RepairError::Io(e))?;
             total_bytes += repaired.len();
         }
 

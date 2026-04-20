@@ -1,32 +1,4 @@
-//! CLI command tests for the anyrepair CLI tool
-
-//! Binary and library integration tests for anyrepair CLI
-
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
-use tempfile::TempDir;
-
-/// Helper function to create a temporary file with content
-fn create_temp_file(content: &str) -> (PathBuf, TempDir) {
-    let temp_dir = TempDir::new().unwrap();
-    let file_path = temp_dir.path().join("test_input.txt");
-    fs::write(&file_path, content).unwrap();
-    (file_path, temp_dir)
-}
-
-/// Helper function to create a temporary directory with test files
-fn create_temp_dir_with_files(files: &[(&str, &str)]) -> (PathBuf, TempDir) {
-    let temp_dir = TempDir::new().unwrap();
-    let dir_path = temp_dir.path();
-
-    for (name, content) in files {
-        let file_path = dir_path.join(name);
-        fs::write(file_path, content).unwrap();
-    }
-
-    (dir_path.to_path_buf(), temp_dir)
-}
+//! Repair behavior tests (same paths the CLI exercises via the library).
 
 #[test]
 fn test_json_repair_with_comments() {

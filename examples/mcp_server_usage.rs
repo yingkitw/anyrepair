@@ -88,7 +88,7 @@ fn main() {
     println!("Scenario 2: Batch repair multiple JSON items");
     println!("--------------------------------------------");
 
-    let items = vec![
+    let items = [
         r#"{"id": 1, "name": "Item1",}"#,
         r#"{'id': 2, 'name': 'Item2'}"#,
         r#"{id: 3, name: Item3}"#,

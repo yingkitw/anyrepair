@@ -45,33 +45,6 @@ pub enum RepairError {
 /// Result type alias for repair operations
 pub type Result<T> = std::result::Result<T, RepairError>;
 
-impl RepairError {
-    /// Create a new JSON repair error
-    pub fn json_repair(msg: impl Into<String>) -> Self {
-        Self::JsonRepair(msg.into())
-    }
-
-    /// Create a new YAML repair error
-    pub fn yaml_repair(msg: impl Into<String>) -> Self {
-        Self::YamlRepair(msg.into())
-    }
-
-    /// Create a new Markdown repair error
-    pub fn markdown_repair(msg: impl Into<String>) -> Self {
-        Self::MarkdownRepair(msg.into())
-    }
-
-    /// Create a new format detection error
-    pub fn format_detection(msg: impl Into<String>) -> Self {
-        Self::FormatDetection(msg.into())
-    }
-
-    /// Create a new generic error
-    pub fn generic(msg: impl Into<String>) -> Self {
-        Self::Generic(msg.into())
-    }
-}
-
 impl From<csv::IntoInnerError<csv::Writer<Vec<u8>>>> for RepairError {
     fn from(err: csv::IntoInnerError<csv::Writer<Vec<u8>>>) -> Self {
         Self::CsvWriter(Box::new(err))
@@ -84,25 +57,25 @@ mod tests {
 
     #[test]
     fn test_error_creation() {
-        let err = RepairError::json_repair("test error");
+        let err = RepairError::JsonRepair("test error".to_string());
         assert_eq!(err.to_string(), "JSON repair failed: test error");
 
-        let err = RepairError::yaml_repair("yaml error");
+        let err = RepairError::YamlRepair("yaml error".to_string());
         assert_eq!(err.to_string(), "YAML repair failed: yaml error");
 
-        let err = RepairError::markdown_repair("markdown error");
+        let err = RepairError::MarkdownRepair("markdown error".to_string());
         assert_eq!(err.to_string(), "Markdown repair failed: markdown error");
 
-        let err = RepairError::format_detection("detection error");
+        let err = RepairError::FormatDetection("detection error".to_string());
         assert_eq!(err.to_string(), "Format detection failed: detection error");
 
-        let err = RepairError::generic("generic error");
+        let err = RepairError::Generic("generic error".to_string());
         assert_eq!(err.to_string(), "Generic error: generic error");
     }
 
     #[test]
     fn test_error_display() {
-        let err = RepairError::json_repair("invalid json");
+        let err = RepairError::JsonRepair("invalid json".to_string());
         let display_str = format!("{}", err);
         assert!(display_str.contains("JSON repair failed"));
         assert!(display_str.contains("invalid json"));
@@ -110,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_error_debug() {
-        let err = RepairError::generic("test");
+        let err = RepairError::Generic("test".to_string());
         let debug_str = format!("{:?}", err);
         assert!(debug_str.contains("Generic"));
         assert!(debug_str.contains("test"));
@@ -121,7 +94,7 @@ mod tests {
         let ok_result: Result<String> = Ok("success".to_string());
         assert!(ok_result.is_ok());
 
-        let err_result: Result<String> = Err(RepairError::generic("failed"));
+        let err_result: Result<String> = Err(RepairError::Generic("failed".to_string()));
         assert!(err_result.is_err());
     }
 }

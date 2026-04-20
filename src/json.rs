@@ -506,23 +506,6 @@ impl JsonRepairer {
 
         Self { inner }
     }
-
-    /// Create a new JSON repairer with logging enabled
-    pub fn with_logging(logging: bool) -> Self {
-        let mut repairer = Self::new();
-        repairer.inner = repairer.inner.with_logging(logging);
-        repairer
-    }
-
-    /// Get the repair log
-    pub fn get_repair_log(&self) -> &[String] {
-        self.inner.get_repair_log()
-    }
-
-    /// Clear the repair log
-    pub fn clear_log(&mut self) {
-        self.inner.clear_log();
-    }
 }
 
 impl Default for JsonRepairer {
@@ -591,15 +574,6 @@ mod tests {
     fn test_json_repairer_default() {
         let repairer = JsonRepairer::default();
         assert!(!repairer.inner.strategies().is_empty());
-    }
-
-    #[test]
-    fn test_json_repairer_with_logging() {
-        let repairer = JsonRepairer::with_logging(true);
-        assert!(
-            !repairer.inner.get_repair_log().is_empty()
-                || repairer.inner.get_repair_log().is_empty()
-        );
     }
 
     #[test]

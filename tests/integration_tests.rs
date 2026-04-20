@@ -85,9 +85,6 @@ fn test_memory_usage() {
     for _ in 0..100 {
         let _ = repairer.repair(&large_input);
     }
-
-    // If we get here without panicking, memory usage is reasonable
-    assert!(true);
 }
 
 #[test]

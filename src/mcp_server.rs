@@ -771,7 +771,7 @@ mod tests {
         let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
         let confidence = parsed["confidence"].as_f64().unwrap();
         assert!(
-            confidence >= 0.0 && confidence <= 1.0,
+            (0.0..=1.0).contains(&confidence),
             "confidence {} out of range",
             confidence
         );
@@ -787,7 +787,7 @@ mod tests {
         let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
         let confidence = parsed["confidence"].as_f64().unwrap();
         assert!(
-            confidence >= 0.0 && confidence <= 1.0,
+            (0.0..=1.0).contains(&confidence),
             "confidence {} out of range",
             confidence
         );

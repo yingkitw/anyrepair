@@ -28,14 +28,13 @@ pub fn detect_format(content: &str) -> Option<&'static str> {
     }
 }
 
-fn is_json_like(content: &str) -> bool {
-    let trimmed = content.trim();
+/// All `is_*_like` helpers expect **outer** whitespace already trimmed (as `detect_format` does).
+fn is_json_like(trimmed: &str) -> bool {
     (trimmed.starts_with('{') && (trimmed.ends_with('}') || trimmed.contains(':')))
         || (trimmed.starts_with('[') && (trimmed.ends_with(']') || trimmed.contains(',')))
 }
 
-fn is_yaml_like(content: &str) -> bool {
-    let trimmed = content.trim();
+fn is_yaml_like(trimmed: &str) -> bool {
     if trimmed.contains("---") {
         return true;
     }
@@ -49,15 +48,13 @@ fn is_yaml_like(content: &str) -> bool {
         })
 }
 
-fn is_xml_like(content: &str) -> bool {
-    let trimmed = content.trim();
+fn is_xml_like(trimmed: &str) -> bool {
     trimmed.starts_with("<?xml")
         || (trimmed.starts_with('<') && trimmed.contains('>') && !trimmed.starts_with('#'))
         || (trimmed.contains('<') && trimmed.contains('>') && trimmed.contains("</"))
 }
 
-fn is_toml_like(content: &str) -> bool {
-    let trimmed = content.trim();
+fn is_toml_like(trimmed: &str) -> bool {
     if trimmed.starts_with('[') {
         return true;
     }
@@ -71,8 +68,7 @@ fn is_toml_like(content: &str) -> bool {
         })
 }
 
-fn is_csv_like(content: &str) -> bool {
-    let trimmed = content.trim();
+fn is_csv_like(trimmed: &str) -> bool {
     if !trimmed.contains(',') {
         return false;
     }
@@ -87,8 +83,7 @@ fn is_csv_like(content: &str) -> bool {
     trimmed.lines().count() > 1
 }
 
-fn is_ini_like(content: &str) -> bool {
-    let trimmed = content.trim();
+fn is_ini_like(trimmed: &str) -> bool {
     if trimmed.starts_with('[') && trimmed.contains(']') {
         return true;
     }
@@ -108,8 +103,7 @@ fn is_ini_like(content: &str) -> bool {
         })
 }
 
-fn is_diff_like(content: &str) -> bool {
-    let trimmed = content.trim();
+fn is_diff_like(trimmed: &str) -> bool {
     let lines: Vec<&str> = trimmed.lines().collect();
 
     // Check for hunk headers (@@ ... @@)
@@ -161,9 +155,7 @@ fn is_diff_like(content: &str) -> bool {
     false
 }
 
-fn is_markdown_like(content: &str) -> bool {
-    let trimmed = content.trim();
-    // Don't match diff as markdown
+fn is_markdown_like(trimmed: &str) -> bool {
     if is_diff_like(trimmed) {
         return false;
     }
@@ -200,6 +192,10 @@ mod tests {
     fn test_format_detection_edge_cases() {
         assert_eq!(detect_format(""), None);
         assert_eq!(detect_format("   \n\t  "), None);
+        assert_eq!(
+            detect_format(r#"  {"key": "value"}  "#),
+            Some("json")
+        );
         assert_eq!(
             detect_format(r#"{"key": "value", "nested": {"inner": "value"}}"#),
             Some("json")

@@ -616,10 +616,10 @@ impl Validator for PropertiesValidator {
             if !trimmed.contains('=') {
                 return false;
             }
-            if let Some(eq_pos) = trimmed.find('=') {
-                if trimmed[..eq_pos].trim().is_empty() {
-                    return false;
-                }
+            if let Some(eq_pos) = trimmed.find('=')
+                && trimmed[..eq_pos].trim().is_empty()
+            {
+                return false;
             }
         }
         true

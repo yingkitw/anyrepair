@@ -17,11 +17,7 @@ struct Cli {
     /// Quiet mode (suppress non-error output)
     #[arg(short, long)]
     quiet: bool,
-    
-    /// Configuration file
-    #[arg(short, long)]
-    config: Option<String>,
-    
+
     #[command(subcommand)]
     command: Commands,
 }

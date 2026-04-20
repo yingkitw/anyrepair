@@ -64,9 +64,8 @@ impl GenericRepairer {
         for strategy in self.strategies.iter() {
             if let Ok(result) = strategy.apply(&repaired) {
                 if self.logging_enabled && result != repaired {
-                    let strategy_name = strategy.name().to_string();
                     self.repair_log
-                        .push(format!("Applied strategy: {}", strategy_name));
+                        .push(format!("Applied strategy: {}", strategy.name()));
                 }
                 repaired = result;
             }

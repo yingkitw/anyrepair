@@ -54,8 +54,17 @@ pub fn normalize_format(format: &str) -> &str {
     format
 }
 
+fn parse_supported_format(format: &str) -> Result<&'static str> {
+    let n = normalize_format(format);
+    SUPPORTED_FORMATS
+        .iter()
+        .find(|&&fmt| fmt == n)
+        .copied()
+        .ok_or_else(|| RepairError::FormatDetection(format!("Unknown format: {}", n)))
+}
+
 pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
-    match normalize_format(format) {
+    match parse_supported_format(format)? {
         "json" => Ok(Box::new(json::JsonRepairer::new())),
         "yaml" => Ok(Box::new(yaml::YamlRepairer::new())),
         "markdown" => Ok(Box::new(markdown::MarkdownRepairer::new())),
@@ -66,12 +75,15 @@ pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
         "diff" => Ok(Box::new(diff::DiffRepairer::new())),
         "properties" => Ok(Box::new(key_value::PropertiesRepairer::new())),
         "env" => Ok(Box::new(key_value::EnvRepairer::new())),
-        other => Err(RepairError::FormatDetection(format!("Unknown format: {}", other))),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown format: {}",
+            other
+        ))),
     }
 }
 
 pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
-    match normalize_format(format) {
+    match parse_supported_format(format)? {
         "json" => Ok(Box::new(json::JsonValidator)),
         "yaml" => Ok(Box::new(yaml::YamlValidator)),
         "markdown" => Ok(Box::new(markdown::MarkdownValidator)),
@@ -82,7 +94,10 @@ pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
         "diff" => Ok(Box::new(diff::DiffValidator)),
         "properties" => Ok(Box::new(key_value::PropertiesValidator)),
         "env" => Ok(Box::new(key_value::EnvValidator)),
-        other => Err(RepairError::FormatDetection(format!("Unknown format: {}", other))),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown format: {}",
+            other
+        ))),
     }
 }
 

@@ -32,14 +32,3 @@ pub fn write_output(content: &str, file_path: Option<&str>) -> io::Result<()> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_read_input_from_string() {
-        // This would require a temp file in real tests
-        // Placeholder for now
-    }
-}

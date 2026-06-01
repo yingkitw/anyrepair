@@ -3,7 +3,6 @@
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
 use regex::Regex;
-use serde_yaml::Value;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for YAML performance optimization
@@ -136,38 +135,40 @@ pub struct YamlValidator;
 
 impl Validator for YamlValidator {
     fn is_valid(&self, content: &str) -> bool {
-        if content.trim().is_empty() {
-            return false;
-        }
-
-        // Check for basic YAML syntax issues
-        let lines: Vec<&str> = content.lines().collect();
-        for line in lines {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-
-            // Check for missing colons in key-value pairs
-            if !trimmed.starts_with('-')
-                && !trimmed.starts_with('[')
-                && !trimmed.starts_with('{')
-                && !trimmed.contains(':')
-                && trimmed.contains(' ')
-            {
-                return false;
-            }
-        }
-
-        serde_yaml::from_str::<Value>(content).is_ok()
+        yaml_structure_valid(content)
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        match serde_yaml::from_str::<Value>(content) {
-            Ok(_) => vec![],
-            Err(e) => vec![e.to_string()],
+        if yaml_structure_valid(content) {
+            vec![]
+        } else {
+            vec!["YAML structure validation failed".to_string()]
         }
     }
+}
+
+fn yaml_structure_valid(content: &str) -> bool {
+    if content.trim().is_empty() {
+        return false;
+    }
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        if !trimmed.starts_with('-')
+            && !trimmed.starts_with('[')
+            && !trimmed.starts_with('{')
+            && !trimmed.contains(':')
+            && trimmed.contains(' ')
+        {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Strategy to fix indentation issues

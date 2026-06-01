@@ -5,8 +5,8 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
+use crate::json_util::{is_valid_json, validate_json_errors};
 use regex::Regex;
-use serde_json::Value;
 use std::sync::OnceLock;
 
 // ============================================================================
@@ -18,14 +18,11 @@ pub struct JsonValidator;
 
 impl Validator for JsonValidator {
     fn is_valid(&self, content: &str) -> bool {
-        serde_json::from_str::<Value>(content).is_ok()
+        is_valid_json(content)
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        match serde_json::from_str::<Value>(content) {
-            Ok(_) => vec![],
-            Err(e) => vec![e.to_string()],
-        }
+        validate_json_errors(content)
     }
 }
 
@@ -705,7 +702,7 @@ mod tests {
         assert!(!result.contains("/*"));
 
         // Verify it's valid JSON
-        assert!(serde_json::from_str::<serde_json::Value>(&result).is_ok());
+        assert!(crate::json_util::is_valid_json(&result));
     }
 
     #[test]
@@ -758,6 +755,6 @@ mod tests {
         assert!(result.contains("key3"));
 
         // Verify valid JSON
-        assert!(serde_json::from_str::<serde_json::Value>(&result).is_ok());
+        assert!(crate::json_util::is_valid_json(&result));
     }
 }

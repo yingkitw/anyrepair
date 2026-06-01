@@ -126,61 +126,52 @@ pub struct TomlValidator;
 
 impl Validator for TomlValidator {
     fn is_valid(&self, content: &str) -> bool {
-        if content.trim().is_empty() {
-            return false;
-        }
-
-        // Check for missing quotes around string values
-        let lines: Vec<&str> = content.lines().collect();
-        for line in lines {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('[') {
-                continue;
-            }
-
-            // Check for key-value pairs where the value should be quoted
-            if trimmed.contains('=') {
-                let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
-                if parts.len() == 2 {
-                    let value = parts[1].trim();
-                    // If value looks like a string but is not quoted, it's invalid
-                    if !value.starts_with('"')
-                        && !value.starts_with('\'')
-                        && !value.starts_with('[')
-                        && !value.starts_with('{')
-                        && value.parse::<i64>().is_err()
-                        && value.parse::<f64>().is_err()
-                        && value != "true"
-                        && value != "false"
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        // Basic TOML validation using toml crate
-        toml::from_str::<toml::Value>(content).is_ok()
+        toml_structure_valid(content)
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        let mut errors = Vec::new();
-
         if content.trim().is_empty() {
-            errors.push("Empty TOML content".to_string());
-            return errors;
+            return vec!["Empty TOML content".to_string()];
+        }
+        if toml_structure_valid(content) {
+            vec![]
+        } else {
+            vec!["TOML structure validation failed".to_string()]
+        }
+    }
+}
+
+fn toml_structure_valid(content: &str) -> bool {
+    if content.trim().is_empty() {
+        return false;
+    }
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('[') {
+            continue;
         }
 
-        // Try to parse with toml crate
-        match toml::from_str::<toml::Value>(content) {
-            Ok(_) => {} // Valid TOML
-            Err(e) => {
-                errors.push(format!("TOML parsing error: {e}"));
+        if trimmed.contains('=') {
+            let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+            if parts.len() == 2 {
+                let value = parts[1].trim();
+                if !value.starts_with('"')
+                    && !value.starts_with('\'')
+                    && !value.starts_with('[')
+                    && !value.starts_with('{')
+                    && value.parse::<i64>().is_err()
+                    && value.parse::<f64>().is_err()
+                    && value != "true"
+                    && value != "false"
+                {
+                    return false;
+                }
             }
         }
-
-        errors
     }
+
+    true
 }
 
 /// Strategy to fix missing quotes around string values

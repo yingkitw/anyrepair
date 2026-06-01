@@ -121,10 +121,15 @@ fn test_repair_json_with_various_issues() {
     assert!(result.contains("\"age\""));
     assert!(!result.contains(",\n}"));
 
-    // Verify valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(parsed["name"], "John");
-    assert_eq!(parsed["age"], 30);
+    assert!(anyrepair::json_util::is_valid_json(&result));
+    assert_eq!(
+        anyrepair::json_util::get_json_string_field(&result, "name").as_deref(),
+        Some("John")
+    );
+    assert_eq!(
+        anyrepair::json_util::get_json_number_field(&result, "age"),
+        Some(30.0)
+    );
 }
 
 #[test]
@@ -271,10 +276,15 @@ fn test_repair_strategy_execution_order() {
     assert!(result.contains("\"age\""));
     assert!(!result.contains(",\n}"));
 
-    // Verify valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(parsed["name"], "John");
-    assert_eq!(parsed["age"], 30);
+    assert!(anyrepair::json_util::is_valid_json(&result));
+    assert_eq!(
+        anyrepair::json_util::get_json_string_field(&result, "name").as_deref(),
+        Some("John")
+    );
+    assert_eq!(
+        anyrepair::json_util::get_json_number_field(&result, "age"),
+        Some(30.0)
+    );
 }
 
 #[test]

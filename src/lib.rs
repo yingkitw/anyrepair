@@ -6,6 +6,7 @@
 pub mod csv;
 pub mod diff;
 pub mod error;
+pub mod json_util;
 pub mod format_detection;
 pub mod json;
 pub mod key_value;

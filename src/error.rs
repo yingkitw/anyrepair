@@ -20,20 +20,8 @@ pub enum RepairError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("Serde error: {0}")]
-    Serde(#[from] serde_json::Error),
-
-    #[error("YAML error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
-
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
-
-    #[error("CSV error: {0}")]
-    Csv(#[from] csv::Error),
-
-    #[error("CSV writer error: {0}")]
-    CsvWriter(#[from] Box<csv::IntoInnerError<csv::Writer<Vec<u8>>>>),
 
     #[error("UTF-8 error: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
@@ -44,12 +32,6 @@ pub enum RepairError {
 
 /// Result type alias for repair operations
 pub type Result<T> = std::result::Result<T, RepairError>;
-
-impl From<csv::IntoInnerError<csv::Writer<Vec<u8>>>> for RepairError {
-    fn from(err: csv::IntoInnerError<csv::Writer<Vec<u8>>>) -> Self {
-        Self::CsvWriter(Box::new(err))
-    }
-}
 
 #[cfg(test)]
 mod tests {

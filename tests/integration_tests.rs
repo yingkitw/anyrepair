@@ -140,10 +140,15 @@ fn test_json_with_js_comments() {
     assert!(!result.contains("//"));
     assert!(!result.contains("/*"));
 
-    // Verify it's valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(parsed["name"], "John");
-    assert_eq!(parsed["age"], 30);
+    assert!(anyrepair::json_util::is_valid_json(&result));
+    assert_eq!(
+        anyrepair::json_util::get_json_string_field(&result, "name").as_deref(),
+        Some("John")
+    );
+    assert_eq!(
+        anyrepair::json_util::get_json_number_field(&result, "age"),
+        Some(30.0)
+    );
 }
 
 #[test]
@@ -274,11 +279,19 @@ fn test_combined_json_repairs() {
     assert!(result.contains("\"age\""));
     assert!(!result.contains(",\n}"));
 
-    // Verify valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(parsed["name"], "John");
-    assert_eq!(parsed["age"], 30);
-    assert_eq!(parsed["active"], true);
+    assert!(anyrepair::json_util::is_valid_json(&result));
+    assert_eq!(
+        anyrepair::json_util::get_json_string_field(&result, "name").as_deref(),
+        Some("John")
+    );
+    assert_eq!(
+        anyrepair::json_util::get_json_number_field(&result, "age"),
+        Some(30.0)
+    );
+    assert_eq!(
+        anyrepair::json_util::get_json_bool_field(&result, "active"),
+        Some(true)
+    );
 }
 
 #[test]

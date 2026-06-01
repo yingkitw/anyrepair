@@ -2,8 +2,17 @@
 
 ## Recently Completed ✅
 
+### v0.2.6
+- [x] Bump crate version to 0.2.6
+- [x] **Minimal runtime deps** — `regex`, `thiserror`, `clap` only
+- [x] Removed `serde`, `serde_json`, `serde_yaml`, `quick-xml`, `toml`, `csv`, `ini` from dependencies
+- [x] Removed unused dev-deps `serde_json`, `tempfile`
+- [x] **`json_util` module** — JSON validation, escaping, MCP request/response helpers without serde
+- [x] Heuristic validators for XML, TOML, CSV, YAML (no external parser crates)
+- [x] MCP and integration tests updated to use `json_util`
+- [x] **316 tests** passing (`cargo test`)
+
 ### v0.2.5
-- [x] Bump crate version to 0.2.5
 - [x] **Properties** (`.properties`) and **Env** (`.env`) repair via `key_value.rs`
 - [x] Consolidate INI with properties/env; remove `ini` crate dependency
 - [x] MCP tools auto-registered for all 10 formats (12 tools total)
@@ -11,25 +20,24 @@
 
 ### v0.2.x
 - [x] KISS/DRY/SoC refactoring — centralized format registry, unified CLI
-- [x] Eight core formats + diff; later expanded to ten with key-value module
 - [x] Python-compatible API (`jsonrepair()`, `JsonRepair`)
 - [x] Streaming support for large files
 - [x] MCP server implementation
 - [x] Fuzz testing with proptest
-- [x] Zero-warning release builds; dependency cleanup (e.g. `pulldown-cmark`, `anyhow`)
-- [x] **316 tests** with 100% pass rate (`cargo test`)
+- [x] Dependency cleanup (`pulldown-cmark`, `anyhow`, and others)
 
 ## Current Priorities 🚀
 
 ### High
-- [ ] **Code coverage** — More edge cases for properties/env and cross-format detection
-- [ ] **Performance regression tests** — Benchmark gate in CI
-- [ ] **Real-world corpus** — User-submitted malformed samples
+- [ ] **CHANGELOG for 0.2.6** — Document lean-deps release and validator changes
+- [ ] **Code coverage** — More edge cases for properties/env and heuristic validators
+- [ ] **Performance regression tests** — Benchmark gate in CI (`criterion` benches exist)
 
 ### Medium
 - [ ] **Auto-detect properties/env** — Heuristics in `format_detection.rs` without breaking INI
-- [ ] **CHANGELOG entry for 0.2.5** — Document properties/env and dependency changes
-- [ ] **MCP binary version** — Align `anyrepair-mcp` server info with crate version (currently stale in bin)
+- [ ] **MCP binary version** — Align `anyrepair-mcp` server info string with crate version
+- [ ] **Update Cargo.toml description** — Mention 10 formats and properties/env
+- [ ] **Refresh docs/TEST_SUMMARY.md** — Match current 316-test breakdown and deps
 
 ## Planned Features 📋
 
@@ -48,6 +56,7 @@
 - [ ] **Format-preserving repairs** — Whitespace, comments, key order
 - [ ] **Repair explanations** — What changed and why
 - [ ] **Configurable confidence thresholds**
+- [ ] **Stronger validators** — Optional strict mode (e.g. optional parser deps behind feature flags)
 
 ### Platform
 - [ ] **Web UI** — Browser-based repair
@@ -55,9 +64,9 @@
 - [ ] **Docker image** — Containerized CLI/MCP
 
 ### Documentation
-- [ ] **Rustdoc pass** — Full public API on docs.rs
+- [ ] **Rustdoc pass** — Full public API on docs.rs (including `json_util`)
 - [ ] **Troubleshooting guide** — Common failures and fixes
-- [ ] **Refresh docs/TEST_SUMMARY.md** — Match 316-test breakdown
+- [ ] **Sync SPEC.md** — Dependency table and validator notes for 0.2.6
 
 ### Testing
 - [ ] **Dedicated properties/env integration tests** — Beyond `key_value` unit tests
@@ -67,22 +76,24 @@
 ## Technical Debt 🔧
 
 - [ ] **Clippy** — `-D warnings` in CI
-- [ ] **Description in Cargo.toml** — Mention properties/env in package description
-- [ ] **Prune stale docs** — `docs/ARCHITECTURE.md` vs root `ARCHITECTURE.md` (keep one canonical)
+- [ ] **Prune stale docs** — `docs/ARCHITECTURE.md` pointer vs root `ARCHITECTURE.md`
 - [ ] **Remove or implement `anyrepair.toml`** — Sample custom rules file is not loaded by current code
+- [ ] **Review heuristic validator false positives/negatives** — Especially XML and CSV after parser removal
 
 ## Ideas 💡
 
+- Optional `full-validation` Cargo feature restoring `serde_json` / format parsers for strict checks
 - Language bindings (Python, Node.js, Go)
 - gRPC/WebSocket streaming repair API
 - Format-detection confidence exposed in API
 
 ## Known Issues (Fixed) ✅
 
-- [x] YAML validator too permissive
+- [x] YAML validator too permissive (partially addressed with structural checks)
 - [x] Per-format CLI subcommands duplicated logic
 - [x] Unused dependencies and compilation warnings
 - [x] `insta` snapshot clutter in tests
+- [x] Heavy transitive dependency tree from serde/XML/TOML/CSV crates
 
 ---
 

@@ -119,61 +119,101 @@ pub struct CsvValidator;
 
 impl Validator for CsvValidator {
     fn is_valid(&self, content: &str) -> bool {
-        if content.trim().is_empty() {
-            return false;
-        }
-
-        // Check for fields with spaces that should be quoted
-        let lines: Vec<&str> = content.lines().collect();
-        for line in lines {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-
-            // Split by comma and check each field
-            let fields: Vec<&str> = trimmed.split(',').collect();
-            for field in fields {
-                let field = field.trim();
-                // If field contains spaces and is not quoted, it's invalid
-                if field.contains(' ') && !field.starts_with('"') && !field.ends_with('"') {
-                    return false;
-                }
-            }
-        }
-
-        // Basic CSV validation using csv crate
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(content.as_bytes());
-
-        reader.records().all(|record| record.is_ok())
+        csv_structure_valid(content)
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        let mut errors = Vec::new();
-
         if content.trim().is_empty() {
-            errors.push("Empty CSV content".to_string());
-            return errors;
+            return vec!["Empty CSV content".to_string()];
         }
+        if csv_structure_valid(content) {
+            vec![]
+        } else {
+            vec!["CSV structure validation failed".to_string()]
+        }
+    }
+}
 
-        // Try to parse with csv crate
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(content.as_bytes());
+fn csv_structure_valid(content: &str) -> bool {
+    if content.trim().is_empty() {
+        return false;
+    }
 
-        for (line_num, result) in reader.records().enumerate() {
-            match result {
-                Ok(_) => {} // Valid record
-                Err(e) => {
-                    errors.push(format!("CSV parsing error at line {}: {}", line_num + 1, e));
+    let lines: Vec<&str> = content
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if lines.is_empty() {
+        return false;
+    }
+
+    let mut column_count = None;
+    for line in lines {
+        let fields = match parse_csv_fields(line) {
+            Ok(f) => f,
+            Err(_) => return false,
+        };
+        if fields.is_empty() {
+            return false;
+        }
+        match column_count {
+            None => column_count = Some(fields.len()),
+            Some(n) if n != fields.len() => return false,
+            _ => {}
+        }
+    }
+
+    true
+}
+
+fn parse_csv_fields(line: &str) -> std::result::Result<Vec<String>, ()> {
+    let mut fields = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    let mut chars = line.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '"' if !in_quotes => in_quotes = true,
+            '"' if in_quotes => {
+                if chars.peek() == Some(&'"') {
+                    chars.next();
+                    current.push('"');
+                } else {
+                    in_quotes = false;
                 }
             }
+            ',' if !in_quotes => {
+                fields.push(std::mem::take(&mut current));
+            }
+            c => current.push(c),
         }
-
-        errors
     }
+
+    if in_quotes {
+        return Err(());
+    }
+    fields.push(current);
+    Ok(fields)
+}
+
+fn format_csv_line(fields: &[String]) -> String {
+    fields
+        .iter()
+        .map(|field| {
+            let needs_quotes = field.contains(',')
+                || field.contains('"')
+                || field.contains('\n')
+                || field.contains(' ');
+            if needs_quotes {
+                format!("\"{}\"", field.replace('"', "\"\""))
+            } else {
+                field.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 /// Strategy to fix unquoted strings that should be quoted
@@ -237,52 +277,25 @@ struct FixMissingQuotesStrategy;
 
 impl RepairStrategy for FixMissingQuotesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(content.as_bytes());
-
-        let mut writer = csv::WriterBuilder::new().from_writer(Vec::new());
-
-        for result in reader.records() {
-            match result {
-                Ok(record) => {
-                    let mut fixed_record = Vec::new();
-                    for field in record.iter() {
-                        // If field contains spaces and is not quoted, add quotes
-                        if field.contains(' ') && !field.starts_with('"') && !field.ends_with('"') {
-                            fixed_record.push(format!("\"{}\"", field));
-                        } else {
-                            fixed_record.push(field.to_string());
-                        }
-                    }
-                    writer.write_record(&fixed_record)?;
-                }
+        let mut out = Vec::new();
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                out.push(line.to_string());
+                continue;
+            }
+            match parse_csv_fields(trimmed) {
+                Ok(fields) => out.push(format_csv_line(&fields)),
                 Err(_) => {
-                    // If parsing fails, try to fix the line manually
-                    let lines: Vec<&str> = content.lines().collect();
-                    let mut result = Vec::new();
-
-                    for line in lines {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() {
-                            result.push(line.to_string());
-                            continue;
-                        }
-
-                        // Simple approach: if line contains spaces and commas, quote the whole line
-                        if trimmed.contains(' ') && trimmed.contains(',') {
-                            result.push(format!("\"{}\"", trimmed));
-                        } else {
-                            result.push(trimmed.to_string());
-                        }
+                    if trimmed.contains(' ') && trimmed.contains(',') {
+                        out.push(format!("\"{}\"", trimmed));
+                    } else {
+                        out.push(trimmed.to_string());
                     }
-
-                    return Ok(result.join("\n"));
                 }
             }
         }
-
-        Ok(String::from_utf8(writer.into_inner()?)?)
+        Ok(out.join("\n"))
     }
 
     fn priority(&self) -> u8 {

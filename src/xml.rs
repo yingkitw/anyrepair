@@ -119,53 +119,70 @@ pub struct XmlValidator;
 
 impl Validator for XmlValidator {
     fn is_valid(&self, content: &str) -> bool {
-        if content.trim().is_empty() {
-            return false;
-        }
-
-        // Check for missing quotes around attributes
-        let lines: Vec<&str> = content.lines().collect();
-        for line in lines {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-
-            // Check for attributes without quotes (e.g., id=1 instead of id="1")
-            if trimmed.contains('=') && !trimmed.contains('"') {
-                return false;
-            }
-        }
-
-        // Basic XML validation using quick-xml
-        quick_xml::Reader::from_str(content).read_event().is_ok()
+        xml_structure_valid(content)
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        let mut errors = Vec::new();
-
         if content.trim().is_empty() {
-            errors.push("Empty XML content".to_string());
-            return errors;
+            return vec!["Empty XML content".to_string()];
+        }
+        if xml_structure_valid(content) {
+            vec![]
+        } else {
+            vec!["XML structure validation failed".to_string()]
+        }
+    }
+}
+
+fn xml_structure_valid(content: &str) -> bool {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    for line in trimmed.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line.contains('=') && !line.contains('"') && !line.contains('\'') {
+            return false;
+        }
+    }
+
+    let mut stack: Vec<String> = Vec::new();
+    let mut rest = trimmed;
+    while let Some(start) = rest.find('<') {
+        let Some(rel_end) = rest[start..].find('>') else {
+            return false;
+        };
+        let tag_inner = rest[start + 1..start + rel_end].trim();
+        rest = &rest[start + rel_end + 1..];
+
+        if tag_inner.is_empty() || tag_inner.starts_with('?') || tag_inner.starts_with('!') {
+            continue;
         }
 
-        // Try to parse with quick-xml
-        let mut reader = quick_xml::Reader::from_str(content);
-        let mut buf = Vec::new();
-
-        loop {
-            match reader.read_event_into(&mut buf) {
-                Ok(quick_xml::events::Event::Eof) => break,
-                Ok(_) => continue,
-                Err(e) => {
-                    errors.push(format!("XML parsing error: {e}"));
-                    break;
-                }
+        let self_closing = tag_inner.ends_with('/');
+        let inner = tag_inner.trim_end_matches('/').trim();
+        if inner.starts_with('/') {
+            let name = inner[1..].split_whitespace().next().unwrap_or("");
+            match stack.pop() {
+                Some(open) if open == name => {}
+                _ => return false,
+            }
+        } else {
+            let name = inner.split_whitespace().next().unwrap_or("").to_string();
+            if name.is_empty() {
+                return false;
+            }
+            if !self_closing {
+                stack.push(name);
             }
         }
-
-        errors
     }
+
+    stack.is_empty()
 }
 
 /// Strategy to fix unclosed tags

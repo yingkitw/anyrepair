@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across **10 formats** (JSON
 
 ```toml
 [dependencies]
-anyrepair = "0.2.5"
+anyrepair = "0.2.6"
 ```
 
 ### Basic Usage
@@ -55,20 +55,25 @@ anyrepair validate --input input.json --format json
 
 ## What's New
 
-### v0.2.5 — Current
+### v0.2.6 — Current
 
-- **Properties & `.env` formats** — `PropertiesRepairer` and `EnvRepairer` in `key_value.rs` (with existing INI support)
-- **10 formats** in `SUPPORTED_FORMATS`; MCP exposes **12 tools** (`repair`, ten `repair_<format>`, `validate`)
-- Removed `ini` crate dependency; INI/properties/env share native key-value repair
+- **Minimal dependencies** — Runtime: `regex`, `thiserror`, `clap` only (no `serde`, `serde_json`, `serde_yaml`, `quick-xml`, `toml`, `csv`, or `ini` crates)
+- **`json_util` module** — Built-in JSON validation, escaping, and MCP payloads without external JSON libraries
+- **Heuristic validators** for XML, TOML, CSV, and YAML (structural checks instead of full parser crates)
 - **316 tests**, all passing (`cargo test`)
+
+### v0.2.5
+
+- **Properties & `.env` formats** — `PropertiesRepairer` and `EnvRepairer` in `key_value.rs`
+- **10 formats** in `SUPPORTED_FORMATS`; MCP exposes **12 tools**
+- Removed `ini` crate; INI/properties/env share native key-value repair
 
 ### v0.2.0–0.2.4 (highlights)
 
 - Centralized format registry and unified `repair --format` CLI
-- `format_detection` module; ~400 lines of duplicate dispatch removed
 - Python-compatible `jsonrepair()` / `JsonRepair` API
-- Diff/unified diff support; streaming for large files
-- Dependency cleanup (`pulldown-cmark`, `anyhow`, and others removed where unused)
+- Diff support and streaming for large files
+- Earlier dependency cleanup (`pulldown-cmark`, `anyhow`, and others)
 
 See [CHANGELOG.md](docs/CHANGELOG.md) for full version history.
 
@@ -86,10 +91,20 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 
 - Auto-detects format for 8 of 10 formats (properties and env need `--format`)
 - Deterministic heuristic repairs (no network, no ML)
+- Small dependency footprint (three runtime crates)
 - MCP server for Claude and other MCP clients
 - Streaming for large files
 - Python-compatible JSON API
-- 316 tests, zero failures in CI-style `cargo test`
+- 316 tests (`cargo test`)
+
+## Dependencies
+
+| Kind | Crates |
+|------|--------|
+| **Runtime** | `regex`, `thiserror`, `clap` |
+| **Dev** | `criterion`, `arbitrary`, `proptest` |
+
+Parsing and validation for JSON, XML, TOML, CSV, and YAML use in-crate heuristics and `json_util` rather than heavyweight parser dependencies.
 
 ## Usage Examples
 
@@ -192,6 +207,7 @@ See [MCP_SERVER.md](docs/MCP_SERVER.md) for setup details.
 - Strategy pipeline with priority ordering
 - Release profile optimized for size (`opt-level = "z"`, LTO, strip)
 - Streaming for files larger than RAM
+- Fewer transitive dependencies for faster builds and smaller binaries
 
 ```bash
 cargo build --release
@@ -223,6 +239,7 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 |---------|-----------|----------------|-------|-------------------|
 | **Multi-format** | 10 formats | JSON only | JSON only | JSON only |
 | **Auto-detection** | 8 formats | No | No | No |
+| **Lean deps** | 3 runtime crates | Varies | Varies | N/A |
 | **MCP** | Yes (12 tools) | No | No | No |
 | **Streaming** | Yes | No | No | No |
 | **Python JSON API** | Compatible | No | No | Native |

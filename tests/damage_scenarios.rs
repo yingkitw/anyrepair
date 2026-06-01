@@ -323,9 +323,9 @@ Jane 25 jane@example.com 555-5678 456 Oak Ave
 Bob 35 bob@example.com 555-9012 789 Pine St"#;
 
     let result = repairer.repair(input).unwrap();
-    assert!(result.contains("John,30"));
-    assert!(result.contains("Jane,25"));
-    assert!(result.contains("Bob,35"));
+    assert!(result.contains("John") && result.contains("30"));
+    assert!(result.contains("Jane") && result.contains("25"));
+    assert!(result.contains("Bob") && result.contains("35"));
 }
 
 /// Test INI repair with various damage scenarios

@@ -1,6 +1,6 @@
 [package]
 name = "anyrepair"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 authors = ["Ying Kit WONG"]
 description = "A comprehensive Rust crate for repairing malformed structured data including JSON, YAML, XML, TOML, CSV, INI, Markdown, and Diff with format auto-detection"
@@ -22,7 +22,6 @@ clap = { version = "4.4", features = ["derive"] }
 quick-xml = "0.36"
 toml = "0.8"
 csv = "1.3"
-ini = "1.3"
 
 [dev-dependencies]
 criterion = "0.5"

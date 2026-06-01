@@ -2,7 +2,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/yingkitw/anyrepair?style=social)](https://github.com/yingkitw/anyrepair)
 
-A Rust crate for repairing malformed structured data across multiple formats (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff).
+A Rust crate for repairing malformed structured data across **10 formats** (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Java properties, and `.env`).
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across multiple formats (JS
 
 ```toml
 [dependencies]
-anyrepair = "0.2.2"
+anyrepair = "0.2.5"
 ```
 
 ### Basic Usage
@@ -36,7 +36,9 @@ anyrepair repair input.json
 # Format-specific repair
 anyrepair repair input.json --format json
 anyrepair repair input.yaml --format yaml
-anyrepair repair input.md --format markdown
+anyrepair repair config.ini --format ini
+anyrepair repair app.properties --format properties
+anyrepair repair .env --format env
 
 # Show confidence score
 anyrepair repair input.json --format json --confidence
@@ -49,69 +51,45 @@ anyrepair stream --input large_file.json --output repaired.json --format json
 
 # Validation without repair
 anyrepair validate --input input.json --format json
-
-# Custom rules management
-anyrepair rules list
-
-# Show supported formats
-anyrepair stats
 ```
 
 ## What's New
 
-### v0.2.2 - Latest Release
+### v0.2.5 — Current
 
-**📝 Documentation & Maintenance**
-- Updated version to 0.2.2 with comprehensive documentation
-- Removed unused dependencies (pulldown-cmark, anyhow)
-- Enhanced README with GitHub star badge and feedback invitation
-- Added CHANGELOG entries for versions 0.1.6 through 0.2.2
-- Updated documentation index to reflect current project state
+- **Properties & `.env` formats** — `PropertiesRepairer` and `EnvRepairer` in `key_value.rs` (with existing INI support)
+- **10 formats** in `SUPPORTED_FORMATS`; MCP exposes **12 tools** (`repair`, ten `repair_<format>`, `validate`)
+- Removed `ini` crate dependency; INI/properties/env share native key-value repair
+- **316 tests**, all passing (`cargo test`)
 
-**🏗️ v0.2.0 - KISS/DRY/SoC Refactoring**
-- Centralized format registry: single source of truth for format→repairer/validator mapping
-- Unified CLI: `repair --format <fmt>` replaces 8 per-format subcommands
-- Extracted `format_detection` module for clean separation of concerns
-- Removed dead code (`BaseRepairer` trait, standalone `apply_strategies`)
-- ~400 lines of duplicated code eliminated
+### v0.2.0–0.2.4 (highlights)
 
-**🔧 8 Format Support**
-- JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff/Unified Diff
-- Auto-detection from malformed content
-- Format-specific validation and repair strategies
+- Centralized format registry and unified `repair --format` CLI
+- `format_detection` module; ~400 lines of duplicate dispatch removed
+- Python-compatible `jsonrepair()` / `JsonRepair` API
+- Diff/unified diff support; streaming for large files
+- Dependency cleanup (`pulldown-cmark`, `anyhow`, and others removed where unused)
 
-**🐍 Python-Compatible API**
-- Drop-in compatible with Python's `jsonrepair` library
-- `jsonrepair()` function and `JsonRepair` class API
-
-**🔌 MCP Server Integration**
-- Native Claude Desktop integration via MCP
-- 10 MCP tools for all 8 formats plus auto-detect and validate
-
-**⚡ Performance & Quality**
-- **318 test cases** with 100% pass rate
-- **99.6% improvement** from regex caching
-- **Streaming support** for files larger than RAM
-- **Zero compilation warnings**
-
-See [CHANGELOG.md](docs/CHANGELOG.md) for complete version history.
+See [CHANGELOG.md](docs/CHANGELOG.md) for full version history.
 
 ## Why AnyRepair?
 
 Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair fixes common issues:
 
 - **JSON**: Missing quotes, trailing commas, syntax errors
-- **YAML**: Indentation issues, missing colons
-- **Markdown**: Malformed headers, broken links
-- **XML/TOML/CSV/INI/Diff**: Format-specific repairs
+- **YAML**: Indentation, missing colons
+- **Markdown**: Headers, links, fences
+- **XML / TOML / CSV / INI / Diff**: Format-specific repairs
+- **Properties / `.env`**: Key=value lines, sections, escaping (explicit `--format`)
 
-**Key Features:**
-- ✅ Auto-detects format from damaged content
-- ✅ Multi-format support (8 formats)
-- ✅ High performance (regex caching, optimized binaries)
-- ✅ MCP server for Claude integration
-- ✅ Streaming support for large files
-- ✅ 318 tests, 100% pass rate
+**Key features:**
+
+- Auto-detects format for 8 of 10 formats (properties and env need `--format`)
+- Deterministic heuristic repairs (no network, no ML)
+- MCP server for Claude and other MCP clients
+- Streaming for large files
+- Python-compatible JSON API
+- 316 tests, zero failures in CI-style `cargo test`
 
 ## Usage Examples
 
@@ -120,18 +98,18 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 ```rust
 use anyrepair::repair;
 
-// JSON - auto-detected and repaired
 let json = repair(r#"{"key": value,}"#)?;
-// Output: {"key": "value"}
-
-// YAML - auto-detected and repaired
 let yaml = repair("name: John\nage: 30")?;
-
-// Markdown - auto-detected and repaired
 let markdown = repair("# Header\n[link](url")?;
+```
 
-// Diff - auto-detected and repaired
-let diff = repair("@@ -1,3 +1,4 @@\n-line 1\n+line 1 modified")?;
+### Explicit key-value formats
+
+```rust
+use anyrepair::repair_with_format;
+
+let props = repair_with_format("db.url jdbc:postgresql://localhost", "properties")?;
+let env = repair_with_format("API_KEY = secret", "env")?;
 ```
 
 ### Python-Compatible JSON API
@@ -139,13 +117,10 @@ let diff = repair("@@ -1,3 +1,4 @@\n-line 1\n+line 1 modified")?;
 ```rust
 use anyrepair::{jsonrepair, JsonRepair};
 
-// Function-based API (like Python's jsonrepair)
 let repaired = jsonrepair(r#"{"name": "John", age: 30,}"#)?;
 
-// Class-based API (like Python's JsonRepair class)
 let mut jr = JsonRepair::new();
-let repaired1 = jr.jsonrepair(r#"{"key": "value",}"#)?;
-let repaired2 = jr.jsonrepair(r#"{name: "John"}"#)?;
+let repaired = jr.jsonrepair(r#"{name: "John"}"#)?;
 ```
 
 ### Format-Specific Repairers
@@ -153,18 +128,11 @@ let repaired2 = jr.jsonrepair(r#"{name: "John"}"#)?;
 ```rust
 use anyrepair::{create_repairer, repair_with_format, traits::Repair};
 
-// Via registry (recommended)
 let mut repairer = create_repairer("json")?;
 let repaired = repairer.repair(malformed_json)?;
 let confidence = repairer.confidence(&repaired);
 
-// Shorthand
 let repaired = repair_with_format(malformed_yaml, "yaml")?;
-
-// Direct struct usage still works
-use anyrepair::json::JsonRepairer;
-let mut json_repairer = JsonRepairer::new();
-let repaired = json_repairer.repair(malformed_json)?;
 ```
 
 ### Streaming Large Files
@@ -177,55 +145,19 @@ use std::io::BufReader;
 let input = BufReader::new(File::open("large_file.json")?);
 let mut output = File::create("repaired.json")?;
 
-// Configure buffer size (default 8192 bytes)
 let processor = StreamingRepair::with_buffer_size(65536);
-
-// Process with automatic format detection
-processor.process(input, &mut output, None)?;
-
-// Or specify format explicitly
 processor.process(input, &mut output, Some("json"))?;
-```
-
-### Batch Processing
-
-```rust
-use anyrepair::BatchProcessor;
-
-let processor = BatchProcessor::new();
-
-// Process directory with options
-let results = processor.process_directory(
-    "./data",
-    true,  // recursive
-    "*.json",  // file filter
-)?;
-
-// Get per-file results
-for result in results {
-    println!("{}: {:?} ({}ms)",
-        result.file_path,
-        result.status,
-        result.repair_time_ms
-    );
-}
-
-// Get analytics
-let analytics = processor.get_analytics();
-println!("Success rate: {}%", analytics.success_rate());
 ```
 
 ### MCP Server Integration
 
-The MCP server provides seamless integration with Claude Desktop:
-
 ```bash
-# Install and run MCP server
 cargo install anyrepair
 anyrepair-mcp
 ```
 
-**Configure in `claude_desktop_config.json`:**
+**`claude_desktop_config.json`:**
+
 ```json
 {
   "mcpServers": {
@@ -236,162 +168,92 @@ anyrepair-mcp
 }
 ```
 
-**Available MCP Tools:**
-- `repair` - Auto-detect and repair any format
-- `repair_json`, `repair_yaml`, `repair_markdown`, `repair_xml`
-- `repair_toml`, `repair_csv`, `repair_ini`, `repair_diff`
-- `validate` - Validate content without repair
+**Tools:** `repair`, `repair_json`, `repair_yaml`, `repair_markdown`, `repair_xml`, `repair_toml`, `repair_csv`, `repair_ini`, `repair_diff`, `repair_properties`, `repair_env`, `validate`.
 
-**Usage in Claude:**
-```
-Please repair this JSON: {"name": "John", age: 30,}
-(Claude will use the anyrepair MCP tool to fix it)
-```
-
-See [MCP_SERVER.md](docs/MCP_SERVER.md) for complete documentation.
+See [MCP_SERVER.md](docs/MCP_SERVER.md) for setup details.
 
 ## Supported Formats
 
-| Format | Common Issues Fixed |
-|--------|---------------------|
-| **JSON** | Missing quotes, trailing commas, malformed numbers, boolean/null values |
-| **YAML** | Indentation, missing colons, list formatting, document separators |
-| **Markdown** | Headers, code blocks, lists, tables, links, images |
-| **XML** | Unclosed tags, malformed attributes, missing quotes, entity encoding |
-| **TOML** | Missing quotes, malformed arrays, table headers, dates |
-| **CSV** | Unquoted strings, malformed quotes, extra/missing commas |
-| **INI** | Malformed sections, missing equals signs, unquoted values |
-| **Diff** | Missing hunk headers, incorrect line prefixes, malformed ranges |
-
-## Advanced Features
-
-### Custom Rules
-
-```bash
-# Add custom repair rule via CLI
-anyrepair rules add --id "fix_undefined" --format "json" \
-  --pattern "undefined" --replacement "null" --priority 90
-
-# List all rules
-anyrepair rules list
-
-# Enable/disable rules
-anyrepair rules enable "fix_undefined"
-anyrepair rules disable "fix_undefined"
-
-# Remove a rule
-anyrepair rules remove "fix_undefined"
-```
-
-**Configuration file (anyrepair.toml):**
-```toml
-# Custom rules configuration
-[[rules]]
-id = "fix_trailing_comma"
-format = "json"
-pattern = ",\\s*}"
-replacement = "}"
-priority = 95
-
-[[rules]]
-id = "fix_js_comments"
-format = "json"
-pattern = "//.*\\n"
-replacement = ""
-priority = 80
-```
+| Format | Common issues fixed | Auto-detect |
+|--------|---------------------|-------------|
+| **JSON** | Quotes, commas, booleans/null | Yes |
+| **YAML** | Indentation, colons, lists | Yes |
+| **Markdown** | Headers, links, fences | Yes |
+| **XML** | Tags, attributes, entities | Yes |
+| **TOML** | Quotes, arrays, tables | Yes |
+| **CSV** | Quoting, commas | Yes |
+| **INI** | Sections, `=` signs | Yes |
+| **Diff** | Hunk headers, line prefixes | Yes |
+| **Properties** | `key=value`, escaping, continuations | Use `--format properties` |
+| **Env** | `KEY=value`, comments, quoting | Use `--format env` |
 
 ## Performance
 
-- **Regex Caching**: 99.6% performance improvement over uncached operations
-- **Optimized Binaries**: 1.5 MB release builds (94% size reduction)
-- **Streaming**: Process files larger than available RAM using configurable buffers
-- **Lazy Evaluation**: Skip unnecessary strategies for faster repairs
+- Strategy pipeline with priority ordering
+- Release profile optimized for size (`opt-level = "z"`, LTO, strip)
+- Streaming for files larger than RAM
 
-**Build Profiles:**
 ```bash
-# Standard release (size-optimized)
 cargo build --release
-
-# Distribution profile (maximum optimization)
-cargo build --profile dist
+cargo build --profile dist   # distribution profile in Cargo.toml
 ```
 
 ## Testing
 
-- **318 test cases** with 100% pass rate
-  - 137 library tests (incl. format repairers, validators)
-  - 35 diff tests
-  - 34 fuzz tests
-  - 26 streaming tests
-  - 18 complex damage tests
-  - 18 complex streaming tests
-  - 18 damage scenarios
-  - 17 integration tests
-  - 15 CLI tests
-- **Fuzz testing** using proptest for robustness
-- **Integration tests** for end-to-end workflows
+```bash
+cargo test
+```
 
-See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for details.
+| Suite | Tests |
+|-------|------:|
+| Library / modules | 135 |
+| CLI | 15 |
+| Integration | 17 |
+| Diff | 35 |
+| Fuzz (proptest) | 34 |
+| Streaming | 26 |
+| Damage + complex damage + complex streaming | 54 |
+| **Total** | **316** |
+
+See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 
 ## Comparison
 
 | Feature | AnyRepair | json-repair-rs | json5 | Python jsonrepair |
 |---------|-----------|----------------|-------|-------------------|
-| **Multi-format** | ✅ 8 formats | ❌ JSON only | ❌ JSON only | ❌ JSON only |
-| **Auto-detection** | ✅ Smart detection | ❌ | ❌ | ❌ |
-| **MCP integration** | ✅ Native | ❌ | ❌ | ❌ |
-| **Streaming** | ✅ Large file support | ❌ | ❌ | ❌ |
-| **Custom rules** | ✅ CLI + API | ❌ | ❌ | ❌ |
-| **Python API** | ✅ Compatible | ❌ | ❌ | ✅ Native |
+| **Multi-format** | 10 formats | JSON only | JSON only | JSON only |
+| **Auto-detection** | 8 formats | No | No | No |
+| **MCP** | Yes (12 tools) | No | No | No |
+| **Streaming** | Yes | No | No | No |
+| **Python JSON API** | Compatible | No | No | Native |
 | **Language** | Rust | Rust | Rust | Python |
-| **Binary size** | 1.5 MB | ~500 KB | ~200 KB | N/A |
-
-**Why AnyRepair?**
-- Most comprehensive format support (8 formats vs JSON-only alternatives)
-- Only Rust crate with Python-compatible API and MCP integration
-- Battle-tested with 318 tests covering real-world failures
-- Zero compilation warnings
 
 ## Documentation
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design and architecture
-- **[MCP_SERVER.md](docs/MCP_SERVER.md)** - MCP server integration guide
-- **[TEST_SUMMARY.md](docs/TEST_SUMMARY.md)** - Test coverage details
-- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history and changes
-- **[INDEX.md](docs/INDEX.md)** - Complete documentation index
-- **[STREAMING_FEATURE.md](docs/STREAMING_FEATURE.md)** - Streaming support details
-- **[BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md)** - Build optimization guide
+| Doc | Description |
+|-----|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design |
+| [SPEC.md](SPEC.md) | Technical specification |
+| [TODO.md](TODO.md) | Roadmap |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history |
+| [docs/MCP_SERVER.md](docs/MCP_SERVER.md) | MCP integration |
+| [docs/TEST_SUMMARY.md](docs/TEST_SUMMARY.md) | Test breakdown |
+| [docs/INDEX.md](docs/INDEX.md) | Documentation index |
 
-### Quick Links
-
-- **Report Issues**: [GitHub Issues](https://github.com/yingkitw/anyrepair/issues)
-- **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md) (if available)
-- **Changelog**: [CHANGELOG.md](docs/CHANGELOG.md)
-- **API Docs**: [docs.rs](https://docs.rs/anyrepair)
+**Links:** [GitHub Issues](https://github.com/yingkitw/anyrepair/issues) · [crates.io](https://crates.io/crates/anyrepair) · [docs.rs](https://docs.rs/anyrepair)
 
 ## Examples
 
-See the [examples/](examples/) directory for:
-
-- **[mcp_repair_json.rs](examples/mcp_repair_json.rs)** - MCP JSON repair usage
-- **[mcp_multi_format.rs](examples/mcp_multi_format.rs)** - Multi-format MCP repair
-- **[mcp_server_usage.rs](examples/mcp_server_usage.rs)** - MCP server setup and usage
-
-Run examples:
 ```bash
 cargo run --example mcp_repair_json
+cargo run --example mcp_multi_format
 ```
+
+See [examples/](examples/) and [examples/README.md](examples/README.md).
 
 ## Roadmap
 
-See [TODO.md](TODO.md) for planned features and improvement areas. Highlights include:
-
-- Additional format support (Properties, .env, Protobuf)
-- CLI enhancements (diff preview, dry-run, colored output)
-- Web interface and REST API
-- Language bindings (Python, Node.js, Go)
-- Format-preserving repairs, repair explanations
+See [TODO.md](TODO.md) for planned work (Protobuf, CLI polish, web/API, format-preserving repairs, and more).
 
 ## License
 
@@ -399,8 +261,6 @@ Apache-2.0
 
 ## Repository
 
-**⭐ If you find AnyRepair useful, please consider starring the repo on GitHub!** It helps others discover the project and motivates continued development.
-
-**💬 Feedback welcome!** Share your experience, suggestions, or report issues via [GitHub Issues](https://github.com/yingkitw/anyrepair/issues), or leave a review on [crates.io](https://crates.io/crates/anyrepair).
+**If AnyRepair helps you, consider starring the repo on GitHub** — it helps others find the project.
 
 https://github.com/yingkitw/anyrepair

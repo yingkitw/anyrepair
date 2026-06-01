@@ -2,46 +2,52 @@
 
 ## Overview
 
-AnyRepair is a deterministic, heuristic-based Rust library and CLI tool for repairing malformed structured data across 8 formats. It uses pattern matching and rule-based strategies — no machine learning or external API calls.
+AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing malformed structured data. It uses pattern matching and ordered repair strategies—no machine learning and no external API calls.
 
-## Supported Formats
+**Current version:** 0.2.5 (Rust edition 2024).
 
-| Format   | Module          | Aliases     |
-|----------|-----------------|-------------|
-| JSON     | `json.rs`       | —           |
-| YAML     | `yaml.rs`       | `yml`       |
-| Markdown | `markdown.rs`   | `md`        |
-| XML      | `xml.rs`        | —           |
-| TOML     | `toml.rs`       | —           |
-| CSV      | `csv.rs`        | —           |
-| INI      | `ini.rs`        | —           |
-| Diff     | `diff.rs`       | —           |
+## Supported formats
 
-## Core Architecture
+| Format | Module | Aliases | Auto-detect |
+|--------|--------|---------|-------------|
+| JSON | `json.rs` | — | Yes |
+| YAML | `yaml.rs` | `yml` | Yes |
+| Markdown | `markdown.rs` | `md` | Yes |
+| XML | `xml.rs` | — | Yes |
+| TOML | `toml.rs` | — | Yes |
+| CSV | `csv.rs` | — | Yes |
+| INI | `key_value.rs` | — | Yes |
+| Diff | `diff.rs` | — | Yes |
+| Properties | `key_value.rs` | — | No (explicit format) |
+| Env | `key_value.rs` | `.env` | No (explicit format) |
 
-### Format Registry (Single Source of Truth)
-
-All format→repairer/validator mapping is centralized in `lib.rs`:
+## Public API (`src/lib.rs`)
 
 ```rust
 pub const SUPPORTED_FORMATS: &[&str];
+
 pub fn normalize_format(format: &str) -> &str;
 pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>>;
 pub fn create_validator(format: &str) -> Result<Box<dyn Validator>>;
 pub fn detect_format(content: &str) -> Option<&'static str>;
 pub fn repair(content: &str) -> Result<String>;
 pub fn repair_with_format(content: &str, format: &str) -> Result<String>;
+pub fn jsonrepair(json_str: &str) -> Result<String>;
 ```
 
-Adding a new format requires changes in **3 places only**:
-1. `SUPPORTED_FORMATS` constant
-2. `create_repairer()` match arm
-3. `create_validator()` match arm
-4. Detection heuristic in `format_detection.rs`
+Re-exports include format repairers (`JsonRepairer`, `IniRepairer`, `PropertiesRepairer`, `EnvRepairer`, …), `StreamingRepair`, `AnyrepairMcpServer`, `RepairError`, and `Repair`.
 
-No CLI changes needed — the unified `repair --format` command picks up new formats automatically.
+### Registry extension
 
-### Traits
+To add a format:
+
+1. Add name to `SUPPORTED_FORMATS`.
+2. Add arms in `create_repairer()` and `create_validator()`.
+3. Implement repairer + validator (typically via `GenericRepairer`).
+4. Optionally add `format_detection` heuristic.
+5. Add tests; MCP tools are generated from `SUPPORTED_FORMATS` automatically.
+
+## Traits
 
 ```rust
 pub trait Repair {
@@ -62,68 +68,60 @@ pub trait Validator {
 }
 ```
 
-### Repairer Composition
+## Repairer composition
 
-Each format repairer wraps `GenericRepairer` (composition, not inheritance):
+Format repairers compose `GenericRepairer` (not inheritance):
 
 ```
 FormatRepairer {
     inner: GenericRepairer {
         strategies: Vec<Box<dyn RepairStrategy>>,
         validator: Box<dyn Validator>,
-        repair_log: Vec<String>,
     }
 }
 ```
 
-- `repair()` and `needs_repair()` delegate to `GenericRepairer`
-- `confidence()` has format-specific scoring logic per repairer
+- `repair()` / `needs_repair()` delegate to the inner pipeline.
+- `confidence()` may use format-specific logic on the outer type.
 
-### Format Detection
+## Format detection
 
-`format_detection.rs` contains all heuristic detection logic. Detection order:
+Implemented in `format_detection.rs`. Detection order:
 
-1. **JSON** — starts with `{`/`[`
-2. **Diff** — `@@` hunk headers, paired `---`/`+++` file headers
-3. **YAML** — `:`, `---` document separator
-4. **XML** — `<?xml`, `<tag>`
-5. **TOML** — `[section]`, `key = value`
-6. **CSV** — commas + multiple lines
-7. **INI** — `[section]`, `key = value` (no commas/colons)
-8. **Markdown** — `#`, `` ` ``, `**`, `*`
+1. JSON — `{` / `[`
+2. Diff — `@@` hunks, `---` / `+++` headers (before YAML/CSV)
+3. YAML — `:`, `---`
+4. XML — `<?xml`, tags
+5. TOML — `[table]`, `key = value`
+6. CSV — commas across lines
+7. INI — sections and `key=value` without YAML/TOML/CSV signals
+8. Markdown — headers, fences, emphasis
 
-Diff is checked before YAML/CSV to avoid false positives (diff content contains colons and commas).
+`properties` and `env` require an explicit format argument.
 
-## CLI Interface
+If `repair()` cannot detect a format, it uses the Markdown repairer as fallback.
 
-Single unified command for all formats:
+## CLI
 
 ```
 anyrepair repair [FILE] [--format <fmt>] [--confidence] [--input <file>] [--output <file>]
 anyrepair validate [--input <file>] [--format <fmt>]
 anyrepair stream [--input <file>] [--output <file>] [--format <fmt>] [--buffer-size <bytes>]
 anyrepair batch --input <dir> --output <dir> [--pattern <glob>] [--recursive]
-anyrepair stats
-anyrepair rules <action>
 ```
 
-- `--format` accepts any value from `SUPPORTED_FORMATS` plus aliases (`yml`, `md`)
-- Without `--format`, auto-detection is used
-- `--confidence` prints repair confidence score (0–100%)
-- `--verbose` / `--quiet` flags control output verbosity
+- `--format` accepts `SUPPORTED_FORMATS` plus `yml`, `md`.
+- Without `--format`, repair uses auto-detection where supported.
+- `--confidence` prints a repair confidence score (0–100%).
 
 ## Streaming
 
-`StreamingRepair` processes large files line-by-line with configurable buffer size:
-
 ```rust
 let processor = StreamingRepair::with_buffer_size(65536);
-processor.process(reader, &mut writer, "json")?;
+processor.process(reader, &mut writer, Some("json"))?;
 ```
 
-## Python-Compatible API
-
-Drop-in replacement for Python's `jsonrepair` library:
+## Python-compatible JSON API
 
 ```rust
 pub fn jsonrepair(json_str: &str) -> Result<String>;
@@ -135,7 +133,13 @@ impl JsonRepair {
 }
 ```
 
-## Error Handling
+## MCP
+
+- Binary: `anyrepair-mcp`
+- **12 tools:** `repair`, `repair_<format>` × 10, `validate`
+- JSON-line protocol on stdin/stdout
+
+## Error handling
 
 ```rust
 pub enum RepairError {
@@ -151,79 +155,64 @@ pub enum RepairError {
 }
 ```
 
-All public functions return `Result<T>` using this error type.
+Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 
-## Design Principles
+## Design principles
 
-- **DRY**: Centralized format registry eliminates duplicated dispatch logic
-- **SoC**: Format detection, repair logic, CLI, and validation are in separate modules
-- **KISS**: One `repair --format` command instead of per-format subcommands
-- **Deterministic**: All repairs are heuristic/pattern-based, no ML or external calls
-- **Composition over inheritance**: `GenericRepairer` composed into format repairers via `inner` field
-- **Test-friendly**: Trait-based design enables easy mocking and isolated testing
+- **DRY:** Central registry for dispatch.
+- **SoC:** Detection, repair, CLI, and validation in separate modules.
+- **KISS:** One `repair --format` command for all formats.
+- **Deterministic:** Heuristic repairs only.
+- **Composition:** `GenericRepairer` shared across formats.
+- **Test-friendly:** Trait-based boundaries.
 
 ## Testing
 
-318 tests across multiple categories:
+| Category | Count | Location |
+|----------|------:|----------|
+| Library / module tests | 135 | `src/**/*.rs` |
+| CLI | 15 | `tests/cli_tests.rs` |
+| Integration | 17 | `tests/integration_tests.rs` |
+| Diff | 35 | `tests/diff_tests.rs` |
+| Fuzz (proptest) | 34 | `tests/fuzz_tests.rs` |
+| Streaming | 26 | `tests/streaming_tests.rs` |
+| Damage scenarios | 18 | `tests/damage_scenarios.rs` |
+| Complex damage | 18 | `tests/complex_damage_tests.rs` |
+| Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
+| **Total** | **316** | `cargo test` |
 
-| Category              | Count | Location                        |
-|-----------------------|-------|---------------------------------|
-| Library unit tests    | 137   | `src/*.rs` `#[cfg(test)]`       |
-| Diff tests            | 35    | `tests/diff_tests.rs`           |
-| Fuzz tests            | 34    | `tests/fuzz_tests.rs`           |
-| Streaming tests       | 26    | `tests/streaming_tests.rs`      |
-| Damage scenarios      | 18    | `tests/damage_scenarios.rs`     |
-| Complex damage        | 18    | `tests/complex_damage_tests.rs` |
-| Complex streaming     | 18    | `tests/complex_streaming_tests.rs` |
-| Integration tests     | 17    | `tests/integration_tests.rs`    |
-| CLI tests             | 15    | `tests/cli_tests.rs`            |
+## Dependencies (runtime)
 
-All tests pass. Zero failures, zero binary warnings.
+| Crate | Purpose |
+|-------|---------|
+| `serde`, `serde_json`, `serde_yaml` | JSON/YAML |
+| `quick-xml` | XML |
+| `toml`, `csv` | TOML, CSV |
+| `regex` | Patterns |
+| `thiserror` | Errors |
+| `clap` | CLI |
 
-## Dependencies
+Dev: `criterion`, `tempfile`, `arbitrary`, `proptest`.
 
-| Crate          | Purpose                    |
-|----------------|----------------------------|
-| `serde`        | Serialization framework    |
-| `serde_json`   | JSON parsing/validation    |
-| `serde_yaml`   | YAML parsing/validation    |
-| `pulldown-cmark` | Markdown parsing         |
-| `regex`        | Pattern matching           |
-| `thiserror`    | Error type derivation      |
-| `anyhow`       | Error context              |
-| `clap`         | CLI argument parsing       |
-| `rmcp`         | MCP server protocol        |
-
-## File Structure
+## Source layout
 
 ```
 src/
-├── lib.rs                 # Public API, format registry
-├── main.rs                # CLI entry point
-├── format_detection.rs    # Format detection heuristics
-├── traits.rs              # Repair, RepairStrategy, Validator traits
-├── repairer_base.rs       # GenericRepairer (shared repair logic)
-├── error.rs               # Error types
-├── json.rs                # JSON repairer + strategies + validator
-├── yaml.rs                # YAML repairer
-├── markdown.rs            # Markdown repairer
-├── xml.rs                 # XML repairer
-├── toml.rs                # TOML repairer
-├── csv.rs                 # CSV repairer
-├── ini.rs                 # INI repairer
-├── diff.rs                # Diff repairer
-├── streaming.rs           # Streaming repair for large files
-├── mcp_server.rs          # MCP server implementation
-├── cli/                   # CLI command handlers
-│   ├── mod.rs             # I/O utilities
-│   ├── repair_cmd.rs      # Unified repair handler
-│   ├── validate_cmd.rs    # Validation handler
-│   ├── batch_cmd.rs       # Batch processing
-│   ├── stream_cmd.rs      # Streaming handler
-│   └── rules_cmd.rs       # Rules management
-├── advanced.rs            # Advanced repair features
-├── enhanced_json.rs       # Enhanced JSON (json.loads compat)
-├── context_parser.rs      # Context-aware string parsing
-├── config.rs              # Configuration management
-└── custom_rules.rs        # Custom rule engine
+├── lib.rs
+├── main.rs
+├── bin/mcp_server.rs
+├── format_detection.rs
+├── traits.rs
+├── repairer_base.rs
+├── error.rs
+├── json.rs, yaml.rs, markdown.rs, xml.rs, toml.rs, csv.rs, diff.rs
+├── key_value.rs          # ini, properties, env
+├── streaming.rs
+├── mcp_server.rs
+└── cli/
+    ├── mod.rs
+    ├── repair_cmd.rs
+    ├── validate_cmd.rs
+    ├── batch_cmd.rs
+    └── stream_cmd.rs
 ```

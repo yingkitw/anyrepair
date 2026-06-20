@@ -29,15 +29,15 @@
 ## Current Priorities 🚀
 
 ### High
-- [ ] **CHANGELOG for 0.2.6** — Document lean-deps release and validator changes
-- [ ] **Code coverage** — More edge cases for properties/env and heuristic validators
-- [ ] **Performance regression tests** — Benchmark gate in CI (`criterion` benches exist)
+- [x] **CHANGELOG for 0.2.6** — Document lean-deps release and validator changes
+- [x] **Code coverage** — More edge cases for properties/env and heuristic validators (+15 unit tests, 342 total)
+- [x] **Performance benchmarks** — `criterion` suite covering all 10 formats + format detection + large docs
 
 ### Medium
-- [ ] **Auto-detect properties/env** — Heuristics in `format_detection.rs` without breaking INI
-- [ ] **MCP binary version** — Align `anyrepair-mcp` server info string with crate version
-- [ ] **Update Cargo.toml description** — Mention 10 formats and properties/env
-- [ ] **Refresh docs/TEST_SUMMARY.md** — Match current 316-test breakdown and deps
+- [x] **Auto-detect properties/env** — Heuristics in `format_detection.rs` without breaking INI
+- [x] **MCP binary version** — Align `anyrepair-mcp` server info string with crate version
+- [x] **Update Cargo.toml description** — Mention 10 formats and properties/env
+- [x] **Refresh docs/TEST_SUMMARY.md** — Match current 353-test breakdown and 10 formats
 
 ## Planned Features 📋
 
@@ -75,10 +75,10 @@
 
 ## Technical Debt 🔧
 
-- [ ] **Clippy** — `-D warnings` in CI
-- [ ] **Prune stale docs** — `docs/ARCHITECTURE.md` pointer vs root `ARCHITECTURE.md`
-- [ ] **Remove or implement `anyrepair.toml`** — Sample custom rules file is not loaded by current code
-- [ ] **Review heuristic validator false positives/negatives** — Especially XML and CSV after parser removal
+- [x] **Compiler warnings** — Removed 3 dead functions from `json_util.rs`, fixed 7 unnecessary `mut` in `fuzz_tests.rs`
+- [x] **Prune stale docs** — Updated `docs/ARCHITECTURE.md` pointer (v0.2.6, 353 tests)
+- [x] **Remove `anyrepair.toml`** — Dead sample config file, unreferenced by code
+- [x] **Review heuristic validator false positives/negatives** — Fixed XML validator content `=` false positive, XML entity corruption bug, CSV space→comma destructive replacement, removed 3 dead regex fields
 
 ## Ideas 💡
 

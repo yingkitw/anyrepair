@@ -156,9 +156,9 @@ impl RepairStrategy for FixQuotedValuesStrategy {
             if let Some(eq_pos) = trimmed.find('=') {
                 let value = trimmed[eq_pos + 1..].trim();
                 if value.starts_with('"') && !value.ends_with('"') {
-                    result.push(format!("{}=\"{}\"", &trimmed[..=eq_pos], &value[1..]));
+                    result.push(format!("{}=\"{}\"", &trimmed[..eq_pos], &value[1..]));
                 } else if value.starts_with('\'') && !value.ends_with('\'') {
-                    result.push(format!("{}='{}'", &trimmed[..=eq_pos], &value[1..]));
+                    result.push(format!("{}='{}'", &trimmed[..eq_pos], &value[1..]));
                 } else if value.ends_with('"') && !value.starts_with('"') {
                     result.push(format!(
                         "{}\"{}\"",
@@ -709,5 +709,123 @@ mod tests {
             r.confidence("DATABASE_URL=postgresql://localhost/mydb\nAPI_KEY=secret_key") >= 0.5
         );
         assert!(r.confidence("some random text") < 0.5);
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let mut r = IniRepairer::new();
+        assert!(r.repair("").unwrap().is_empty());
+        let mut r = EnvRepairer::new();
+        assert!(r.repair("").unwrap().is_empty());
+        let mut r = PropertiesRepairer::new();
+        assert!(r.repair("").unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_whitespace_only_lines() {
+        let mut r = IniRepairer::new();
+        assert_eq!(r.repair("  \n\t\n  ").unwrap(), "");
+    }
+
+    #[test]
+    fn test_multiple_equals_in_value() {
+        let mut r = EnvRepairer::new();
+        let result = r.repair("A=b=c=d").unwrap();
+        assert!(result.contains("A=b=c=d"));
+    }
+
+    #[test]
+    fn test_quoted_values_unmatched() {
+        let mut r = PropertiesRepairer::new();
+        // Make input invalid so strategies run; 'noquote' has no '='
+        let result = r.repair("key=\"unclosed\nnoquote").unwrap();
+        assert!(result.contains(r#"key="unclosed""#));
+    }
+
+    #[test]
+    fn test_whitespace_around_equals() {
+        let mut r = PropertiesRepairer::new();
+        // Make input invalid (line without =) so strategies run
+        let result = r.repair("key  =  value\nbad line").unwrap();
+        assert!(result.contains("key=value"));
+    }
+
+    #[test]
+    fn test_malformed_comment_repair() {
+        let mut r = IniRepairer::new();
+        // Invalid INI (space without =) triggers strategies; comment line is normalized
+        let result = r.repair("text # comment\n=val").unwrap();
+        // After FixMalformedKeysStrategy: "text = # comment", then FixWhitespaceAroundEqualsStrategy
+        assert!(result.contains("text=# comment") || result.contains("text = # comment"));
+    }
+
+    #[test]
+    fn test_remove_duplicate_sections() {
+        let mut r = IniRepairer::new();
+        // Make input invalid ('bad line' no '=') so strategies run, with duplicate sections
+        let result = r.repair("[sec]\nbad line\n[sec]\n=2").unwrap();
+        assert_eq!(result.matches("[sec]").count(), 1);
+    }
+
+    #[test]
+    fn test_add_default_section() {
+        let mut r = IniRepairer::new();
+        // Input must be invalid to trigger strategies; 'bad line' makes it invalid
+        let result = r.repair("=value\nbad line").unwrap();
+        assert!(result.contains("[default]"));
+    }
+
+    #[test]
+    fn test_needs_repair() {
+        let r = IniRepairer::new();
+        assert!(r.needs_repair("key value"));
+        assert!(!r.needs_repair("[sec]\nkey=value"));
+    }
+
+    #[test]
+    fn test_validator_validate_errors() {
+        let v = IniValidator;
+        let errors = v.validate("[section\nkey=value");
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("Malformed section header"));
+
+        let v = EnvValidator;
+        let errors = v.validate("KEY\n=empty");
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.contains("Missing '='")));
+        assert!(errors.iter().any(|e| e.contains("Empty key")));
+
+        let v = PropertiesValidator;
+        let errors = v.validate("no_equals");
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn test_properties_confidence() {
+        let r = PropertiesRepairer::new();
+        assert!(r.confidence("app.name=value\napp.version=1.0") >= 0.5);
+        assert_eq!(r.confidence(""), 0.0);
+    }
+
+    #[test]
+    fn test_ini_confidence() {
+        let r = IniRepairer::new();
+        assert!(r.confidence("[section]\nkey=value") >= 0.5);
+        assert_eq!(r.confidence(""), 0.0);
+    }
+
+    #[test]
+    fn test_unicode_keys_and_values() {
+        let mut r = PropertiesRepairer::new();
+        let result = r.repair("键=值\nemoji=🚀").unwrap();
+        assert!(result.contains("键=值"));
+        assert!(result.contains("emoji=🚀"));
+    }
+
+    #[test]
+    fn test_backslash_continuation_in_properties() {
+        let mut r = PropertiesRepairer::new();
+        let result = r.repair("key=value \\\n continued").unwrap();
+        assert!(result.contains("key=value"));
     }
 }

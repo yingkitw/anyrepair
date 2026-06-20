@@ -6,13 +6,10 @@ use regex::Regex;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for CSV performance optimization
-#[allow(dead_code)]
 struct CsvRegexCache {
     unquoted_strings: Regex,
     malformed_quotes: Regex,
-    missing_quotes: Regex,
     extra_commas: Regex,
-    missing_commas: Regex,
 }
 
 impl CsvRegexCache {
@@ -20,9 +17,7 @@ impl CsvRegexCache {
         Ok(Self {
             unquoted_strings: Regex::new(r#"^([^",\n]+)$"#)?,
             malformed_quotes: Regex::new(r#""([^"]*)"([^",\n])"#)?,
-            missing_quotes: Regex::new(r#"\b([^",\n]*\s+[^",\n]*)\b"#)?,
             extra_commas: Regex::new(r#",\s*,"#)?,
-            missing_commas: Regex::new(r#"[^,\n]\s+[^,\n]"#)?,
         })
     }
 }
@@ -327,20 +322,31 @@ impl RepairStrategy for FixExtraCommasStrategy {
     }
 }
 
-/// Strategy to fix missing commas
+/// Strategy to fix missing commas (space-separated fields without commas)
 struct FixMissingCommasStrategy;
 
 impl RepairStrategy for FixMissingCommasStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_csv_regex_cache();
-        let result = cache
-            .missing_commas
-            .replace_all(content, |caps: &regex::Captures| {
-                let content = &caps[0];
-                content.replace(' ', ",")
-            });
-
-        Ok(result.to_string())
+        let mut out = Vec::new();
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                out.push(line.to_string());
+                continue;
+            }
+            // Only add commas if line has no commas and multiple whitespace-separated tokens
+            if !trimmed.contains(',') {
+                let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+                if tokens.len() > 1 {
+                    out.push(tokens.join(","));
+                } else {
+                    out.push(trimmed.to_string());
+                }
+            } else {
+                out.push(trimmed.to_string());
+            }
+        }
+        Ok(out.join("\n"))
     }
 
     fn priority(&self) -> u8 {

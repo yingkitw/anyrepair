@@ -19,6 +19,10 @@ pub fn detect_format(content: &str) -> Option<&'static str> {
         Some("toml")
     } else if is_csv_like(trimmed) {
         Some("csv")
+    } else if is_env_like(trimmed) {
+        Some("env")
+    } else if is_properties_like(trimmed) {
+        Some("properties")
     } else if is_ini_like(trimmed) {
         Some("ini")
     } else if is_markdown_like(trimmed) {
@@ -31,7 +35,8 @@ pub fn detect_format(content: &str) -> Option<&'static str> {
 /// All `is_*_like` helpers expect **outer** whitespace already trimmed (as `detect_format` does).
 fn is_json_like(trimmed: &str) -> bool {
     (trimmed.starts_with('{') && (trimmed.ends_with('}') || trimmed.contains(':')))
-        || (trimmed.starts_with('[') && (trimmed.ends_with(']') || trimmed.contains(',')))
+        || trimmed == "[]"
+        || (trimmed.starts_with('[') && (trimmed.contains(',') || trimmed.contains('"') || trimmed.contains('\'')))
 }
 
 fn is_yaml_like(trimmed: &str) -> bool {
@@ -55,17 +60,19 @@ fn is_xml_like(trimmed: &str) -> bool {
 }
 
 fn is_toml_like(trimmed: &str) -> bool {
-    if trimmed.starts_with('[') {
-        return true;
-    }
     if trimmed.starts_with('{') || trimmed.starts_with('<') || trimmed.starts_with('#') {
         return false;
     }
-    trimmed.contains('=')
-        || trimmed.lines().any(|line| {
-            let line = line.trim();
-            line.starts_with('[') && line.ends_with(']')
-        })
+    // TOML-specific: quoted values, inline tables, array of tables,
+    // or arrays (but not bare [section] which is ambiguous with INI)
+    trimmed.lines().any(|line| {
+        let line = line.trim();
+        line.contains('"')
+            || line.contains('\'')
+            || line.contains('{')
+            || line.contains("[[")
+            || (line.contains('[') && line.contains(']') && !line.starts_with('['))
+    })
 }
 
 fn is_csv_like(trimmed: &str) -> bool {
@@ -84,23 +91,77 @@ fn is_csv_like(trimmed: &str) -> bool {
 }
 
 fn is_ini_like(trimmed: &str) -> bool {
-    if trimmed.starts_with('[') && trimmed.contains(']') {
-        return true;
-    }
-    if trimmed.starts_with('{')
-        || trimmed.starts_with('<')
-        || trimmed.starts_with('#')
-        || trimmed.starts_with("<?xml")
-        || trimmed.contains(',')
-        || trimmed.contains(':')
-    {
-        return false;
-    }
-    trimmed.contains('=')
+    // INI requires section headers [section]
+    trimmed.starts_with('[') && trimmed.contains(']')
         || trimmed.lines().any(|line| {
             let line = line.trim();
             line.starts_with('[') && line.contains(']') && !line.contains(',')
         })
+}
+
+fn is_env_like(trimmed: &str) -> bool {
+    if !trimmed.contains('=') {
+        return false;
+    }
+    if trimmed.starts_with('[')
+        || trimmed.starts_with('{')
+        || trimmed.starts_with('<')
+        || trimmed.starts_with("<?xml")
+        || trimmed.contains(':')
+        || trimmed.contains(',')
+    {
+        return false;
+    }
+    // Majority of key-value lines have all-uppercase keys with underscores
+    let kv_lines: Vec<&str> = trimmed
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter(|l| l.contains('='))
+        .collect();
+    if kv_lines.is_empty() {
+        return false;
+    }
+    let uppercase_count = kv_lines
+        .iter()
+        .filter(|l| {
+            let key = l.split('=').next().unwrap().trim();
+            !key.is_empty()
+                && key.chars().all(|c| c.is_uppercase() || c == '_' || c.is_numeric())
+        })
+        .count();
+    uppercase_count * 2 >= kv_lines.len()
+}
+
+fn is_properties_like(trimmed: &str) -> bool {
+    if !trimmed.contains('=') {
+        return false;
+    }
+    if trimmed.starts_with('[')
+        || trimmed.starts_with('{')
+        || trimmed.starts_with('<')
+        || trimmed.starts_with("<?xml")
+        || trimmed.contains(':')
+        || trimmed.contains(',')
+    {
+        return false;
+    }
+    // Dot-separated keys or ! comments or generic key=value
+    trimmed.lines().any(|line| {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            return false;
+        }
+        if line.starts_with('!') {
+            return true;
+        }
+        if let Some(eq_pos) = line.find('=') {
+            let key = line[..eq_pos].trim();
+            !key.is_empty()
+        } else {
+            false
+        }
+    })
 }
 
 fn is_diff_like(trimmed: &str) -> bool {
@@ -242,7 +303,9 @@ mod tests {
     #[test]
     fn test_is_toml_like() {
         assert!(is_toml_like("[user]\nname = \"John\""));
-        assert!(is_toml_like("name = John"));
+        assert!(is_toml_like("name = 'John'"));
+        assert!(is_toml_like("key = {a=1, b=2}"));
+        assert!(!is_toml_like("name = John")); // plain key=value = properties
         assert!(!is_toml_like(r#"{"key": "value"}"#));
     }
 
@@ -256,8 +319,27 @@ mod tests {
     #[test]
     fn test_is_ini_like() {
         assert!(is_ini_like("[user]\nname = John"));
-        assert!(is_ini_like("name = John\nage = 30"));
+        assert!(is_ini_like("name = John\n[section]\nage = 30"));
+        assert!(!is_ini_like("name = John\nage = 30")); // no sections = properties
         assert!(!is_ini_like(r#"{"key": "value"}"#));
+    }
+
+    #[test]
+    fn test_is_env_like() {
+        assert!(is_env_like("DATABASE_URL=host\nAPI_KEY=secret"));
+        assert!(is_env_like("PATH=/usr/bin\nHOME=/home/user"));
+        assert!(!is_env_like("key=value\nother=val")); // mixed case = properties
+        assert!(!is_env_like("[section]\nkey=value")); // sections = ini
+        assert!(!is_env_like("name,age\nJohn,30")); // csv
+    }
+
+    #[test]
+    fn test_is_properties_like() {
+        assert!(is_properties_like("app.name=value\napp.version=1.0"));
+        assert!(is_properties_like("key=value\nother=val"));
+        assert!(is_properties_like("!comment\nkey=value"));
+        assert!(!is_properties_like("[section]\nkey=value")); // sections = ini
+        assert!(!is_properties_like("name,age\nJohn,30")); // csv
     }
 
     #[test]
@@ -266,5 +348,92 @@ mod tests {
         assert!(is_markdown_like("**bold**"));
         assert!(is_markdown_like("```code```"));
         assert!(!is_markdown_like(r#"{"key": "value"}"#));
+    }
+
+    #[test]
+    fn test_properties_env_detection() {
+        assert_eq!(detect_format("DATABASE_URL=host\nAPI_KEY=secret"), Some("env"));
+        assert_eq!(detect_format("app.name=value\napp.version=1.0"), Some("properties"));
+        assert_eq!(detect_format("key=value\nother=val"), Some("properties"));
+        // INI with sections still works
+        assert_eq!(detect_format("[section]\nkey=value"), Some("ini"));
+        assert_eq!(detect_format("[default]\nkey=value"), Some("ini"));
+    }
+
+    #[test]
+    fn test_single_line_csv_not_detected() {
+        // CSV requires multiple lines
+        assert_eq!(detect_format("a,b,c"), None);
+        assert_eq!(detect_format("a,b\nc,d"), Some("csv"));
+    }
+
+    #[test]
+    fn test_yaml_separator_vs_diff() {
+        // Bare "---" is YAML, "--- a/file" is diff
+        assert_eq!(detect_format("---\nkey: value"), Some("yaml"));
+        assert_eq!(detect_format("--- a/file\n+++ b/file"), Some("diff"));
+    }
+
+    #[test]
+    fn test_ambiguous_inputs() {
+        // Plain text with no structure
+        assert_eq!(detect_format("just plain text"), None);
+        // Single word
+        assert_eq!(detect_format("hello"), None);
+        // Just whitespace
+        assert_eq!(detect_format("   \t\n  "), None);
+    }
+
+    #[test]
+    fn test_json_edge_cases() {
+        // JSON fragment without closing bracket
+        assert_eq!(detect_format(r#"{"key": "value""#), Some("json"));
+        // Array fragment
+        assert_eq!(detect_format("[1, 2, 3"), Some("json"));
+    }
+
+    #[test]
+    fn test_toml_edge_cases() {
+        // TOML key-value
+        assert_eq!(detect_format("key = 'value'"), Some("toml"));
+        // Not TOML: starts with {
+        assert_eq!(detect_format(r#"{"key": "value"}"#), Some("json"));
+        // Not TOML: starts with <
+        assert_eq!(detect_format("<html></html>"), Some("xml"));
+    }
+
+    #[test]
+    fn test_ini_edge_cases() {
+        // [section] is ambiguous: no quotes/arrays, so detected as INI
+        assert_eq!(detect_format("[section]"), Some("ini"));
+        // Has comma: rejected by all key-value detectors, returns None
+        assert_eq!(detect_format("key=value,other"), None);
+        // Not INI: starts with {
+        assert_eq!(detect_format(r#"{"key": "value"}"#), Some("json"));
+    }
+
+    #[test]
+    fn test_xml_self_closing() {
+        assert_eq!(detect_format("<root><item/></root>"), Some("xml"));
+        assert_eq!(detect_format("<br/>"), Some("xml"));
+    }
+
+    #[test]
+    fn test_diff_yaml_list_distinguish() {
+        // YAML list items without colons: not enough structure to identify format
+        assert_eq!(detect_format("- item1\n- item2\n- item3"), None);
+        // Diff with removed lines
+        assert_eq!(
+            detect_format("--- a/file\n+++ b/file\n-removed\n+added"),
+            Some("diff")
+        );
+    }
+
+    #[test]
+    fn test_markdown_vs_yaml_list() {
+        // Single asterisk line: could be markdown emphasis or YAML-like
+        assert_eq!(detect_format("* item"), Some("markdown"));
+        // Multiple asterisks: markdown
+        assert_eq!(detect_format("**bold** and *italic*"), Some("markdown"));
     }
 }

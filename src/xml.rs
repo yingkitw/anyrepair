@@ -6,11 +6,9 @@ use regex::Regex;
 use std::sync::OnceLock;
 
 /// Cached regex patterns for XML performance optimization
-#[allow(dead_code)]
 struct XmlRegexCache {
     unclosed_tags: Regex,
     malformed_attributes: Regex,
-    invalid_characters: Regex,
     missing_quotes: Regex,
     self_closing_tags: Regex,
 }
@@ -20,7 +18,6 @@ impl XmlRegexCache {
         Ok(Self {
             unclosed_tags: Regex::new(r"<(\w+)([^>]*)>")?,
             malformed_attributes: Regex::new(r#"(\w+)=([^"'\s>]+)"#)?,
-            invalid_characters: Regex::new(r"[<>&]")?,
             missing_quotes: Regex::new(r#"(\w+)=([^"'\s>]+)"#)?,
             self_closing_tags: Regex::new(r"<(\w+)([^>]*)/>")?,
         })
@@ -140,16 +137,6 @@ fn xml_structure_valid(content: &str) -> bool {
         return false;
     }
 
-    for line in trimmed.lines() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if line.contains('=') && !line.contains('"') && !line.contains('\'') {
-            return false;
-        }
-    }
-
     let mut stack: Vec<String> = Vec::new();
     let mut rest = trimmed;
     while let Some(start) = rest.find('<') {
@@ -161,6 +148,14 @@ fn xml_structure_valid(content: &str) -> bool {
 
         if tag_inner.is_empty() || tag_inner.starts_with('?') || tag_inner.starts_with('!') {
             continue;
+        }
+
+        // Reject unquoted attribute values inside tags (e.g., <tag attr=value>)
+        if tag_inner.contains('=')
+            && !tag_inner.contains('"')
+            && !tag_inner.contains('\'')
+        {
+            return false;
         }
 
         let self_closing = tag_inner.ends_with('/');
@@ -264,16 +259,35 @@ struct FixInvalidCharactersStrategy;
 
 impl RepairStrategy for FixInvalidCharactersStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let mut result = content.to_string();
+        let mut result = String::with_capacity(content.len() * 2);
+        let mut chars = content.chars().peekable();
 
-        // Replace invalid XML characters
-        result = result.replace('&', "&amp;");
-        result = result.replace('<', "&lt;");
-        result = result.replace('>', "&gt;");
-
-        // But restore tags
-        result = result.replace("&lt;", "<");
-        result = result.replace("&gt;", ">");
+        while let Some(ch) = chars.next() {
+            if ch == '&' {
+                let mut entity = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c.is_alphanumeric() || c == '#' {
+                        entity.push(c);
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
+                if chars.peek() == Some(&';') && !entity.is_empty() {
+                    // Existing entity reference — preserve it
+                    result.push('&');
+                    result.push_str(&entity);
+                    result.push(';');
+                    chars.next(); // consume ';'
+                } else {
+                    // Bare ampersand — escape it
+                    result.push_str("&amp;");
+                    result.push_str(&entity);
+                }
+            } else {
+                result.push(ch);
+            }
+        }
 
         Ok(result)
     }

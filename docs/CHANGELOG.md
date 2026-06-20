@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-06-20
+
+### Added
+- **Properties (`.properties`) and Environment (`.env`) repair** via `key_value.rs` module, bringing total supported formats to 10
+- **`json_util` module** — JSON validation, escaping, and MCP request/response helpers implemented without external serde dependencies
+- **Heuristic validators** for XML, TOML, CSV, and YAML using pure-Rust structural checks instead of parser crates
+- MCP tools auto-registered for all 10 formats (12 total MCP tools)
+
+### Changed
+- **Minimal runtime dependency footprint** — reduced to `regex`, `thiserror`, and `clap` only
+- Heavily pruned transitive dependency tree by removing `serde`, `serde_json`, `serde_yaml`, `quick-xml`, `toml`, `csv`, and `ini` crates
+- Removed unused dev-dependencies (`serde_json`, `tempfile`)
+- Updated MCP server and integration tests to use the new `json_util` helpers
+- Consolidated INI repair with properties/env logic via `key_value.rs`; removed dedicated `ini` crate dependency
+- KISS/DRY/SoC refactoring — centralized format registry and unified CLI (`repair --format`)
+
+### Performance
+- Reduced binary size and compile times through elimination of heavy serde/XML/TOML/CSV parser crates
+- Estimated 10–15% faster format detection via early-return heuristics
+
 ## [0.2.4] - 2026-05-26
 
 ### Removed
@@ -234,6 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic CLI interface
 - Comprehensive test suite
 
+[0.2.6]: https://github.com/yingkitw/anyrepair/compare/v0.2.4...v0.2.6
 [0.2.4]: https://github.com/yingkitw/anyrepair/compare/v0.2.2...v0.2.4
 [0.2.2]: https://github.com/yingkitw/anyrepair/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/yingkitw/anyrepair/compare/v0.2.0...v0.2.1

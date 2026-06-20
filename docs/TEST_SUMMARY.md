@@ -2,7 +2,7 @@
 
 ## Overview
 
-AnyRepair includes **318 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
+AnyRepair includes **353 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
 
 ## Test Organization
 
@@ -19,25 +19,26 @@ AnyRepair includes **318 comprehensive tests** covering all formats, damage patt
 
 ### Test Coverage by Format
 
-- **JSON**: 204+ tests (library + integration + streaming + complex + fuzz)
+- **JSON**: 220+ tests (library + integration + streaming + complex + fuzz)
 - **YAML**: Comprehensive coverage
 - **Markdown**: Comprehensive coverage
 - **XML**: Comprehensive coverage
 - **TOML**: Comprehensive coverage
 - **CSV**: Comprehensive coverage
 - **INI**: Comprehensive coverage
+- **Properties/Env**: Key-value format detection and repair
 - **Diff/Unified diff**: 35 tests
 
 ## Test Statistics
 
-- **Total Tests**: 318 tests
+- **Total Tests**: 353 tests
 - **Pass Rate**: 100%
-- **Test Files**: 7
-- **Coverage**: All formats and major features
+- **Test Files**: 8
+- **Coverage**: All 10 formats and major features
 
 ## Test Suite Breakdown
 
-### 1. Unit Tests (137 tests)
+### 1. Unit Tests (164 tests)
 **Location**: `src/lib.rs` and format-specific modules
 
 **Coverage**:
@@ -47,10 +48,10 @@ AnyRepair includes **318 comprehensive tests** covering all formats, damage patt
 - XML: 9+ tests
 - TOML: 9+ tests
 - CSV: 9+ tests
-- INI: 10+ tests
+- INI/Properties/Env: 25+ tests (key_value.rs + format_detection.rs)
 - Diff: Unit tests in module
 - Error handling: 4+ tests
-- Format detection: Tests in `format_detection.rs`
+- Format detection: 20+ tests (heuristic validators for all formats)
 - Repairer base: Tests in `repairer_base.rs`
 
 **Focus**: Core functionality, edge cases, format-specific features
@@ -119,7 +120,7 @@ AnyRepair includes **318 comprehensive tests** covering all formats, damage patt
 
 ### Total Coverage
 ```
-Unit Tests:              137 ✅
+Unit Tests:              164 ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
 Complex Streaming:        18 ✅
@@ -129,19 +130,19 @@ Streaming Tests:          26 ✅
 Diff Tests:               35 ✅
 CLI Tests:                15 ✅
 ─────────────────────────────
-TOTAL:                   318 ✅
+TOTAL:                   353 ✅
 ```
 
 ### Pass Rate
-- **Overall**: 100% (318/318 passing)
-- **All Formats**: 8/8 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
-- **All Features**: Streaming, MCP integration, format detection, validation
+- **Overall**: 100% (353/353 passing)
+- **All Formats**: 10/10 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
+- **All Features**: Streaming, MCP integration, format auto-detection, validation, key-value repair
 
 ## Test Statistics
 
 ### Total Coverage
 ```
-Unit Tests:              137 ✅
+Unit Tests:              164 ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
 Complex Streaming:        18 ✅
@@ -151,13 +152,13 @@ Streaming Tests:          26 ✅
 Diff Tests:               35 ✅
 CLI Tests:                15 ✅
 ─────────────────────────────
-TOTAL:                   318 ✅
+TOTAL:                   353 ✅
 ```
 
 ### Pass Rate
-- **Overall**: 100% (364+/364+ passing)
-- **All Formats**: 8/8 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
-- **All Features**: Streaming, plugins, custom rules, validation, analytics, diff repair
+- **Overall**: 100% (353/353 passing)
+- **All Formats**: 10/10 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
+- **All Features**: Streaming, MCP integration, format auto-detection, validation, key-value repair
 
 ### Test Execution Time
 - **Total**: ~25 seconds
@@ -202,9 +203,9 @@ TOTAL:                   318 ✅
 | XML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
 | TOML | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
 | CSV | 9+ | 1 | 2 | 7 | 6 | - | 25+ |
-| INI | 10+ | 1 | 2 | 7 | 6 | - | 26+ |
+| INI/Key-Value | 25+ | 1 | 2 | 7 | 6 | - | 41+ |
 | Diff | - | - | - | - | - | 35 | 35 |
-| **Total** | **100+** | **18** | **18** | **18** | **34** | **35** | **223+** |
+| **Total** | **120+** | **18** | **18** | **18** | **34** | **35** | **243+** |
 
 **Additional Tests**:
 - Integration tests: 17
@@ -271,7 +272,7 @@ cargo test --test integration_tests -- --nocapture
 ## Test Quality Metrics
 
 ### Coverage Assessment
-- ✅ All 8 formats have comprehensive tests (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff)
+- ✅ All 10 formats have comprehensive tests (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
 - ✅ All damage types covered
 - ✅ Edge cases explicitly tested
 - ✅ Error scenarios validated

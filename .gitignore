@@ -9,6 +9,7 @@
 *.dll
 *.a
 *.lib
+AGENTS.md
 
 # Cargo.lock should be committed for binaries but not for libraries
 # Since this is primarily a library, we ignore it

@@ -146,7 +146,7 @@ sequenceDiagram
 
 | Suite | Tests | File |
 |-------|------:|------|
-| Library + modules | 135 | `src/**/*.rs` |
+| Library + modules | 164 | `src/**/*.rs` |
 | CLI | 15 | `tests/cli_tests.rs` |
 | Integration | 17 | `tests/integration_tests.rs` |
 | Diff | 35 | `tests/diff_tests.rs` |
@@ -155,7 +155,7 @@ sequenceDiagram
 | Damage scenarios | 18 | `tests/damage_scenarios.rs` |
 | Complex damage | 18 | `tests/complex_damage_tests.rs` |
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
-| **Total** | **316** | |
+| **Total** | **353** | |
 
 Run: `cargo test`. Benchmarks: `benches/repair_benchmarks.rs` (criterion).
 
@@ -163,9 +163,6 @@ Run: `cargo test`. Benchmarks: `benches/repair_benchmarks.rs` (criterion).
 
 | Crate | Use |
 |-------|-----|
-| `serde`, `serde_json`, `serde_yaml` | JSON/YAML parse & validate |
-| `quick-xml` | XML |
-| `toml`, `csv` | TOML, CSV |
 | `regex` | Repair patterns |
 | `thiserror` | `RepairError` |
 | `clap` | CLI |

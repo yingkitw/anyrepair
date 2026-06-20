@@ -4,7 +4,7 @@
 
 AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing malformed structured data. It uses pattern matching and ordered repair strategies—no machine learning and no external API calls.
 
-**Current version:** 0.2.5 (Rust edition 2024).
+**Current version:** 0.2.7 (Rust edition 2024).
 
 ## Supported formats
 
@@ -18,8 +18,8 @@ AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing
 | CSV | `csv.rs` | — | Yes |
 | INI | `key_value.rs` | — | Yes |
 | Diff | `diff.rs` | — | Yes |
-| Properties | `key_value.rs` | — | No (explicit format) |
-| Env | `key_value.rs` | `.env` | No (explicit format) |
+| Properties | `key_value.rs` | — | Yes |
+| Env | `key_value.rs` | `.env` | Yes |
 
 ## Public API (`src/lib.rs`)
 
@@ -94,10 +94,10 @@ Implemented in `format_detection.rs`. Detection order:
 4. XML — `<?xml`, tags
 5. TOML — `[table]`, `key = value`
 6. CSV — commas across lines
-7. INI — sections and `key=value` without YAML/TOML/CSV signals
-8. Markdown — headers, fences, emphasis
-
-`properties` and `env` require an explicit format argument.
+7. Env — `KEY=value` (uppercase keys)
+8. Properties — `key=value` (dot keys, `!` comments)
+9. INI — `[section]` headers
+10. Markdown — headers, fences, emphasis
 
 If `repair()` cannot detect a format, it uses the Markdown repairer as fallback.
 
@@ -170,7 +170,7 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 
 | Category | Count | Location |
 |----------|------:|----------|
-| Library / module tests | 135 | `src/**/*.rs` |
+| Library / module tests | 164 | `src/**/*.rs` |
 | CLI | 15 | `tests/cli_tests.rs` |
 | Integration | 17 | `tests/integration_tests.rs` |
 | Diff | 35 | `tests/diff_tests.rs` |
@@ -179,20 +179,17 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 | Damage scenarios | 18 | `tests/damage_scenarios.rs` |
 | Complex damage | 18 | `tests/complex_damage_tests.rs` |
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
-| **Total** | **316** | `cargo test` |
+| **Total** | **353** | `cargo test` |
 
 ## Dependencies (runtime)
 
 | Crate | Purpose |
 |-------|---------|
-| `serde`, `serde_json`, `serde_yaml` | JSON/YAML |
-| `quick-xml` | XML |
-| `toml`, `csv` | TOML, CSV |
 | `regex` | Patterns |
 | `thiserror` | Errors |
 | `clap` | CLI |
 
-Dev: `criterion`, `tempfile`, `arbitrary`, `proptest`.
+Dev: `criterion`, `arbitrary`, `proptest`.
 
 ## Source layout
 

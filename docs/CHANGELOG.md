@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-06-21
+
+### Added
+- **Auto-detect properties & env** — `format_detection.rs` now recognizes `.properties` and `.env` files via `is_properties_like()` and `is_env_like()` heuristics
+- **Criterion benchmarks** — `benches/repair_benchmarks.rs` covers all 10 formats, format detection, and 1000-item JSON throughput
+
+### Fixed
+- **XML validator** — Content with `=` (e.g., `<math>1+1=2</math>`) no longer falsely flagged as invalid
+- **XML entity corruption** — `FixInvalidCharactersStrategy` now preserves existing `&entity;` references instead of double-escaping them
+- **CSV destructive replacement** — `FixMissingCommasStrategy` no longer replaces every space with a comma; only comma-joins whitespace-separated tokens on lines without existing commas
+
+### Changed
+- **Zero compiler warnings** — Removed 3 dead functions from `json_util.rs`, fixed 7 unnecessary `mut` in `fuzz_tests.rs`, pruned 3 dead regex fields
+- Removed unused sample config `anyrepair.toml` (not wired into code)
+- Updated `README.md`, `SPEC.md`, and `docs/ARCHITECTURE.md` to reflect 353 tests and 10-format auto-detection
+
 ## [0.2.6] - 2026-06-20
 
 ### Added
@@ -254,6 +270,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic CLI interface
 - Comprehensive test suite
 
+[0.2.7]: https://github.com/yingkitw/anyrepair/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/yingkitw/anyrepair/compare/v0.2.4...v0.2.6
 [0.2.4]: https://github.com/yingkitw/anyrepair/compare/v0.2.2...v0.2.4
 [0.2.2]: https://github.com/yingkitw/anyrepair/compare/v0.2.1...v0.2.2

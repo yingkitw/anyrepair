@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across **10 formats** (JSON
 
 ```toml
 [dependencies]
-anyrepair = "0.2.6"
+anyrepair = "0.2.7"
 ```
 
 ### Basic Usage
@@ -55,12 +55,20 @@ anyrepair validate --input input.json --format json
 
 ## What's New
 
-### v0.2.6 — Current
+### v0.2.7 — Current
+
+- **Auto-detect properties & env** — `detect_format()` now recognizes `.properties` and `.env` files
+- **Heuristic validator fixes** — XML content `=` false positive fixed, entity corruption fixed, CSV destructive space→comma fixed
+- **Zero compiler warnings** — Dead code removed, `mut` qualifiers cleaned
+- **Criterion benchmarks** — All 10 formats + format detection + large-document throughput
+- **353 tests**, all passing, zero warnings
+
+### v0.2.6
 
 - **Minimal dependencies** — Runtime: `regex`, `thiserror`, `clap` only (no `serde`, `serde_json`, `serde_yaml`, `quick-xml`, `toml`, `csv`, or `ini` crates)
 - **`json_util` module** — Built-in JSON validation, escaping, and MCP payloads without external JSON libraries
 - **Heuristic validators** for XML, TOML, CSV, and YAML (structural checks instead of full parser crates)
-- **316 tests**, all passing (`cargo test`)
+- **316 tests**, all passing
 
 ### v0.2.5
 
@@ -85,17 +93,17 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 - **YAML**: Indentation, missing colons
 - **Markdown**: Headers, links, fences
 - **XML / TOML / CSV / INI / Diff**: Format-specific repairs
-- **Properties / `.env`**: Key=value lines, sections, escaping (explicit `--format`)
+- **Properties / `.env`**: Key=value lines, sections, escaping
 
 **Key features:**
 
-- Auto-detects format for 8 of 10 formats (properties and env need `--format`)
+- Auto-detects format for all 10 formats
 - Deterministic heuristic repairs (no network, no ML)
 - Small dependency footprint (three runtime crates)
 - MCP server for Claude and other MCP clients
 - Streaming for large files
 - Python-compatible JSON API
-- 316 tests (`cargo test`)
+- 353 tests (`cargo test`)
 
 ## Dependencies
 
@@ -199,8 +207,8 @@ See [MCP_SERVER.md](docs/MCP_SERVER.md) for setup details.
 | **CSV** | Quoting, commas | Yes |
 | **INI** | Sections, `=` signs | Yes |
 | **Diff** | Hunk headers, line prefixes | Yes |
-| **Properties** | `key=value`, escaping, continuations | Use `--format properties` |
-| **Env** | `KEY=value`, comments, quoting | Use `--format env` |
+| **Properties** | `key=value`, escaping, continuations | Yes |
+| **Env** | `KEY=value`, comments, quoting | Yes |
 
 ## Performance
 
@@ -222,14 +230,14 @@ cargo test
 
 | Suite | Tests |
 |-------|------:|
-| Library / modules | 135 |
+| Library / modules | 164 |
 | CLI | 15 |
 | Integration | 17 |
 | Diff | 35 |
 | Fuzz (proptest) | 34 |
 | Streaming | 26 |
 | Damage + complex damage + complex streaming | 54 |
-| **Total** | **316** |
+| **Total** | **353** |
 
 See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 
@@ -238,7 +246,7 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 | Feature | AnyRepair | json-repair-rs | json5 | Python jsonrepair |
 |---------|-----------|----------------|-------|-------------------|
 | **Multi-format** | 10 formats | JSON only | JSON only | JSON only |
-| **Auto-detection** | 8 formats | No | No | No |
+| **Auto-detection** | 10 formats | No | No | No |
 | **Lean deps** | 3 runtime crates | Varies | Varies | N/A |
 | **MCP** | Yes (12 tools) | No | No | No |
 | **Streaming** | Yes | No | No | No |

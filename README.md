@@ -43,6 +43,26 @@ anyrepair repair .env --format env
 # Show confidence score
 anyrepair repair input.json --format json --confidence
 
+# Preview changes as a diff (no output written)
+anyrepair repair input.json --format json --diff --dry-run
+
+# Dry-run without writing output
+anyrepair repair input.json --format json --dry-run
+
+# Machine-readable JSON output for CI
+anyrepair repair input.json --format json --json --dry-run
+
+# Require minimum confidence (exit with error if below threshold)
+anyrepair repair input.json --format json --min-confidence 0.8
+
+# Show which repair strategies were applied
+anyrepair repair input.json --format json --explain --dry-run
+
+# Generate shell completions
+anyrepair completions bash > /etc/bash_completion.d/anyrepair
+anyrepair completions zsh > _anyrepair
+anyrepair completions fish > ~/.config/fish/completions/anyrepair.fish
+
 # Batch process multiple files
 anyrepair batch --input ./data --output ./repaired --recursive
 
@@ -99,20 +119,27 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 
 - Auto-detects format for all 10 formats
 - Deterministic heuristic repairs (no network, no ML)
-- Small dependency footprint (three runtime crates)
+- Small dependency footprint (four runtime crates)
 - MCP server for Claude and other MCP clients
 - Streaming for large files
 - Python-compatible JSON API
-- 353 tests (`cargo test`)
+- Optional `strict` feature for full `serde_json` parser validation
+- 415 tests (`cargo test`)
 
 ## Dependencies
 
 | Kind | Crates |
 |------|--------|
-| **Runtime** | `regex`, `thiserror`, `clap` |
+| **Runtime** | `regex`, `thiserror`, `clap`, `clap_complete` |
+| **Optional** | `serde_json` (via `strict` feature) |
 | **Dev** | `criterion`, `arbitrary`, `proptest` |
 
-Parsing and validation for JSON, XML, TOML, CSV, and YAML use in-crate heuristics and `json_util` rather than heavyweight parser dependencies.
+Parsing and validation for JSON, XML, TOML, CSV, and YAML use in-crate heuristics and `json_util` rather than heavyweight parser dependencies. Enable the `strict` feature for `serde_json`-backed JSON validation:
+
+```bash
+cargo build --features strict
+cargo test --features strict
+```
 
 ## Usage Examples
 
@@ -260,6 +287,7 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design |
 | [SPEC.md](SPEC.md) | Technical specification |
 | [TODO.md](TODO.md) | Roadmap |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures and fixes |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history |
 | [docs/MCP_SERVER.md](docs/MCP_SERVER.md) | MCP integration |
 | [docs/TEST_SUMMARY.md](docs/TEST_SUMMARY.md) | Test breakdown |

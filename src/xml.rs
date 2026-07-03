@@ -35,7 +35,7 @@ fn get_xml_regex_cache() -> &'static XmlRegexCache {
 ///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct XmlRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl XmlRepairer {

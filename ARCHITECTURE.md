@@ -22,7 +22,7 @@ anyrepair/
 │   ├── key_value.rs           # INI, .properties, .env
 │   ├── streaming.rs
 │   ├── mcp_server.rs
-│   └── cli/                   # repair, validate, batch, stream
+│   └── cli/                   # repair, validate, batch, stream, completions
 ├── tests/                     # Integration, fuzz, streaming, CLI, diff
 ├── examples/                  # MCP and sample data
 └── docs/                      # CHANGELOG, MCP guide, test summary, index
@@ -100,10 +100,11 @@ Each format repairer typically wraps `GenericRepairer`:
 
 | Command | Purpose |
 |---------|---------|
-| `repair` | Auto-detect or `--format`; optional `--confidence` |
+| `repair` | Auto-detect or `--format`; optional `--confidence`, `--diff`, `--dry-run`, `--json`, `--min-confidence`, `--explain`, `--color` |
 | `validate` | Validate without repair |
 | `batch` | Directory copy/repair with pattern and `--recursive` |
 | `stream` | Line-oriented large-file repair |
+| `completions` | Generate shell completions (bash/zsh/fish/elvish/powershell) |
 
 Global flags: `--verbose`, `--quiet`.
 
@@ -146,16 +147,19 @@ sequenceDiagram
 
 | Suite | Tests | File |
 |-------|------:|------|
-| Library + modules | 164 | `src/**/*.rs` |
+| Library + modules | 168 | `src/**/*.rs` |
+| Binary (CLI handlers) | 19 | `src/main.rs` |
 | CLI | 15 | `tests/cli_tests.rs` |
 | Integration | 17 | `tests/integration_tests.rs` |
+| Properties/env | 25 | `tests/properties_env_tests.rs` |
 | Diff | 35 | `tests/diff_tests.rs` |
 | Fuzz (proptest) | 34 | `tests/fuzz_tests.rs` |
 | Streaming | 26 | `tests/streaming_tests.rs` |
 | Damage scenarios | 18 | `tests/damage_scenarios.rs` |
 | Complex damage | 18 | `tests/complex_damage_tests.rs` |
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
-| **Total** | **353** | |
+| Golden master | 26 | `tests/golden_master_tests.rs` |
+| **Total** | **415** | |
 
 Run: `cargo test`. Benchmarks: `benches/repair_benchmarks.rs` (criterion).
 
@@ -166,6 +170,8 @@ Run: `cargo test`. Benchmarks: `benches/repair_benchmarks.rs` (criterion).
 | `regex` | Repair patterns |
 | `thiserror` | `RepairError` |
 | `clap` | CLI |
+| `clap_complete` | Shell completions |
+| `serde_json` (optional) | Strict JSON validation (`strict` feature) |
 
 Edition **2024**. Release profile favors small binaries (`opt-level = "z"`, LTO, strip).
 

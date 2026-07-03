@@ -104,15 +104,23 @@ If `repair()` cannot detect a format, it uses the Markdown repairer as fallback.
 ## CLI
 
 ```
-anyrepair repair [FILE] [--format <fmt>] [--confidence] [--input <file>] [--output <file>]
+anyrepair repair [FILE] [--format <fmt>] [--confidence] [--diff] [--dry-run] [--json] [--min-confidence <float>] [--explain] [--color auto|always|never] [--input <file>] [--output <file>]
 anyrepair validate [--input <file>] [--format <fmt>]
 anyrepair stream [--input <file>] [--output <file>] [--format <fmt>] [--buffer-size <bytes>]
 anyrepair batch --input <dir> --output <dir> [--pattern <glob>] [--recursive]
+anyrepair completions <shell>
 ```
 
 - `--format` accepts `SUPPORTED_FORMATS` plus `yml`, `md`.
 - Without `--format`, repair uses auto-detection where supported.
 - `--confidence` prints a repair confidence score (0–100%).
+- `--diff` prints a unified diff of changes to stdout.
+- `--dry-run` performs repair but does not write output (useful with `--diff`).
+- `--json` outputs a machine-readable JSON result to stdout (for CI pipelines).
+- `--min-confidence <float>` exits with error if repair confidence is below threshold (0.0–1.0).
+- `--explain` prints the names of repair strategies that changed the content to stderr.
+- `--color auto|always|never` controls ANSI color output for diff and explain (default: auto, detects TTY).
+- `completions` generates shell completion scripts: `bash`, `zsh`, `fish`, `elvish`, `powershell`.
 
 ## Streaming
 
@@ -148,9 +156,8 @@ pub enum RepairError {
     MarkdownRepair(String),
     FormatDetection(String),
     Io(std::io::Error),
-    Serde(serde_json::Error),
-    Yaml(serde_yaml::Error),
     Regex(regex::Error),
+    Utf8(std::string::FromUtf8Error),
     Generic(String),
 }
 ```
@@ -170,16 +177,19 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 
 | Category | Count | Location |
 |----------|------:|----------|
-| Library / module tests | 164 | `src/**/*.rs` |
+| Library / module tests | 168 | `src/lib.rs` + modules |
+| Binary (CLI handlers) | 19 | `src/main.rs` |
 | CLI | 15 | `tests/cli_tests.rs` |
 | Integration | 17 | `tests/integration_tests.rs` |
+| Properties/env | 25 | `tests/properties_env_tests.rs` |
 | Diff | 35 | `tests/diff_tests.rs` |
 | Fuzz (proptest) | 34 | `tests/fuzz_tests.rs` |
 | Streaming | 26 | `tests/streaming_tests.rs` |
 | Damage scenarios | 18 | `tests/damage_scenarios.rs` |
 | Complex damage | 18 | `tests/complex_damage_tests.rs` |
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
-| **Total** | **353** | `cargo test` |
+| Golden master | 26 | `tests/golden_master_tests.rs` |
+| **Total** | **415** (default) / **423** (with `--features strict`) | `cargo test` |
 
 ## Dependencies (runtime)
 
@@ -188,6 +198,8 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 | `regex` | Patterns |
 | `thiserror` | Errors |
 | `clap` | CLI |
+| `clap_complete` | Shell completions |
+| `serde_json` (optional) | Strict JSON validation via `strict` feature |
 
 Dev: `criterion`, `arbitrary`, `proptest`.
 
@@ -211,5 +223,6 @@ src/
     ├── repair_cmd.rs
     ├── validate_cmd.rs
     ├── batch_cmd.rs
-    └── stream_cmd.rs
+    ├── stream_cmd.rs
+    └── completions_cmd.rs
 ```

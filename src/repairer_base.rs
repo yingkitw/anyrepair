@@ -24,17 +24,44 @@ impl GenericRepairer {
         }
     }
 
-    /// Apply all repair strategies to the content
-    fn apply_strategies_internal(&mut self, content: &str) -> Result<String> {
+    /// Apply all repair strategies to the content, tracking which ones changed it.
+    fn apply_strategies_with_explanations(&mut self, content: &str) -> Result<(String, Vec<String>)> {
         let mut repaired = content.to_string();
+        let mut applied = Vec::new();
 
         for strategy in self.strategies.iter() {
             if let Ok(result) = strategy.apply(&repaired) {
-                repaired = result;
+                if result != repaired {
+                    applied.push(strategy.name().to_string());
+                    repaired = result;
+                }
             }
         }
 
+        Ok((repaired, applied))
+    }
+
+    /// Apply all repair strategies to the content
+    fn apply_strategies_internal(&mut self, content: &str) -> Result<String> {
+        let (repaired, _) = self.apply_strategies_with_explanations(content)?;
         Ok(repaired)
+    }
+
+    /// Repair content and return the list of strategy names that changed it.
+    /// Returns `(repaired_content, applied_strategy_names)`.
+    /// If the content is already valid, returns `(content, [])`.
+    pub fn repair_with_explanations(&mut self, content: &str) -> Result<(String, Vec<String>)> {
+        let trimmed = content.trim();
+
+        if trimmed.is_empty() {
+            return Ok((String::new(), Vec::new()));
+        }
+
+        if self.validator.is_valid(trimmed) {
+            return Ok((trimmed.to_string(), Vec::new()));
+        }
+
+        self.apply_strategies_with_explanations(trimmed)
     }
 
     /// Get the validator

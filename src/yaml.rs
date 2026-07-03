@@ -36,7 +36,7 @@ fn get_yaml_regex_cache() -> &'static YamlRegexCache {
 ///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct YamlRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl YamlRepairer {

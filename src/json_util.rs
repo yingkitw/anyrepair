@@ -45,6 +45,7 @@ pub fn get_json_string_field(json: &str, key: &str) -> Option<String> {
     extract_object_string_field(json, key).ok().flatten()
 }
 
+/// Read a boolean field from a JSON object.
 pub fn get_json_bool_field(json: &str, key: &str) -> Option<bool> {
     let raw = extract_object_value_field(json, key).ok().flatten()?;
     match raw.trim() {
@@ -54,15 +55,18 @@ pub fn get_json_bool_field(json: &str, key: &str) -> Option<bool> {
     }
 }
 
+/// Read a number field from a JSON object.
 pub fn get_json_number_field(json: &str, key: &str) -> Option<f64> {
     let raw = extract_object_value_field(json, key).ok().flatten()?;
     raw.trim().parse().ok()
 }
 
+/// Build a `{"content":"..."}` JSON string for MCP tool input.
 pub fn tool_input_json(content: &str) -> String {
     format!(r#"{{"content":{}}}"#, json_string(content))
 }
 
+/// Build a `{"content":"...","format":"..."}` JSON string for MCP validate input.
 pub fn validate_input_json(content: &str, format: &str) -> String {
     format!(
         r#"{{"content":{},"format":{}}}"#,
@@ -71,6 +75,7 @@ pub fn validate_input_json(content: &str, format: &str) -> String {
     )
 }
 
+/// Parse an MCP tool call input JSON object into `ToolCallInput`.
 pub fn parse_tool_call_input(json: &str) -> Result<ToolCallInput, String> {
     let trimmed = json.trim();
     if !trimmed.starts_with('{') {
@@ -92,6 +97,7 @@ pub fn parse_mcp_request_line(line: &str) -> Result<(String, String), String> {
     Ok((tool, input))
 }
 
+/// Build a `{"repaired":"...","success":true}` MCP success response.
 pub fn repair_success_response(repaired: &str) -> String {
     format!(
         r#"{{"repaired":{},"success":true}}"#,
@@ -99,6 +105,7 @@ pub fn repair_success_response(repaired: &str) -> String {
     )
 }
 
+/// Build a `{"repaired":"...","confidence":N,"success":true}` MCP response.
 pub fn repair_format_response(repaired: &str, confidence: f64) -> String {
     format!(
         r#"{{"repaired":{},"confidence":{},"success":true}}"#,
@@ -107,6 +114,7 @@ pub fn repair_format_response(repaired: &str, confidence: f64) -> String {
     )
 }
 
+/// Build a `{"valid":bool,"format":"..."}` MCP validate response.
 pub fn validate_response(valid: bool, format: &str) -> String {
     format!(
         r#"{{"valid":{},"format":{}}}"#,

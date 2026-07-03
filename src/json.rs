@@ -5,6 +5,7 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
+#[cfg(not(feature = "strict"))]
 use crate::json_util::{is_valid_json, validate_json_errors};
 use regex::Regex;
 use std::sync::OnceLock;
@@ -18,11 +19,28 @@ pub struct JsonValidator;
 
 impl Validator for JsonValidator {
     fn is_valid(&self, content: &str) -> bool {
-        is_valid_json(content)
+        #[cfg(feature = "strict")]
+        {
+            serde_json::from_str::<serde_json::Value>(content.trim()).is_ok()
+        }
+        #[cfg(not(feature = "strict"))]
+        {
+            is_valid_json(content)
+        }
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        validate_json_errors(content)
+        #[cfg(feature = "strict")]
+        {
+            match serde_json::from_str::<serde_json::Value>(content.trim()) {
+                Ok(_) => vec![],
+                Err(e) => vec![e.to_string()],
+            }
+        }
+        #[cfg(not(feature = "strict"))]
+        {
+            validate_json_errors(content)
+        }
     }
 }
 
@@ -65,8 +83,10 @@ pub struct RegexCache {
     pub malformed_numbers_multiple_dots: Regex,
     pub malformed_numbers_scientific: Regex,
     pub boolean_values: Regex,
+    pub boolean_variants: Regex,
     pub null_values: Regex,
     pub undefined_values: Regex,
+    pub smart_quotes: Regex,
 }
 
 impl RegexCache {
@@ -81,8 +101,10 @@ impl RegexCache {
             malformed_numbers_multiple_dots: Regex::new(r#"\b(\d+\.\d+)\.(\d+)\b"#)?,
             malformed_numbers_scientific: Regex::new(r#"\b(\d+)\s*(\+|-)\s*(\d+)\b"#)?,
             boolean_values: Regex::new(r#"\b(True|False|TRUE|FALSE|true|false)\b"#)?,
+            boolean_variants: Regex::new(r#"\b(yes|no|on|off|Yes|No|On|Off|YES|NO|ON|OFF)\b"#)?,
             null_values: Regex::new(r#"\b(Null|NULL|null|None|NONE|none|nil|NIL)\b"#)?,
             undefined_values: Regex::new(r#"\b(undefined|Undefined|UNDEFINED)\b"#)?,
+            smart_quotes: Regex::new(r#"[\u201c\u201d\u2018\u2019]"#)?,
         })
     }
 }
@@ -332,6 +354,138 @@ impl RepairStrategy for FixBooleanNullStrategy {
     }
 }
 
+/// Strategy to normalize smart/curly quotes to straight quotes
+pub struct FixSmartQuotesStrategy;
+
+impl RepairStrategy for FixSmartQuotesStrategy {
+    fn name(&self) -> &str {
+        "FixSmartQuotes"
+    }
+
+    fn apply(&self, content: &str) -> Result<String> {
+        let cache = get_regex_cache();
+        Ok(cache
+            .smart_quotes
+            .replace_all(content, |c: &regex::Captures| {
+                match &c[0] {
+                    "\u{201c}" | "\u{201d}" => "\"".to_string(),
+                    "\u{2018}" | "\u{2019}" => "'".to_string(),
+                    other => other.to_string(),
+                }
+            })
+            .to_string())
+    }
+
+    fn priority(&self) -> u8 {
+        90
+    }
+}
+
+/// Strategy to recognize boolean variants (yes/no, on/off, 1/0 as bare words)
+pub struct FixBooleanVariantsStrategy;
+
+impl RepairStrategy for FixBooleanVariantsStrategy {
+    fn name(&self) -> &str {
+        "FixBooleanVariants"
+    }
+
+    fn apply(&self, content: &str) -> Result<String> {
+        let cache = get_regex_cache();
+        Ok(cache
+            .boolean_variants
+            .replace_all(content, |caps: &regex::Captures| {
+                match caps[0].to_lowercase().as_str() {
+                    "yes" | "on" => "true".to_string(),
+                    "no" | "off" => "false".to_string(),
+                    other => other.to_string(),
+                }
+            })
+            .to_string())
+    }
+
+    fn priority(&self) -> u8 {
+        68
+    }
+}
+
+/// Strategy to extract JSON from surrounding prose/preamble
+pub struct ExtractJsonFromProseStrategy;
+
+impl RepairStrategy for ExtractJsonFromProseStrategy {
+    fn name(&self) -> &str {
+        "ExtractJsonFromProse"
+    }
+
+    fn apply(&self, content: &str) -> Result<String> {
+        let trimmed = content.trim();
+
+        // If already starts with { or [, no extraction needed
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            return Ok(trimmed.to_string());
+        }
+
+        // Only extract if there's actual prose text before the JSON block.
+        // Find the first { or [ and check that preceding text is prose, not a JSON fragment.
+        if let Some(pos) = trimmed.find('{').or_else(|| trimmed.find('[')) {
+            let prefix = &trimmed[..pos];
+            // Prose detection: prefix must NOT contain double quotes (JSON fragments always do)
+            // and must have 3+ consecutive alphabetic chars (a real word/sentence).
+            // This prevents false positives on streaming JSON chunks where key names
+            // like "name" or "profile" precede a nested {.
+            let has_prose = !prefix.contains('"')
+                && prefix
+                    .split(|c: char| !c.is_alphabetic())
+                    .any(|word| word.len() >= 3);
+
+            if !has_prose {
+                return Ok(content.to_string());
+            }
+
+            let extracted = &trimmed[pos..];
+            // Trim trailing non-JSON content
+            let mut brace_depth = 0i32;
+            let mut bracket_depth = 0i32;
+            let mut end_pos = 0usize;
+
+            for (i, ch) in extracted.char_indices() {
+                match ch {
+                    '{' => brace_depth += 1,
+                    '}' => {
+                        brace_depth -= 1;
+                        if brace_depth == 0 && bracket_depth == 0 {
+                            end_pos = i + 1;
+                            break;
+                        }
+                    }
+                    '[' => bracket_depth += 1,
+                    ']' => {
+                        bracket_depth -= 1;
+                        if brace_depth == 0 && bracket_depth == 0 {
+                            end_pos = i + 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Only extract if we found a balanced JSON structure.
+            // If braces don't balance, this is a JSON fragment (e.g. from streaming), not prose+JSON.
+            if end_pos > 0 {
+                return Ok(extracted[..end_pos].to_string());
+            }
+
+            return Ok(content.to_string());
+        }
+
+        Ok(content.to_string())
+    }
+
+    fn priority(&self) -> u8 {
+        95
+    }
+}
+
 /// Strategy to add missing braces
 pub struct AddMissingBracesStrategy;
 
@@ -480,21 +634,24 @@ impl RepairStrategy for StripJsCommentsStrategy {
 ///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct JsonRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl JsonRepairer {
     /// Create a new JSON repairer
     pub fn new() -> Self {
         let strategies: Vec<Box<dyn RepairStrategy>> = vec![
+            Box::new(ExtractJsonFromProseStrategy),
             Box::new(StripTrailingContentStrategy),
             Box::new(StripJsCommentsStrategy),
+            Box::new(FixSmartQuotesStrategy),
             Box::new(AddMissingQuotesStrategy),
             Box::new(FixTrailingCommasStrategy),
             Box::new(AddMissingBracesStrategy),
             Box::new(FixSingleQuotesStrategy),
             Box::new(FixMalformedNumbersStrategy),
             Box::new(FixBooleanNullStrategy),
+            Box::new(FixBooleanVariantsStrategy),
             Box::new(FixAgenticAiResponseStrategy),
         ];
 
@@ -756,5 +913,92 @@ mod tests {
 
         // Verify valid JSON
         assert!(crate::json_util::is_valid_json(&result));
+    }
+
+    #[test]
+    fn test_smart_quotes_normalization() {
+        let strategy = FixSmartQuotesStrategy;
+        let input = "\u{201c}hello\u{201d}: \u{2018}world\u{2019}";
+        let result = strategy.apply(input).unwrap();
+        assert!(result.contains("\"hello\""));
+        assert!(result.contains("'world'"));
+        assert!(!result.contains('\u{201c}'));
+        assert!(!result.contains('\u{201d}'));
+    }
+
+    #[test]
+    fn test_smart_quotes_in_json_repair() {
+        let mut repairer = JsonRepairer::new();
+        let input = r#"{"name": "Alice \u201cBob\u201d"}"#;
+        let result = repairer.repair(input).unwrap();
+        assert!(!result.contains('\u{201c}'));
+        assert!(!result.contains('\u{201d}'));
+    }
+
+    #[test]
+    fn test_boolean_variants_yes_no() {
+        let strategy = FixBooleanVariantsStrategy;
+        let input = r#"{"enabled": yes, "disabled": no}"#;
+        let result = strategy.apply(input).unwrap();
+        assert!(result.contains("true"));
+        assert!(result.contains("false"));
+        assert!(!result.contains("yes"));
+        assert!(!result.contains("no"));
+    }
+
+    #[test]
+    fn test_boolean_variants_on_off() {
+        let strategy = FixBooleanVariantsStrategy;
+        let input = r#"{"power": on, "sleep": off}"#;
+        let result = strategy.apply(input).unwrap();
+        assert!(result.contains("true"));
+        assert!(result.contains("false"));
+    }
+
+    #[test]
+    fn test_boolean_variants_case_insensitive() {
+        let strategy = FixBooleanVariantsStrategy;
+        let input = r#"{"a": YES, "b": OFF}"#;
+        let result = strategy.apply(input).unwrap();
+        assert!(result.contains("true"));
+        assert!(result.contains("false"));
+    }
+
+    #[test]
+    fn test_extract_json_from_prose() {
+        let strategy = ExtractJsonFromProseStrategy;
+        let input = "Here is the result: {\"key\": \"value\"} as requested.";
+        let result = strategy.apply(input).unwrap();
+        assert!(result.starts_with('{'));
+        assert!(result.ends_with('}'));
+        assert!(!result.contains("Here is"));
+        assert!(!result.contains("as requested"));
+    }
+
+    #[test]
+    fn test_extract_json_array_from_prose() {
+        let strategy = ExtractJsonFromProseStrategy;
+        let input = "Sure! [1, 2, 3] is the array.";
+        let result = strategy.apply(input).unwrap();
+        assert!(result.starts_with('['));
+        assert!(result.ends_with(']'));
+    }
+
+    #[test]
+    fn test_extract_json_no_prose() {
+        let strategy = ExtractJsonFromProseStrategy;
+        let input = r#"{"key": "value"}"#;
+        let result = strategy.apply(input).unwrap();
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_extract_json_nested_from_prose() {
+        let strategy = ExtractJsonFromProseStrategy;
+        let input = "Output: {\"a\": {\"b\": [1, 2]}} done.";
+        let result = strategy.apply(input).unwrap();
+        assert!(result.starts_with('{'));
+        assert!(result.ends_with('}'));
+        assert!(result.contains("\"b\""));
     }
 }

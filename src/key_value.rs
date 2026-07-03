@@ -320,7 +320,7 @@ fn is_skip_line(trimmed: &str) -> bool {
 // --- Public types ---
 
 pub struct IniRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl IniRepairer {
@@ -447,7 +447,7 @@ impl Validator for IniValidator {
 }
 
 pub struct EnvRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl EnvRepairer {
@@ -549,7 +549,7 @@ impl Validator for EnvValidator {
 }
 
 pub struct PropertiesRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl PropertiesRepairer {

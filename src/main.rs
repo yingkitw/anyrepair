@@ -9,7 +9,7 @@ use std::time::Instant;
 #[command(name = "anyrepair")]
 #[command(about = "A tool for repairing LLM responses including JSON, YAML, and Markdown")]
 #[command(version)]
-struct Cli {
+pub struct Cli {
     /// Verbose output
     #[arg(short, long)]
     verbose: bool,
@@ -45,6 +45,30 @@ enum Commands {
         /// Specify format: json, yaml, markdown, xml, toml, csv, ini, diff
         #[arg(short, long)]
         format: Option<String>,
+
+        /// Show a diff of changes without writing output
+        #[arg(long)]
+        diff: bool,
+
+        /// Show what would be repaired without writing output
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output machine-readable JSON result to stdout (for CI)
+        #[arg(long)]
+        json: bool,
+
+        /// Minimum confidence threshold (0.0–1.0); exit with code 2 if below
+        #[arg(long, value_name = "FLOAT")]
+        min_confidence: Option<f64>,
+
+        /// Print which repair strategies were applied
+        #[arg(long)]
+        explain: bool,
+
+        /// Color output: auto, always, never
+        #[arg(long, value_name = "WHEN", default_value = "auto")]
+        color: String,
     },
     /// Validate content without repairing
     Validate {
@@ -74,6 +98,12 @@ enum Commands {
         #[arg(short, long)]
         recursive: bool,
     },
+    /// Generate shell completions
+    Completions {
+        /// Shell: bash, zsh, fish, elvish, powershell
+        #[arg(value_name = "SHELL")]
+        shell: String,
+    },
     /// Stream repair for large files
     Stream {
         /// Input file (stdin if not provided)
@@ -99,9 +129,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     match cli.command {
-        Commands::Repair { file, input, output, confidence, format } => {
+        Commands::Repair { file, input, output, confidence, format, diff, dry_run, json, min_confidence, explain, color } => {
             let input_path = file.as_deref().or(input.as_deref());
-            cli::repair_cmd::handle_repair(input_path, output.as_deref(), confidence, cli.verbose, format.as_deref())?;
+            cli::repair_cmd::handle_repair(input_path, output.as_deref(), confidence, cli.verbose, format.as_deref(), diff, dry_run, json, min_confidence, explain, &color)?;
         }
         Commands::Validate { input, format } => {
             cli::validate_cmd::handle_validate(input.as_deref(), format.as_deref(), cli.verbose)?;
@@ -112,6 +142,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Stream { input, output, format, buffer_size } => {
             let fmt = format.as_deref().unwrap_or("auto");
             cli::stream_cmd::handle_stream(input.as_deref(), output.as_deref(), fmt, buffer_size, cli.verbose)?;
+        }
+        Commands::Completions { shell } => {
+            cli::completions_cmd::handle_completions(&shell)?;
         }
     }
 

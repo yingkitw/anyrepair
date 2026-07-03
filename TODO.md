@@ -45,18 +45,18 @@
 - [ ] **Protobuf** — Binary/text protobuf repair (research scope)
 
 ### CLI
-- [ ] **Diff preview** — `--diff` before applying repairs
-- [ ] **Dry-run** — `--dry-run` without writing output
-- [ ] **Colored output** — Syntax-highlighted stdout
-- [ ] **JSON output mode** — Machine-readable results for CI
-- [ ] **Shell completions** — bash/zsh/fish
-- [ ] **Restore custom rules CLI** — Wire `anyrepair.toml` or remove sample config
+- [x] **Diff preview** — `--diff` shows unified diff of changes
+- [x] **Dry-run** — `--dry-run` repairs without writing output
+- [x] **Colored output** — `--color auto|always|never` for diff and explain output
+- [x] **JSON output mode** — `--json` outputs machine-readable JSON for CI
+- [x] **Shell completions** — `anyrepair completions <shell>` (bash/zsh/fish/elvish/powershell)
+- [x] **Restore custom rules CLI** — Resolved: `anyrepair.toml` removed, no custom rules engine planned
 
 ### Repair quality
 - [ ] **Format-preserving repairs** — Whitespace, comments, key order
-- [ ] **Repair explanations** — What changed and why
-- [ ] **Configurable confidence thresholds**
-- [ ] **Stronger validators** — Optional strict mode (e.g. optional parser deps behind feature flags)
+- [x] **Repair explanations** — `--explain` prints which repair strategies were applied
+- [x] **Configurable confidence thresholds** — `--min-confidence <float>` exits with error if below threshold
+- [x] **Stronger validators** — `strict` Cargo feature uses `serde_json` for full parser-based JSON validation
 
 ### Platform
 - [ ] **Web UI** — Browser-based repair
@@ -64,14 +64,14 @@
 - [ ] **Docker image** — Containerized CLI/MCP
 
 ### Documentation
-- [ ] **Rustdoc pass** — Full public API on docs.rs (including `json_util`)
-- [ ] **Troubleshooting guide** — Common failures and fixes
-- [ ] **Sync SPEC.md** — Dependency table and validator notes for 0.2.6
+- [x] **Rustdoc pass** — Full public API documented (lib.rs, json_util, traits, streaming, repairer_base)
+- [x] **Troubleshooting guide** — `TROUBLESHOOTING.md` with common failures and fixes
+- [x] **Sync SPEC.md** — Fixed error handling section (removed serde refs), updated test count and dependency table
 
 ### Testing
-- [ ] **Dedicated properties/env integration tests** — Beyond `key_value` unit tests
+- [x] **Dedicated properties/env integration tests** — 25 tests in `tests/properties_env_tests.rs`
 - [ ] **Mutation testing** — `cargo-mutants` on critical paths
-- [ ] **Golden master repairs** — Checked-in expected outputs
+- [x] **Golden master repairs** — 26 checked-in expected outputs in `tests/golden_master_tests.rs`
 
 ## Technical Debt 🔧
 
@@ -86,6 +86,19 @@
 - Language bindings (Python, Node.js, Go)
 - gRPC/WebSocket streaming repair API
 - Format-detection confidence exposed in API
+
+### Competitive intelligence (researched Jul 2026)
+Competitors: `json_repair` (Python, 5K★), `jsonrepair` (JS, ecosystem leader), `repairjson` (Rust+PyO3, 200x faster), `safe-json-repair` (Rust+WASM), `@datatool/json-heal` (safe repair), `@isdk/json-repair.js` (schema-guided)
+
+Capabilities competitors have that anyrepair lacks:
+- [ ] **Smart quote normalization** — curly/typographic quotes → straight quotes (easy, high-value for LLM output)
+- [ ] **Prose/preamble extraction** — extract JSON from surrounding LLM chatter (e.g. "Here's the result: {...}")
+- [ ] **Boolean variant recognition** — `yes`/`no`, `on`/`off`, `1`/`0` → `true`/`false` in JSON
+- [ ] **Schema-guided repair** — use JSON Schema to coerce types, resolve ambiguities, fill defaults
+- [ ] **WASM bindings** — browser use via WebAssembly
+- [ ] **Single-pass byte-oriented repair** — performance optimization for large inputs
+- [ ] **Python bindings (PyO3)** — native Python extension for anyrepair
+- [ ] **Hosted REST API** — `POST /api/repair` endpoint
 
 ## Known Issues (Fixed) ✅
 

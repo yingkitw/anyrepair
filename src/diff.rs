@@ -49,7 +49,7 @@ fn get_diff_regex_cache() -> &'static DiffRegexCache {
 ///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct DiffRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl DiffRepairer {

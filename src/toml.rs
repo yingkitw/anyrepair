@@ -46,7 +46,7 @@ fn get_toml_regex_cache() -> &'static TomlRegexCache {
 ///
 /// Uses trait-based composition with GenericRepairer for better modularity
 pub struct TomlRepairer {
-    inner: crate::repairer_base::GenericRepairer,
+    pub inner: crate::repairer_base::GenericRepairer,
 }
 
 impl TomlRepairer {

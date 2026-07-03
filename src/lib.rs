@@ -27,6 +27,8 @@ pub use mcp_server::AnyrepairMcpServer;
 pub use streaming::StreamingRepair;
 pub use traits::Repair;
 
+/// All format identifiers supported by anyrepair.
+/// Used by `create_repairer`, `create_validator`, and `repair_with_format`.
 pub const SUPPORTED_FORMATS: &[&str] = &[
     "json",
     "yaml",
@@ -40,6 +42,9 @@ pub const SUPPORTED_FORMATS: &[&str] = &[
     "env",
 ];
 
+/// Normalize a format alias to its canonical name.
+/// Accepts case-insensitive matches and common aliases (`yml` → `yaml`, `md` → `markdown`).
+/// Returns the original string unchanged if no match is found.
 pub fn normalize_format(format: &str) -> &str {
     if format.eq_ignore_ascii_case("yml") {
         return "yaml";
@@ -64,6 +69,9 @@ fn parse_supported_format(format: &str) -> Result<&'static str> {
         .ok_or_else(|| RepairError::FormatDetection(format!("Unknown format: {}", n)))
 }
 
+/// Create a boxed [`Repair`] instance for the given format.
+/// Accepts canonical names and aliases (e.g. `yml`, `md`).
+/// Returns `RepairError::FormatDetection` if the format is unknown.
 pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
     match parse_supported_format(format)? {
         "json" => Ok(Box::new(json::JsonRepairer::new())),
@@ -83,6 +91,9 @@ pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
     }
 }
 
+/// Create a boxed [`Validator`](traits::Validator) for the given format.
+/// Accepts canonical names and aliases (e.g. `yml`, `md`).
+/// Returns `RepairError::FormatDetection` if the format is unknown.
 pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
     match parse_supported_format(format)? {
         "json" => Ok(Box::new(json::JsonValidator)),
@@ -102,11 +113,15 @@ pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
     }
 }
 
+/// Repair content using an explicit format.
+/// Convenience wrapper around `create_repairer` + `Repair::repair`.
 pub fn repair_with_format(content: &str, format: &str) -> Result<String> {
     let mut repairer = create_repairer(format)?;
     repairer.repair(content)
 }
 
+/// Repair content with automatic format detection.
+/// Falls back to the Markdown repairer if no format is detected.
 pub fn repair(content: &str) -> Result<String> {
     let trimmed = content.trim();
     if let Some(fmt) = detect_format(trimmed) {
@@ -118,13 +133,42 @@ pub fn repair(content: &str) -> Result<String> {
     }
 }
 
+/// Detect the format of the given content.
+/// Returns `None` if no known format matches.
+/// See [`format_detection`] for the heuristic order.
 pub fn detect_format(content: &str) -> Option<&'static str> {
     format_detection::detect_format(content)
 }
 
+/// Repair a JSON string (Python-compatible convenience function).
+/// Equivalent to `create_repairer("json")?.repair(json_str)`.
 pub fn jsonrepair(json_str: &str) -> Result<String> {
     let mut repairer = json::JsonRepairer::new();
     repairer.repair(json_str)
+}
+
+/// Repair content with a specific format and return the list of strategies that changed it.
+/// Returns `(repaired_content, applied_strategy_names)`.
+pub fn repair_with_explanations(content: &str, format: &str) -> Result<(String, Vec<String>)> {
+    let trimmed = content.trim();
+    match parse_supported_format(format)? {
+        "json" => json::JsonRepairer::new().inner.repair_with_explanations(trimmed),
+        "yaml" => yaml::YamlRepairer::new().inner.repair_with_explanations(trimmed),
+        "markdown" => markdown::MarkdownRepairer::new().inner.repair_with_explanations(trimmed),
+        "xml" => xml::XmlRepairer::new().inner.repair_with_explanations(trimmed),
+        "toml" => toml::TomlRepairer::new().inner.repair_with_explanations(trimmed),
+        "csv" => csv::CsvRepairer::new().inner.repair_with_explanations(trimmed),
+        "ini" => key_value::IniRepairer::new().inner.repair_with_explanations(trimmed),
+        "diff" => diff::DiffRepairer::new().inner.repair_with_explanations(trimmed),
+        "properties" => {
+            key_value::PropertiesRepairer::new().inner.repair_with_explanations(trimmed)
+        }
+        "env" => key_value::EnvRepairer::new().inner.repair_with_explanations(trimmed),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown format: {}",
+            other
+        ))),
+    }
 }
 
 #[cfg(test)]

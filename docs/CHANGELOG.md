@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-07-20
+
+### Added
+- **`detect_format_with_confidence`** / **`DetectionResult`** — format detection with heuristic confidence scores
+- **Docker** — multi-stage `Dockerfile` and `.dockerignore` for CLI + MCP server images
+- Integration tests for smart-quote normalization, boolean variants, and prose extraction
+
+### Fixed
+- **MCP server version** — `anyrepair-mcp` now reports `env!("CARGO_PKG_VERSION")` instead of a stale hardcoded string
+
+### Changed
+- Documentation synced for v0.2.9 (README, TODO, SPEC); test count **432**
+
+## [0.2.8] - 2026-07-04
+
+### Added
+- CLI flags: `--diff`, `--dry-run`, `--json`, `--min-confidence`, `--explain`, `--color`
+- `anyrepair completions <shell>` via `clap_complete`
+- JSON LLM strategies: smart quotes, boolean variants, prose/preamble extraction
+- Optional `strict` feature (`serde_json`) for full JSON validation
+- Golden master tests and properties/env integration suite
+
 ## [0.2.7] - 2026-06-21
 
 ### Added
@@ -270,6 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic CLI interface
 - Comprehensive test suite
 
+[0.2.9]: https://github.com/yingkitw/anyrepair/compare/v0.2.8...v0.2.9
+[0.2.8]: https://github.com/yingkitw/anyrepair/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/yingkitw/anyrepair/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/yingkitw/anyrepair/compare/v0.2.4...v0.2.6
 [0.2.4]: https://github.com/yingkitw/anyrepair/compare/v0.2.2...v0.2.4

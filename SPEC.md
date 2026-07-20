@@ -4,7 +4,7 @@
 
 AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing malformed structured data. It uses pattern matching and ordered repair strategies—no machine learning and no external API calls.
 
-**Current version:** 0.2.7 (Rust edition 2024).
+**Current version:** 0.2.9 (Rust edition 2024).
 
 ## Supported formats
 
@@ -30,12 +30,14 @@ pub fn normalize_format(format: &str) -> &str;
 pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>>;
 pub fn create_validator(format: &str) -> Result<Box<dyn Validator>>;
 pub fn detect_format(content: &str) -> Option<&'static str>;
+pub fn detect_format_with_confidence(content: &str) -> Option<DetectionResult>;
 pub fn repair(content: &str) -> Result<String>;
 pub fn repair_with_format(content: &str, format: &str) -> Result<String>;
 pub fn jsonrepair(json_str: &str) -> Result<String>;
+pub fn repair_with_explanations(content: &str, format: &str) -> Result<(String, Vec<String>)>;
 ```
 
-Re-exports include format repairers (`JsonRepairer`, `IniRepairer`, `PropertiesRepairer`, `EnvRepairer`, …), `StreamingRepair`, `AnyrepairMcpServer`, `RepairError`, and `Repair`.
+Re-exports include format repairers (`JsonRepairer`, `IniRepairer`, `PropertiesRepairer`, `EnvRepairer`, …), `StreamingRepair`, `AnyrepairMcpServer`, `DetectionResult`, `RepairError`, and `Repair`.
 
 ### Registry extension
 
@@ -189,7 +191,7 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 | Complex damage | 18 | `tests/complex_damage_tests.rs` |
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
 | Golden master | 26 | `tests/golden_master_tests.rs` |
-| **Total** | **415** (default) / **423** (with `--features strict`) | `cargo test` |
+| **Total** | **432** (default) | `cargo test` |
 
 ## Dependencies (runtime)
 

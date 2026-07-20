@@ -1,0 +1,12 @@
+target/
+.git/
+.github/
+docs/
+*.md
+!README.md
+.DS_Store
+*.log
+tests/
+examples/data/
+OPTIMIZATION_SUMMARY.txt
+plugin_config.toml

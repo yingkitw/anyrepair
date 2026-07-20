@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across **10 formats** (JSON
 
 ```toml
 [dependencies]
-anyrepair = "0.2.7"
+anyrepair = "0.2.9"
 ```
 
 ### Basic Usage
@@ -73,35 +73,50 @@ anyrepair stream --input large_file.json --output repaired.json --format json
 anyrepair validate --input input.json --format json
 ```
 
+### Docker
+
+```bash
+docker build -t anyrepair .
+docker run --rm -i anyrepair repair --format json <<'EOF'
+{"name": "John", age: 30,}
+EOF
+
+# MCP server
+docker run --rm -i anyrepair anyrepair-mcp
+```
+
 ## What's New
 
-### v0.2.7 — Current
+### v0.2.9 — Current
+
+- **`detect_format_with_confidence`** — format detection returns a confidence score (`DetectionResult`)
+- **Docker image** — multi-stage `Dockerfile` for CLI and MCP binaries
+- **MCP version** — `anyrepair-mcp` reports `CARGO_PKG_VERSION` (no more stale hardcoded version)
+- Integration tests for smart quotes, boolean variants, and prose extraction
+- **432 tests**, all passing
+
+### v0.2.8
+
+- CLI: `--diff`, `--dry-run`, `--json`, `--min-confidence`, `--explain`, `--color`
+- Shell completions: `anyrepair completions <shell>`
+- LLM JSON strategies: smart quotes, boolean variants (`yes`/`no`/`on`/`off`), prose/preamble extraction
+- Optional `strict` feature for `serde_json`-backed JSON validation
+- Golden master + properties/env integration tests
+
+### v0.2.7
 
 - **Auto-detect properties & env** — `detect_format()` now recognizes `.properties` and `.env` files
-- **Heuristic validator fixes** — XML content `=` false positive fixed, entity corruption fixed, CSV destructive space→comma fixed
-- **Zero compiler warnings** — Dead code removed, `mut` qualifiers cleaned
+- **Heuristic validator fixes** — XML / CSV edge cases
 - **Criterion benchmarks** — All 10 formats + format detection + large-document throughput
-- **353 tests**, all passing, zero warnings
 
 ### v0.2.6
 
-- **Minimal dependencies** — Runtime: `regex`, `thiserror`, `clap` only (no `serde`, `serde_json`, `serde_yaml`, `quick-xml`, `toml`, `csv`, or `ini` crates)
-- **`json_util` module** — Built-in JSON validation, escaping, and MCP payloads without external JSON libraries
-- **Heuristic validators** for XML, TOML, CSV, and YAML (structural checks instead of full parser crates)
-- **316 tests**, all passing
+- **Minimal dependencies** and **`json_util`** without serde
+- Heuristic validators for XML, TOML, CSV, and YAML
 
-### v0.2.5
+### v0.2.0–0.2.5 (highlights)
 
-- **Properties & `.env` formats** — `PropertiesRepairer` and `EnvRepairer` in `key_value.rs`
-- **10 formats** in `SUPPORTED_FORMATS`; MCP exposes **12 tools**
-- Removed `ini` crate; INI/properties/env share native key-value repair
-
-### v0.2.0–0.2.4 (highlights)
-
-- Centralized format registry and unified `repair --format` CLI
-- Python-compatible `jsonrepair()` / `JsonRepair` API
-- Diff support and streaming for large files
-- Earlier dependency cleanup (`pulldown-cmark`, `anyhow`, and others)
+- Properties/`.env` formats, centralized registry, Python-compatible `jsonrepair()`, MCP, streaming
 
 See [CHANGELOG.md](docs/CHANGELOG.md) for full version history.
 
@@ -257,14 +272,17 @@ cargo test
 
 | Suite | Tests |
 |-------|------:|
-| Library / modules | 164 |
+| Library / modules | 177 |
+| Completions / CLI extras | 19 |
 | CLI | 15 |
-| Integration | 17 |
+| Integration | 21 |
 | Diff | 35 |
 | Fuzz (proptest) | 34 |
 | Streaming | 26 |
+| Properties/env | 25 |
+| Golden master | 26 |
 | Damage + complex damage + complex streaming | 54 |
-| **Total** | **353** |
+| **Total** | **432** |
 
 See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 

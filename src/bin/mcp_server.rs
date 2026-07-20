@@ -13,7 +13,8 @@ fn main() -> io::Result<()> {
     let mut reader = stdin.lock();
 
     let server_info = format!(
-        r#"{{"name":"anyrepair","version":"0.2.7","description":"MCP server for repairing malformed structured data"}}"#
+        r#"{{"name":"anyrepair","version":"{}","description":"MCP server for repairing malformed structured data"}}"#,
+        env!("CARGO_PKG_VERSION")
     );
     writeln!(stdout, "{}", server_info)?;
     stdout.flush()?;

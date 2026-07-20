@@ -40,6 +40,7 @@ Single source of truth for supported formats, factories, and top-level helpers:
 | `normalize_format` | Aliases: `yml` → `yaml`, `md` → `markdown` |
 | `create_repairer` / `create_validator` | `Box<dyn …>` factories |
 | `detect_format` | Delegates to `format_detection` |
+| `detect_format_with_confidence` | Same heuristics + confidence score |
 | `repair` / `repair_with_format` | High-level repair API |
 | `jsonrepair` | Python-compatible JSON entry point |
 

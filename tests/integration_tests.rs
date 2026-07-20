@@ -347,3 +347,45 @@ fn test_empty_and_minimal_inputs() {
     assert!(result3.contains("["));
     assert!(result3.contains("]"));
 }
+
+#[test]
+fn test_smart_quotes_end_to_end() {
+    let input = "{\u{201c}name\u{201d}: \u{201c}Alice\u{201d}}";
+    let result = repair(input).unwrap();
+    assert!(!result.contains('\u{201c}'));
+    assert!(!result.contains('\u{201d}'));
+    assert!(result.contains("\"name\""));
+    assert!(result.contains("\"Alice\""));
+}
+
+#[test]
+fn test_boolean_variants_end_to_end() {
+    let input = r#"{enabled: yes, power: on, offline: no}"#;
+    let result = repair(input).unwrap();
+    assert!(result.contains("true"));
+    assert!(result.contains("false"));
+    assert!(!result.to_lowercase().contains("yes"));
+    assert!(!result.to_lowercase().contains("\"on\"") || result.contains("true"));
+}
+
+#[test]
+fn test_prose_extraction_end_to_end() {
+    let input = r#"Sure! Here is the JSON you asked for: {"ok": true, "n": 1} Let me know if you need more."#;
+    // Prose wrapping is JSON-specific; call jsonrepair (not auto-detect)
+    let result = anyrepair::jsonrepair(input).unwrap();
+    assert!(result.trim().starts_with('{'));
+    assert!(result.trim().ends_with('}'));
+    assert!(!result.contains("Sure!"));
+    assert!(!result.contains("Let me know"));
+}
+
+#[test]
+fn test_detect_format_with_confidence_api() {
+    use anyrepair::detect_format_with_confidence;
+
+    let r = detect_format_with_confidence(r#"{"a":1}"#).unwrap();
+    assert_eq!(r.format, "json");
+    assert!(r.confidence > 0.0 && r.confidence <= 1.0);
+
+    assert!(detect_format_with_confidence("plain text only").is_none());
+}

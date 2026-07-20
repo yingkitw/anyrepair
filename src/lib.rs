@@ -140,6 +140,17 @@ pub fn detect_format(content: &str) -> Option<&'static str> {
     format_detection::detect_format(content)
 }
 
+/// Detect format with a confidence score (`0.0..=1.0`).
+///
+/// Same heuristics as [`detect_format`], but also returns how strong the match is.
+pub fn detect_format_with_confidence(
+    content: &str,
+) -> Option<format_detection::DetectionResult> {
+    format_detection::detect_format_with_confidence(content)
+}
+
+pub use format_detection::DetectionResult;
+
 /// Repair a JSON string (Python-compatible convenience function).
 /// Equivalent to `create_repairer("json")?.repair(json_str)`.
 pub fn jsonrepair(json_str: &str) -> Result<String> {

@@ -3,33 +3,115 @@
 //! This module contains all format-detection logic, separated from the
 //! public API surface in `lib.rs` for better separation of concerns.
 
+/// Result of format detection with a confidence score in `0.0..=1.0`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DetectionResult {
+    /// Canonical format name (e.g. `"json"`, `"yaml"`).
+    pub format: &'static str,
+    /// Heuristic confidence that `format` is correct.
+    pub confidence: f64,
+}
+
 /// Detect the format of the given content, returns None if unknown
 pub fn detect_format(content: &str) -> Option<&'static str> {
+    detect_format_with_confidence(content).map(|r| r.format)
+}
+
+/// Detect format and return a [`DetectionResult`] with confidence.
+///
+/// Confidence reflects how strong the matching heuristic is (not the
+/// quality of the content). Ambiguous cases score lower.
+pub fn detect_format_with_confidence(content: &str) -> Option<DetectionResult> {
     let trimmed = content.trim();
-    if is_json_like(trimmed) {
-        Some("json")
-    } else if is_diff_like(trimmed) {
-        // Diff before yaml/csv/ini — diff lines contain colons, commas, etc.
-        Some("diff")
-    } else if is_yaml_like(trimmed) {
-        Some("yaml")
-    } else if is_xml_like(trimmed) {
-        Some("xml")
-    } else if is_toml_like(trimmed) {
-        Some("toml")
-    } else if is_csv_like(trimmed) {
-        Some("csv")
-    } else if is_env_like(trimmed) {
-        Some("env")
-    } else if is_properties_like(trimmed) {
-        Some("properties")
-    } else if is_ini_like(trimmed) {
-        Some("ini")
-    } else if is_markdown_like(trimmed) {
-        Some("markdown")
-    } else {
-        None
+    if trimmed.is_empty() {
+        return None;
     }
+
+    if is_json_like(trimmed) {
+        let confidence = if (trimmed.starts_with('{') && trimmed.ends_with('}'))
+            || (trimmed.starts_with('[') && trimmed.ends_with(']'))
+        {
+            0.95
+        } else {
+            0.75
+        };
+        return Some(DetectionResult {
+            format: "json",
+            confidence,
+        });
+    }
+    if is_diff_like(trimmed) {
+        // Diff before yaml/csv/ini — diff lines contain colons, commas, etc.
+        return Some(DetectionResult {
+            format: "diff",
+            confidence: 0.9,
+        });
+    }
+    if is_yaml_like(trimmed) {
+        let confidence = if trimmed.contains("---") { 0.9 } else { 0.7 };
+        return Some(DetectionResult {
+            format: "yaml",
+            confidence,
+        });
+    }
+    if is_xml_like(trimmed) {
+        let confidence = if trimmed.starts_with("<?xml") || trimmed.contains("</") {
+            0.9
+        } else {
+            0.7
+        };
+        return Some(DetectionResult {
+            format: "xml",
+            confidence,
+        });
+    }
+    if is_toml_like(trimmed) {
+        let confidence = if trimmed.contains('[') && trimmed.contains('=') {
+            0.85
+        } else {
+            0.7
+        };
+        return Some(DetectionResult {
+            format: "toml",
+            confidence,
+        });
+    }
+    if is_csv_like(trimmed) {
+        return Some(DetectionResult {
+            format: "csv",
+            confidence: 0.8,
+        });
+    }
+    if is_env_like(trimmed) {
+        return Some(DetectionResult {
+            format: "env",
+            confidence: 0.85,
+        });
+    }
+    if is_properties_like(trimmed) {
+        return Some(DetectionResult {
+            format: "properties",
+            confidence: 0.8,
+        });
+    }
+    if is_ini_like(trimmed) {
+        return Some(DetectionResult {
+            format: "ini",
+            confidence: 0.85,
+        });
+    }
+    if is_markdown_like(trimmed) {
+        let confidence = if trimmed.contains('#') || trimmed.contains("```") {
+            0.8
+        } else {
+            0.6
+        };
+        return Some(DetectionResult {
+            format: "markdown",
+            confidence,
+        });
+    }
+    None
 }
 
 /// All `is_*_like` helpers expect **outer** whitespace already trimmed (as `detect_format` does).
@@ -435,5 +517,40 @@ mod tests {
         assert_eq!(detect_format("* item"), Some("markdown"));
         // Multiple asterisks: markdown
         assert_eq!(detect_format("**bold** and *italic*"), Some("markdown"));
+    }
+
+    #[test]
+    fn test_detect_with_confidence_json() {
+        let r = detect_format_with_confidence(r#"{"key": "value"}"#).unwrap();
+        assert_eq!(r.format, "json");
+        assert!(r.confidence >= 0.9);
+    }
+
+    #[test]
+    fn test_detect_with_confidence_fragment() {
+        let r = detect_format_with_confidence(r#"{"key": "value""#).unwrap();
+        assert_eq!(r.format, "json");
+        assert!(r.confidence < 0.9);
+    }
+
+    #[test]
+    fn test_detect_with_confidence_none() {
+        assert!(detect_format_with_confidence("hello").is_none());
+        assert!(detect_format_with_confidence("").is_none());
+    }
+
+    #[test]
+    fn test_detect_with_confidence_matches_detect_format() {
+        for sample in [
+            r#"{"a":1}"#,
+            "name: John",
+            "name,age\nJohn,30",
+            "# Header",
+            "DATABASE_URL=host\nAPI_KEY=secret",
+        ] {
+            let plain = detect_format(sample);
+            let scored = detect_format_with_confidence(sample).map(|r| r.format);
+            assert_eq!(plain, scored);
+        }
     }
 }

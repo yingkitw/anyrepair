@@ -14,7 +14,7 @@ AnyRepair now exposes its repair functionality as an MCP (Model Context Protocol
 - Tool handlers for all repair and validation operations
 
 **Features:**
-- 9 available tools (repair, repair_json, repair_yaml, repair_markdown, repair_xml, repair_toml, repair_csv, repair_ini, validate)
+- 12 available tools (repair, repair_json, repair_yaml, repair_markdown, repair_xml, repair_toml, repair_csv, repair_ini, repair_diff, repair_properties, repair_env, validate)
 - JSON-based request/response protocol
 - Error handling with descriptive messages
 - Confidence scoring for format-specific repairs
@@ -63,7 +63,8 @@ anyrepair library
     ├── xml::XmlRepairer
     ├── toml::TomlRepairer
     ├── csv::CsvRepairer
-    └── ini::IniRepairer
+    ├── key_value::IniRepairer / PropertiesRepairer / EnvRepairer
+    └── diff::DiffRepairer
 ```
 
 ## Available Tools
@@ -84,10 +85,13 @@ anyrepair library
 6. **repair_toml** - TOML-specific repair
 7. **repair_csv** - CSV-specific repair
 8. **repair_ini** - INI-specific repair
+9. **repair_diff** - Diff-specific repair
+10. **repair_properties** - Properties-specific repair
+11. **repair_env** - Env-specific repair
 
 ### Validation Tool
 
-9. **validate** - Validate content in specified format
+12. **validate** - Validate content in specified format
    - Input: `{ "content": "...", "format": "json" }`
    - Output: `{ "valid": true, "format": "json" }`
 
@@ -145,7 +149,7 @@ Add to `claude_desktop_config.json`:
 - `test_mcp_server_has_repair_tools` - Tool availability
 - `test_mcp_server_repair_json` - JSON repair functionality
 
-**Total Tests:** 271/271 passing ✅
+**Total Tests:** 450/450 passing ✅
 
 ## Performance Characteristics
 
@@ -259,7 +263,7 @@ To add a new tool:
 
 ### Versioning
 
-- MCP Server version: 0.2.2 (matches anyrepair version)
+- MCP Server version: 0.2.9 (matches anyrepair version)
 - Protocol version: 1.0
 - Backward compatible with previous versions
 
@@ -278,7 +282,7 @@ Apache-2.0
 
 The MCP server implementation provides:
 - ✅ Full repair functionality via MCP
-- ✅ Support for all 7 formats
+- ✅ Support for all 10 formats
 - ✅ Confidence scoring
 - ✅ Error handling
 - ✅ Easy Claude integration

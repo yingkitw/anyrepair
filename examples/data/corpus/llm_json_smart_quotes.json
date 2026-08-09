@@ -1,0 +1,10 @@
+{
+  "name": "Alice",
+  "title": "Senior Engineer",
+  "department": "Engineering",
+  "bio": "Alice works on the "core" platform & enjoys coding",
+  "skills": ["Rust", "Python", "TypeScript",],
+  "location": "New York",
+  "remote": true,
+  "salary": 150000
+}

@@ -17,7 +17,7 @@
 - **[STREAMING_FEATURE.md](STREAMING_FEATURE.md)** - Streaming repair for large files
 
 ### Testing
-- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (280+ tests)
+- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (432 tests)
 
 ### Version History
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
@@ -46,10 +46,10 @@
 
 ## Project Statistics
 
-- **Formats Supported**: 8 (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff/Unified diff)
-- **Test Coverage**: 318 tests (100% pass rate)
+- **Formats Supported**: 10 (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
+- **Test Coverage**: 450 tests (100% pass rate)
 - **Binary Size**: 1.5 MB (optimized)
-- **MCP Tools**: 10 available
+- **MCP Tools**: 12 available
 - **Documentation Files**: 8 core files
 
 ## Key Files Location
@@ -69,7 +69,7 @@ anyrepair/
 ├── examples/            # Usage examples
 │   ├── README.md
 │   └── data/           # Test data files
-├── tests/               # Test suites (280+ tests)
+├── tests/               # Test suites (450 tests)
 ├── docs/                # Documentation (this folder)
 │   ├── INDEX.md        # This file
 │   ├── ARCHITECTURE.md # System design
@@ -79,10 +79,10 @@ anyrepair/
 
 ## Last Updated
 
-March 29, 2026
+August 9, 2026
 
 ## Status
 
 ✅ **PRODUCTION READY**
 
-All features implemented, tested, and documented. Version 0.2.2 with KISS/DRY/SoC refactoring and centralized format registry.
+All features implemented, tested, and documented. Version 0.2.9 with 10-format support, MCP server, streaming, and 450 tests.

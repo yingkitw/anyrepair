@@ -1,0 +1,14 @@
+[server settings]
+host = "localhost"
+port = 8080
+max connections = 100
+timeout = 30
+
+[database config]
+url = "postgres://localhost/myapp"
+pool size = 10
+
+[feature flags]
+enable auth = true
+enable cache = true
+debug mode = false

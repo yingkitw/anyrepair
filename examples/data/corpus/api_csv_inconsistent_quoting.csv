@@ -1,0 +1,8 @@
+id,name,description,price,category
+1,Widget,A "cool" gadget,19.99,electronics
+2,Gizmo,Simple device,9.99,electronics
+3,"Doohickey","Complex "thing" with options",29.99,hardware
+4,Thingamajig,Basic tool,5.50,hardware
+5,Whatchamacallit,"Multi-purpose item",14.99,misc
+6,Whatsit,Item with,comma in name,7.99,misc
+7,Contraption,"Heavy-duty equipment",49.99,industrial

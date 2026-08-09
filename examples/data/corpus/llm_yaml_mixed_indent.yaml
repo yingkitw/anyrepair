@@ -1,0 +1,14 @@
+server:
+  host: localhost
+  port: 8080
+	database:
+		name: myapp
+		url: postgres://localhost/myapp
+		pool_size: 10
+logging:
+  level: info
+  format: json
+	features:
+		- authentication
+		- caching
+		- rate_limiting

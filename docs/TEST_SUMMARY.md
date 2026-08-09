@@ -2,13 +2,13 @@
 
 ## Overview
 
-AnyRepair includes **353 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
+AnyRepair includes **450 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
 
 ## Test Organization
 
 ### Test Files
 
-- **`tests/integration_tests.rs`** - Integration tests (17 tests)
+- **`tests/integration_tests.rs`** - Integration tests (21 tests)
 - **`tests/streaming_tests.rs`** - Streaming repair tests (26 tests)
 - **`tests/complex_damage_tests.rs`** - Complex damage scenarios (18 tests)
 - **`tests/complex_streaming_tests.rs`** - Complex streaming scenarios (18 tests)
@@ -16,6 +16,10 @@ AnyRepair includes **353 comprehensive tests** covering all formats, damage patt
 - **`tests/fuzz_tests.rs`** - Property-based fuzz testing (34 tests)
 - **`tests/diff_tests.rs`** - Diff/Unified diff repair tests (35 tests)
 - **`tests/cli_tests.rs`** - CLI functionality tests (15 tests)
+- **`tests/golden_master_tests.rs`** - Golden master / snapshot tests (26 tests)
+- **`tests/properties_env_tests.rs`** - Properties/env format tests (25 tests)
+- **`tests/strict_validation_tests.rs`** - Strict validation tests (0 tests, feature-gated)
+- **`tests/corpus_tests.rs`** - Real-world corpus tests (17 tests)
 
 ### Test Coverage by Format
 
@@ -31,14 +35,14 @@ AnyRepair includes **353 comprehensive tests** covering all formats, damage patt
 
 ## Test Statistics
 
-- **Total Tests**: 353 tests
+- **Total Tests**: 450 tests
 - **Pass Rate**: 100%
-- **Test Files**: 8
+- **Test Files**: 11
 - **Coverage**: All 10 formats and major features
 
 ## Test Suite Breakdown
 
-### 1. Unit Tests (164 tests)
+### 1. Unit Tests (177 tests)
 **Location**: `src/lib.rs` and format-specific modules
 
 **Coverage**:
@@ -56,7 +60,7 @@ AnyRepair includes **353 comprehensive tests** covering all formats, damage patt
 
 **Focus**: Core functionality, edge cases, format-specific features
 
-### 2. Integration Tests (17 tests)
+### 2. Integration Tests (21 tests)
 **Location**: `tests/integration_tests.rs`
 
 **Coverage**: End-to-end integration testing
@@ -96,7 +100,7 @@ AnyRepair includes **353 comprehensive tests** covering all formats, damage patt
 
 **Coverage**: Complex streaming scenarios with damage
 
-### 7. Fuzz Tests (36 tests)
+### 7. Fuzz Tests (34 tests)
 **Location**: `tests/fuzz_tests.rs`
 
 **Coverage**: Property-based testing for robustness
@@ -120,43 +124,26 @@ AnyRepair includes **353 comprehensive tests** covering all formats, damage patt
 
 ### Total Coverage
 ```
-Unit Tests:              164 ✅
+Unit Tests:              177 ✅
+Binary (CLI handlers):    20 ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
 Complex Streaming:        18 ✅
 Fuzz Tests:               34 ✅
-Integration Tests:        17 ✅
+Integration Tests:        21 ✅
 Streaming Tests:          26 ✅
 Diff Tests:               35 ✅
 CLI Tests:                15 ✅
+Golden Master:            26 ✅
+Properties/Env:           25 ✅
 ─────────────────────────────
-TOTAL:                   353 ✅
+Corpus:                  17 ✅
+─────────────────────────────
+TOTAL:                   450 ✅
 ```
 
 ### Pass Rate
-- **Overall**: 100% (353/353 passing)
-- **All Formats**: 10/10 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
-- **All Features**: Streaming, MCP integration, format auto-detection, validation, key-value repair
-
-## Test Statistics
-
-### Total Coverage
-```
-Unit Tests:              164 ✅
-Damage Scenarios:         18 ✅
-Complex Damage:           18 ✅
-Complex Streaming:        18 ✅
-Fuzz Tests:               34 ✅
-Integration Tests:        17 ✅
-Streaming Tests:          26 ✅
-Diff Tests:               35 ✅
-CLI Tests:                15 ✅
-─────────────────────────────
-TOTAL:                   353 ✅
-```
-
-### Pass Rate
-- **Overall**: 100% (353/353 passing)
+- **Overall**: 100% (450/450 passing)
 - **All Formats**: 10/10 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
 - **All Features**: Streaming, MCP integration, format auto-detection, validation, key-value repair
 
@@ -208,8 +195,10 @@ TOTAL:                   353 ✅
 | **Total** | **120+** | **18** | **18** | **18** | **34** | **35** | **243+** |
 
 **Additional Tests**:
-- Integration tests: 17
+- Integration tests: 21
 - CLI tests: 15
+- Golden master tests: 26
+- Properties/env tests: 25
 - Streaming tests: 26 (included in format totals above)
 
 ## Key Test Scenarios

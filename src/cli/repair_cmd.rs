@@ -36,7 +36,7 @@ pub fn handle_repair(
 ) -> io::Result<()> {
     let content = super::read_input(input)?;
 
-    let (repaired, confidence, detected_format, explanations) = if let Some(fmt) = format {
+    let (repaired, confidence, detected_format, explanations, detection_confidence) = if let Some(fmt) = format {
         if verbose {
             eprintln!("Repairing content as {}...", fmt);
         }
@@ -47,22 +47,24 @@ pub fn handle_repair(
                 .map_err(|e| io::Error::other(e.to_string()))?
                 .is_valid(&r);
             let conf = if c { 1.0 } else { 0.0 };
-            (r, conf, fmt, names)
+            (r, conf, fmt, names, 1.0)
         } else {
             let (r, c) = repair_format(&content, fmt)?;
-            (r, c, fmt, Vec::new())
+            (r, c, fmt, Vec::new(), 1.0)
         }
     } else {
         if verbose {
             eprintln!("Repairing content (auto-detect format)...");
         }
-        let detected = anyrepair::detect_format(&content);
+        let detected = anyrepair::detect_format_with_confidence(&content);
         if verbose
-            && let Some(fmt) = detected {
-                eprintln!("Detected format: {}", fmt);
+            && let Some(ref dr) = detected {
+                eprintln!("Detected format: {} (confidence: {:.0}%)", dr.format, dr.confidence * 100.0);
             }
         match detected {
-            Some(fmt) => {
+            Some(dr) => {
+                let fmt = dr.format;
+                let det_conf = dr.confidence;
                 if explain {
                     let (r, names) = anyrepair::repair_with_explanations(&content, fmt)
                         .map_err(|e| io::Error::other(e.to_string()))?;
@@ -70,16 +72,16 @@ pub fn handle_repair(
                         .map_err(|e| io::Error::other(e.to_string()))?
                         .is_valid(&r);
                     let conf = if c { 1.0 } else { 0.0 };
-                    (r, conf, fmt, names)
+                    (r, conf, fmt, names, det_conf)
                 } else {
                     let (r, c) = repair_format(&content, fmt)?;
-                    (r, c, fmt, Vec::new())
+                    (r, c, fmt, Vec::new(), det_conf)
                 }
             }
             None => {
                 let repaired = anyrepair::repair(&content)
                     .map_err(|e| io::Error::other(e.to_string()))?;
-                (repaired, 0.0, "markdown", Vec::new())
+                (repaired, 0.0, "markdown", Vec::new(), 0.0)
             }
         }
     };
@@ -129,6 +131,7 @@ pub fn handle_repair(
         let json = build_json_result(
             detected_format,
             confidence,
+            detection_confidence,
             had_changes,
             content.len(),
             repaired.len(),
@@ -179,6 +182,7 @@ fn repair_format(content: &str, format: &str) -> io::Result<(String, f64)> {
 fn build_json_result(
     format: &str,
     confidence: f64,
+    detection_confidence: f64,
     repaired_needed: bool,
     original_len: usize,
     repaired_len: usize,
@@ -196,9 +200,10 @@ fn build_json_result(
     };
 
     format!(
-        r#"{{"format":{},"confidence":{},"repaired":{},"original_length":{},"repaired_length":{},"output":{}{}}}"#,
+        r#"{{"format":{},"confidence":{},"detection_confidence":{},"repaired":{},"original_length":{},"repaired_length":{},"output":{}{}}}"#,
         anyrepair::json_util::json_string(format),
         confidence,
+        detection_confidence,
         repaired_needed,
         original_len,
         repaired_len,
@@ -463,9 +468,10 @@ mod tests {
 
     #[test]
     fn test_build_json_result_with_output() {
-        let json = build_json_result("json", 0.95, true, 20, 18, Some("out.json"), "{}");
+        let json = build_json_result("json", 0.95, 0.9, true, 20, 18, Some("out.json"), "{}");
         assert!(json.contains(r#""format":"json""#));
         assert!(json.contains(r#""confidence":0.95"#));
+        assert!(json.contains(r#""detection_confidence":0.9"#));
         assert!(json.contains(r#""repaired":true"#));
         assert!(json.contains(r#""original_length":20"#));
         assert!(json.contains(r#""repaired_length":18"#));
@@ -475,11 +481,19 @@ mod tests {
 
     #[test]
     fn test_build_json_result_without_output() {
-        let json = build_json_result("yaml", 0.8, false, 10, 10, None, "key: val");
+        let json = build_json_result("yaml", 0.8, 0.75, false, 10, 10, None, "key: val");
         assert!(json.contains(r#""format":"yaml""#));
+        assert!(json.contains(r#""detection_confidence":0.75"#));
         assert!(json.contains(r#""repaired":false"#));
         assert!(json.contains(r#""output":null"#));
         assert!(json.contains(r#""content":"key: val""#));
+    }
+
+    #[test]
+    fn test_build_json_result_explicit_format_detection_confidence() {
+        // When format is explicitly specified, detection_confidence should be 1.0
+        let json = build_json_result("json", 0.9, 1.0, true, 15, 14, None, "{}");
+        assert!(json.contains(r#""detection_confidence":1"#));
     }
 
     #[test]

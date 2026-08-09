@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <status>ok</status>
+  <message>Success & data retrieved</message>
+  <items>
+    <item id="1">
+      <name>Tom & Jerry</name>
+      <description>Price < $50 & > $10</description>
+    </item>
+    <item id="2">
+      <name>Books & More</name>
+      <tags>
+        <tag>fiction</tag>
+        <tag>non-fiction</tag>
+      </tags>
+    </item>
+  </items>
+  <copyright>© 2026 ACME Corp</copyright>
+</response>

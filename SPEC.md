@@ -179,10 +179,10 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 
 | Category | Count | Location |
 |----------|------:|----------|
-| Library / module tests | 168 | `src/lib.rs` + modules |
-| Binary (CLI handlers) | 19 | `src/main.rs` |
+| Library / module tests | 177 | `src/lib.rs` + modules |
+| Binary (CLI handlers) | 20 | `src/main.rs` |
 | CLI | 15 | `tests/cli_tests.rs` |
-| Integration | 17 | `tests/integration_tests.rs` |
+| Integration | 21 | `tests/integration_tests.rs` |
 | Properties/env | 25 | `tests/properties_env_tests.rs` |
 | Diff | 35 | `tests/diff_tests.rs` |
 | Fuzz (proptest) | 34 | `tests/fuzz_tests.rs` |
@@ -191,7 +191,8 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 | Complex damage | 18 | `tests/complex_damage_tests.rs` |
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
 | Golden master | 26 | `tests/golden_master_tests.rs` |
-| **Total** | **432** (default) | `cargo test` |
+| Corpus | 17 | `tests/corpus_tests.rs` |
+| **Total** | **450** (default) | `cargo test` |
 
 ## Dependencies (runtime)
 

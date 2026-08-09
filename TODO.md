@@ -7,7 +7,7 @@
 - [x] **Docker container** — multi-stage `Dockerfile` for `anyrepair` + `anyrepair-mcp`
 - [x] **MCP binary version** — sync with `CARGO_PKG_VERSION`
 - [x] Integration tests for smart quotes, boolean variants, prose extraction
-- [x] Docs synced (README, SPEC, CHANGELOG, TODO); **432 tests**
+- [x] Docs synced (README, SPEC, CHANGELOG, TODO); **450 tests**
 
 ### v0.2.8
 - [x] CLI: `--diff`, `--dry-run`, `--json`, `--min-confidence`, `--explain`, `--color`
@@ -23,11 +23,11 @@
 
 ### High
 - [ ] **Mutation testing** — `cargo-mutants` on critical repair paths
-- [ ] **Real-world corpus** — checked-in samples from LLM / API failures
+- [x] **Real-world corpus** — checked-in samples from LLM / API failures
 
 ### Medium
 - [ ] **Publish Docker image** — GHCR / Docker Hub CI workflow
-- [ ] **Expose detection confidence in CLI** — e.g. `repair --json` includes `detection_confidence`
+- [x] **Expose detection confidence in CLI** — `repair --json` includes `detection_confidence`
 
 ## Planned Features 📋
 

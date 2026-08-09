@@ -7,7 +7,7 @@ AnyRepair now exposes its repair functionality as an **MCP (Model Context Protoc
 ## Features
 
 - **Auto-detect repair**: Automatically detects format and repairs content
-- **Format-specific repair**: Direct repair for JSON, YAML, Markdown, XML, TOML, CSV, INI
+- **Format-specific repair**: Direct repair for JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env
 - **Validation**: Validate content in any supported format
 - **Confidence scoring**: Get confidence scores for repairs
 - **Streaming support**: Handle large files efficiently
@@ -86,6 +86,9 @@ Automatically detects the format and repairs content.
 - `repair_toml` - Repair TOML content
 - `repair_csv` - Repair CSV content
 - `repair_ini` - Repair INI content
+- `repair_diff` - Repair Diff content
+- `repair_properties` - Repair Properties content
+- `repair_env` - Repair Env content
 
 **Input:**
 ```json
@@ -141,6 +144,9 @@ Validates content in a specified format.
 | TOML | ✅ | ✅ | ✅ |
 | CSV | ✅ | ✅ | ✅ |
 | INI | ✅ | ✅ | ✅ |
+| Diff | ✅ | ✅ | ✅ |
+| Properties | ✅ | ✅ | ✅ |
+| Env | ✅ | ✅ | ✅ |
 
 ## Examples
 

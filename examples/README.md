@@ -187,6 +187,9 @@ echo '{"tool": "repair_json", "input": {"content": "{\"key\": \"value\",}"}}' | 
 | `repair_toml` | Repair TOML |
 | `repair_csv` | Repair CSV |
 | `repair_ini` | Repair INI |
+| `repair_diff` | Repair Diff |
+| `repair_properties` | Repair Properties |
+| `repair_env` | Repair Env |
 
 ### Validation Tool
 
@@ -319,14 +322,14 @@ function repairJson(content) {
 
 ## Documentation
 
-- [MCP Server Documentation](../MCP_SERVER.md)
+- [MCP Server Documentation](../docs/MCP_SERVER.md)
 - [MCP Protocol Reference](mcp_protocol.md)
 - [Main README](../README.md)
 
 ## Support
 
 For issues or questions:
-1. Check the [MCP Server Documentation](../MCP_SERVER.md)
+1. Check the [MCP Server Documentation](../docs/MCP_SERVER.md)
 2. Review the [Protocol Reference](mcp_protocol.md)
 3. Check the [Main README](../README.md)
 4. Open an issue on GitHub

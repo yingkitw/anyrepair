@@ -164,12 +164,16 @@ impl RepairStrategy for StripTrailingContentStrategy {
                     brace_count -= 1;
                     if brace_count == 0 && bracket_count == 0 {
                         let mut j = i + 1;
+                        let mut crossed_newline = false;
                         while j < len
                             && (chars[j] == ' '
                                 || chars[j] == '\n'
                                 || chars[j] == '\t'
                                 || chars[j] == '\r')
                         {
+                            if chars[j] == '\n' {
+                                crossed_newline = true;
+                            }
                             j += 1;
                         }
 
@@ -177,6 +181,16 @@ impl RepairStrategy for StripTrailingContentStrategy {
                             found_json_end = false;
                         } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
                             found_json_end = true;
+                        } else if crossed_newline && chars[j].is_alphanumeric() {
+                            // After a newline, alphanumeric text could be trailing prose.
+                            // But only strip if the remaining content has no structural
+                            // characters ({, [, =, :) that indicate structured data (e.g. TOML).
+                            let remaining = &content[j..];
+                            let has_structure = remaining.contains('{')
+                                || remaining.contains('[')
+                                || remaining.contains('=')
+                                || remaining.contains(':');
+                            found_json_end = !has_structure;
                         }
                     }
                 }
@@ -189,12 +203,16 @@ impl RepairStrategy for StripTrailingContentStrategy {
                     bracket_count -= 1;
                     if brace_count == 0 && bracket_count == 0 {
                         let mut j = i + 1;
+                        let mut crossed_newline = false;
                         while j < len
                             && (chars[j] == ' '
                                 || chars[j] == '\n'
                                 || chars[j] == '\t'
                                 || chars[j] == '\r')
                         {
+                            if chars[j] == '\n' {
+                                crossed_newline = true;
+                            }
                             j += 1;
                         }
 
@@ -202,6 +220,13 @@ impl RepairStrategy for StripTrailingContentStrategy {
                             found_json_end = false;
                         } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
                             found_json_end = true;
+                        } else if crossed_newline && chars[j].is_alphanumeric() {
+                            let remaining = &content[j..];
+                            let has_structure = remaining.contains('{')
+                                || remaining.contains('[')
+                                || remaining.contains('=')
+                                || remaining.contains(':');
+                            found_json_end = !has_structure;
                         }
                     }
                 }

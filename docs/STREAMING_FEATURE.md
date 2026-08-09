@@ -30,7 +30,7 @@ impl StreamingRepair {
 ### Key Features
 
 - **Configurable Buffer Size**: Default 8KB, adjustable for different memory constraints
-- **Format Support**: All 7 formats (JSON, YAML, Markdown, XML, TOML, CSV, INI)
+- **Format Support**: All 10 formats (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
 - **Auto-Detection**: Automatic format detection when format="auto"
 - **Progress Tracking**: Returns total bytes processed
 - **Stream I/O**: Works with any `BufRead` and `Write` implementations
@@ -136,7 +136,7 @@ let bytes = processor.process(
 ### Test Results
 - **Total Tests**: 34 (8 unit + 26 integration)
 - **Pass Rate**: 100% (34/34)
-- **Formats Covered**: 7/7 (JSON, YAML, Markdown, XML, TOML, CSV, INI)
+- **Formats Covered**: 10/10 (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
 
 ## Advantages Over Non-Streaming
 

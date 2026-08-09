@@ -139,7 +139,7 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 - Streaming for large files
 - Python-compatible JSON API
 - Optional `strict` feature for full `serde_json` parser validation
-- 415 tests (`cargo test`)
+- 450 tests (`cargo test`)
 
 ## Dependencies
 

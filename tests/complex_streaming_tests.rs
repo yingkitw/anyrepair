@@ -207,7 +207,7 @@ fn test_streaming_complex_toml_large_config() {
         input.push_str(&format!("name = \"Section {}\"\n", i));
         input.push_str(&format!("value = {}\n", i * 100));
         input.push_str(&format!("enabled = {}\n", if i % 2 == 0 { "true" } else { "false" }));
-        input.push_str(&format!("items = [\"item1\", \"item2\", \"item3\"]\n\n"));
+        input.push_str("items = [\"item1\", \"item2\", \"item3\"]\n\n");
     }
 
     let reader = Cursor::new(input);
@@ -230,7 +230,7 @@ fn test_streaming_complex_ini_large_config() {
         input.push_str(&format!("[section{}]\n", i));
         input.push_str(&format!("key1 = value{}\n", i));
         input.push_str(&format!("key2 = {}\n", i * 100));
-        input.push_str(&format!("key3 = enabled\n\n"));
+        input.push_str("key3 = enabled\n\n");
     }
 
     let reader = Cursor::new(input);
@@ -276,7 +276,7 @@ fn test_streaming_large_buffer_with_complex_yaml() {
         input.push_str(&format!("  item{}:\n", i));
         input.push_str(&format!("    id: {}\n", i));
         input.push_str(&format!("    name: Item {}\n", i));
-        input.push_str(&format!("    values: [1, 2, 3]\n"));
+        input.push_str("    values: [1, 2, 3]\n");
     }
 
     let reader = Cursor::new(input);
@@ -394,7 +394,7 @@ fn test_streaming_unicode_large_json() {
     // Test streaming with unicode content
     let mut input = String::from("{\n");
     
-    let languages = vec!["Hello", "世界", "مرحبا", "Привет", "🚀"];
+    let languages = ["Hello", "世界", "مرحبا", "Привет", "🚀"];
     
     for (i, lang) in languages.iter().enumerate() {
         for j in 0..10 {

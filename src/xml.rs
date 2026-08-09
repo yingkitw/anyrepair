@@ -160,8 +160,8 @@ fn xml_structure_valid(content: &str) -> bool {
 
         let self_closing = tag_inner.ends_with('/');
         let inner = tag_inner.trim_end_matches('/').trim();
-        if inner.starts_with('/') {
-            let name = inner[1..].split_whitespace().next().unwrap_or("");
+        if let Some(stripped) = inner.strip_prefix('/') {
+            let name = stripped.split_whitespace().next().unwrap_or("");
             match stack.pop() {
                 Some(open) if open == name => {}
                 _ => return false,

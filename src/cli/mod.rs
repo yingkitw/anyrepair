@@ -7,6 +7,7 @@ pub mod validate_cmd;
 pub mod batch_cmd;
 pub mod stream_cmd;
 pub mod completions_cmd;
+pub mod binary_cmd;
 
 use std::fs;
 use std::io::{self, Read};

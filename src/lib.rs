@@ -3,9 +3,13 @@
 //! A Rust crate for repairing malformed structured data including JSON, YAML,
 //! XML, TOML, CSV, INI, Markdown, and Diff with format auto-detection.
 
+pub mod audio;
+pub mod binary_detection;
+pub mod binary_traits;
 pub mod csv;
 pub mod diff;
 pub mod error;
+pub mod image;
 pub mod json_util;
 pub mod format_detection;
 pub mod json;
@@ -16,18 +20,24 @@ pub mod repairer_base;
 pub mod streaming;
 pub mod toml;
 pub mod traits;
+pub mod video;
 pub mod xml;
 pub mod yaml;
 
+pub use audio::{Mp3Repairer, WavRepairer};
+pub use binary_detection::{detect_binary_format, is_binary_format, BinaryDetectionResult};
+pub use binary_traits::{BinaryRepair, BinaryValidator};
 pub use diff::DiffRepairer;
 pub use error::{RepairError, Result};
+pub use image::{JpegRepairer, PngRepairer};
 pub use json::JsonRepairer;
 pub use key_value::{EnvRepairer, IniRepairer, PropertiesRepairer};
 pub use mcp_server::AnyrepairMcpServer;
 pub use streaming::StreamingRepair;
 pub use traits::Repair;
+pub use video::{MovRepairer, Mp4Repairer};
 
-/// All format identifiers supported by anyrepair.
+/// All text format identifiers supported by anyrepair.
 /// Used by `create_repairer`, `create_validator`, and `repair_with_format`.
 pub const SUPPORTED_FORMATS: &[&str] = &[
     "json",
@@ -42,8 +52,11 @@ pub const SUPPORTED_FORMATS: &[&str] = &[
     "env",
 ];
 
+/// All binary (media) format identifiers supported by anyrepair.
+pub const BINARY_FORMATS: &[&str] = &["png", "jpeg", "wav", "mp3", "mp4", "mov"];
+
 /// Normalize a format alias to its canonical name.
-/// Accepts case-insensitive matches and common aliases (`yml` → `yaml`, `md` → `markdown`).
+/// Accepts case-insensitive matches and common aliases (`yml` → `yaml`, `md` → `markdown`, `jpg` → `jpeg`).
 /// Returns the original string unchanged if no match is found.
 pub fn normalize_format(format: &str) -> &str {
     if format.eq_ignore_ascii_case("yml") {
@@ -52,7 +65,15 @@ pub fn normalize_format(format: &str) -> &str {
     if format.eq_ignore_ascii_case("md") {
         return "markdown";
     }
+    if format.eq_ignore_ascii_case("jpg") {
+        return "jpeg";
+    }
     for &fmt in SUPPORTED_FORMATS {
+        if format.eq_ignore_ascii_case(fmt) {
+            return fmt;
+        }
+    }
+    for &fmt in BINARY_FORMATS {
         if format.eq_ignore_ascii_case(fmt) {
             return fmt;
         }
@@ -150,6 +171,59 @@ pub fn detect_format_with_confidence(
 }
 
 pub use format_detection::DetectionResult;
+
+/// Create a boxed [`BinaryRepair`] instance for the given media format.
+/// Accepts canonical names and aliases (e.g. `jpg` → `jpeg`).
+/// Returns `RepairError::FormatDetection` if the format is unknown.
+pub fn create_binary_repairer(format: &str) -> Result<Box<dyn BinaryRepair>> {
+    let n = normalize_format(format);
+    match n {
+        "png" => Ok(Box::new(image::PngRepairer::new())),
+        "jpeg" => Ok(Box::new(image::JpegRepairer::new())),
+        "wav" => Ok(Box::new(audio::WavRepairer::new())),
+        "mp3" => Ok(Box::new(audio::Mp3Repairer::new())),
+        "mp4" => Ok(Box::new(video::Mp4Repairer::new())),
+        "mov" => Ok(Box::new(video::MovRepairer::new())),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown binary format: {}",
+            other
+        ))),
+    }
+}
+
+/// Create a boxed [`BinaryValidator`] for the given media format.
+pub fn create_binary_validator(format: &str) -> Result<Box<dyn BinaryValidator>> {
+    let n = normalize_format(format);
+    match n {
+        "png" => Ok(Box::new(image::PngValidator)),
+        "jpeg" => Ok(Box::new(image::JpegValidator)),
+        "wav" => Ok(Box::new(audio::WavValidator)),
+        "mp3" => Ok(Box::new(audio::Mp3Validator)),
+        "mp4" => Ok(Box::new(video::Mp4Validator)),
+        "mov" => Ok(Box::new(video::Mp4Validator)),
+        other => Err(RepairError::FormatDetection(format!(
+            "Unknown binary format: {}",
+            other
+        ))),
+    }
+}
+
+/// Repair binary content using an explicit format.
+pub fn repair_binary_with_format(data: &[u8], format: &str) -> Result<Vec<u8>> {
+    let mut repairer = create_binary_repairer(format)?;
+    repairer.repair(data)
+}
+
+/// Repair binary content with automatic format detection.
+/// Falls back to returning the original data if no format is detected.
+pub fn repair_binary(data: &[u8]) -> Result<Vec<u8>> {
+    if let Some(detected) = binary_detection::detect_binary_format(data) {
+        let mut repairer = create_binary_repairer(detected.format)?;
+        repairer.repair(data)
+    } else {
+        Ok(data.to_vec())
+    }
+}
 
 /// Repair a JSON string (Python-compatible convenience function).
 /// Equivalent to `create_repairer("json")?.repair(json_str)`.

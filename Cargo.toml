@@ -1,16 +1,16 @@
 [package]
 name = "anyrepair"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2024"
 authors = ["Ying Kit WONG"]
-description = "A comprehensive Rust crate for repairing malformed structured data including JSON, YAML, XML, TOML, CSV, INI, Markdown, Diff, Properties, and Environment files with format auto-detection"
+description = "A comprehensive Rust crate for repairing malformed structured data (JSON, YAML, XML, TOML, CSV, INI, Markdown, Diff, Properties, Env) and binary media files (PNG, JPEG, WAV, MP3, MP4, MOV) with format auto-detection"
 license = "Apache-2.0"
 repository = "https://github.com/yingkitw/anyrepair"
 homepage = "https://github.com/yingkitw/anyrepair"
 documentation = "https://docs.rs/anyrepair"
 readme = "README.md"
-keywords = ["repair", "json", "yaml", "parser", "mcp"]
-categories = ["text-processing", "parser-implementations", "development-tools"]
+keywords = ["repair", "json", "yaml", "parser", "mcp", "media", "png", "mp4"]
+categories = ["text-processing", "parser-implementations", "development-tools", "multimedia"]
 
 [dependencies]
 regex = "1.10"

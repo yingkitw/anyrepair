@@ -148,7 +148,7 @@ sequenceDiagram
 
 | Suite | Tests | File |
 |-------|------:|------|
-| Library + modules | 177 | `src/**/*.rs` |
+| Library + modules | 217 | `src/**/*.rs` |
 | Binary (CLI handlers) | 20 | `src/main.rs` |
 | CLI | 15 | `tests/cli_tests.rs` |
 | Integration | 21 | `tests/integration_tests.rs` |
@@ -161,7 +161,9 @@ sequenceDiagram
 | Complex streaming | 18 | `tests/complex_streaming_tests.rs` |
 | Golden master | 26 | `tests/golden_master_tests.rs` |
 | Corpus | 17 | `tests/corpus_tests.rs` |
-| **Total** | **450** | |
+| Binary integration | 23 | `tests/binary_tests.rs` |
+| Binary comprehensive | 65 | `tests/binary_comprehensive_tests.rs` |
+| **Total** | **578** | |
 
 Run: `cargo test`. Benchmarks: `benches/repair_benchmarks.rs` (criterion).
 

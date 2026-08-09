@@ -149,7 +149,7 @@ Add to `claude_desktop_config.json`:
 - `test_mcp_server_has_repair_tools` - Tool availability
 - `test_mcp_server_repair_json` - JSON repair functionality
 
-**Total Tests:** 450/450 passing ✅
+**Total Tests:** 578/578 passing ✅
 
 ## Performance Characteristics
 

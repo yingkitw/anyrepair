@@ -46,8 +46,8 @@
 
 ## Project Statistics
 
-- **Formats Supported**: 10 (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
-- **Test Coverage**: 450 tests (100% pass rate)
+- **Formats Supported**: 16 (10 text + 6 binary media: JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env, PNG, JPEG, WAV, MP3, MP4, MOV)
+- **Test Coverage**: 578 tests (100% pass rate)
 - **Binary Size**: 1.5 MB (optimized)
 - **MCP Tools**: 12 available
 - **Documentation Files**: 8 core files
@@ -69,7 +69,7 @@ anyrepair/
 ├── examples/            # Usage examples
 │   ├── README.md
 │   └── data/           # Test data files
-├── tests/               # Test suites (450 tests)
+├── tests/               # Test suites (513 tests)
 ├── docs/                # Documentation (this folder)
 │   ├── INDEX.md        # This file
 │   ├── ARCHITECTURE.md # System design
@@ -85,4 +85,4 @@ August 9, 2026
 
 ✅ **PRODUCTION READY**
 
-All features implemented, tested, and documented. Version 0.2.9 with 10-format support, MCP server, streaming, and 450 tests.
+All features implemented, tested, and documented. Version 0.3.0 with 10 text formats, 6 binary media formats, MCP server, streaming, and 578 tests.

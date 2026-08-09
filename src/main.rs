@@ -7,7 +7,7 @@ use std::time::Instant;
 
 #[derive(Parser)]
 #[command(name = "anyrepair")]
-#[command(about = "A tool for repairing LLM responses including JSON, YAML, and Markdown")]
+#[command(about = "A tool for repairing structured data and media files")]
 #[command(version)]
 pub struct Cli {
     /// Verbose output
@@ -122,6 +122,28 @@ enum Commands {
         #[arg(long)]
         buffer_size: Option<usize>,
     },
+    /// Repair binary/media files (PNG, JPEG, WAV, MP3, MP4, MOV)
+    RepairBinary {
+        /// Input file path
+        #[arg(value_name = "FILE")]
+        file: Option<String>,
+
+        /// Input file (stdin if not provided)
+        #[arg(short, long)]
+        input: Option<String>,
+
+        /// Output file (stdout if not provided)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Format: png, jpeg, wav, mp3, mp4, mov (auto-detect if not provided)
+        #[arg(short, long)]
+        format: Option<String>,
+
+        /// Show what would be repaired without writing output
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -142,6 +164,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Stream { input, output, format, buffer_size } => {
             let fmt = format.as_deref().unwrap_or("auto");
             cli::stream_cmd::handle_stream(input.as_deref(), output.as_deref(), fmt, buffer_size, cli.verbose)?;
+        }
+        Commands::RepairBinary { file, input, output, format, dry_run } => {
+            let input_path = file.as_deref().or(input.as_deref());
+            cli::binary_cmd::handle_repair_binary(input_path, output.as_deref(), format.as_deref(), cli.verbose, dry_run)?;
         }
         Commands::Completions { shell } => {
             cli::completions_cmd::handle_completions(&shell)?;

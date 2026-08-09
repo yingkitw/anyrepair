@@ -2,12 +2,19 @@
 
 ## Recently Completed ✅
 
+### v0.3.0
+- [x] **Media file repair** — PNG, JPEG, WAV, MP3, MP4, MOV binary repair
+- [x] **BinaryRepair trait** — byte-level repair with BinaryValidator
+- [x] **Binary format detection** — magic bytes auto-detection for 6 media formats
+- [x] **CLI `repair-binary` subcommand** — `anyrepair repair-binary <file> --format png`
+- [x] Integration tests for all media formats; **578 tests**
+
 ### v0.2.9
 - [x] **`detect_format_with_confidence`** — expose detection confidence via `DetectionResult`
 - [x] **Docker container** — multi-stage `Dockerfile` for `anyrepair` + `anyrepair-mcp`
 - [x] **MCP binary version** — sync with `CARGO_PKG_VERSION`
 - [x] Integration tests for smart quotes, boolean variants, prose extraction
-- [x] Docs synced (README, SPEC, CHANGELOG, TODO); **450 tests**
+- [x] Docs synced (README, SPEC, CHANGELOG, TODO); **578 tests**
 
 ### v0.2.8
 - [x] CLI: `--diff`, `--dry-run`, `--json`, `--min-confidence`, `--explain`, `--color`
@@ -33,6 +40,10 @@
 
 ### Formats
 - [ ] **Protobuf** — Binary/text protobuf repair (research scope)
+- [x] **Media formats** — PNG, JPEG, WAV, MP3, MP4, MOV (v0.3.0)
+- [ ] **WebP** — RIFF-based image format
+- [ ] **FLAC** — Free Lossless Audio Codec
+- [ ] **WebM/MKV** — Matroska container format
 
 ### Repair quality
 - [ ] **Format-preserving repairs** — Whitespace, comments, key order

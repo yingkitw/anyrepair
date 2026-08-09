@@ -30,12 +30,11 @@ impl GenericRepairer {
         let mut applied = Vec::new();
 
         for strategy in self.strategies.iter() {
-            if let Ok(result) = strategy.apply(&repaired) {
-                if result != repaired {
+            if let Ok(result) = strategy.apply(&repaired)
+                && result != repaired {
                     applied.push(strategy.name().to_string());
                     repaired = result;
                 }
-            }
         }
 
         Ok((repaired, applied))

@@ -90,15 +90,14 @@ pub fn handle_repair(
         eprintln!("Repair completed");
     }
 
-    if let Some(threshold) = min_confidence {
-        if confidence < threshold {
+    if let Some(threshold) = min_confidence
+        && confidence < threshold {
             eprintln!(
                 "Confidence {:.2}% is below threshold {:.2}%",
                 confidence * 100.0,
                 threshold * 100.0
             );
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
+            return Err(io::Error::other(
                 format!(
                     "Confidence {:.2}% below minimum threshold {:.2}%",
                     confidence * 100.0,
@@ -106,7 +105,6 @@ pub fn handle_repair(
                 ),
             ));
         }
-    }
 
     let had_changes = content != repaired;
 

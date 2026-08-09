@@ -32,7 +32,7 @@ mod json_fuzz_tests {
         fn test_json_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = json::JsonRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
 
         #[test]
@@ -76,7 +76,7 @@ mod yaml_fuzz_tests {
         fn test_yaml_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = yaml::YamlRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
     }
 }
@@ -107,7 +107,7 @@ mod markdown_fuzz_tests {
         fn test_markdown_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = markdown::MarkdownRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
     }
 }
@@ -138,7 +138,7 @@ mod xml_fuzz_tests {
         fn test_xml_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = xml::XmlRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
     }
 }
@@ -169,7 +169,7 @@ mod toml_fuzz_tests {
         fn test_toml_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = toml::TomlRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
     }
 }
@@ -200,7 +200,7 @@ mod csv_fuzz_tests {
         fn test_csv_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = csv::CsvRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
     }
 }
@@ -231,7 +231,7 @@ mod ini_fuzz_tests {
         fn test_ini_confidence_bounds(input in prop::string::string_regex(".*").unwrap()) {
             let repairer = key_value::IniRepairer::new();
             let confidence = repairer.confidence(&input);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
         }
     }
 }

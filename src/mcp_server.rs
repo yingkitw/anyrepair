@@ -710,7 +710,7 @@ mod tests {
             
             let confidence = response_confidence(&result.unwrap()).unwrap();
             assert!(
-                confidence >= 0.0 && confidence <= 1.0,
+                (0.0..=1.0).contains(&confidence),
                 "tool {} confidence {} out of range",
                 tool,
                 confidence

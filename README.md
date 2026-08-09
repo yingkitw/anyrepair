@@ -2,7 +2,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/yingkitw/anyrepair?style=social)](https://github.com/yingkitw/anyrepair)
 
-A Rust crate for repairing malformed structured data across **10 formats** (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Java properties, and `.env`).
+A Rust crate for repairing malformed structured data across **10 text formats** (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Java properties, and `.env`) and **6 binary media formats** (PNG, JPEG, WAV, MP3, MP4, MOV).
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across **10 formats** (JSON
 
 ```toml
 [dependencies]
-anyrepair = "0.2.9"
+anyrepair = "0.3.0"
 ```
 
 ### Basic Usage
@@ -69,6 +69,11 @@ anyrepair batch --input ./data --output ./repaired --recursive
 # Stream large files
 anyrepair stream --input large_file.json --output repaired.json --format json
 
+# Repair binary/media files
+anyrepair repair-binary damaged.png --output fixed.png
+anyrepair repair-binary video.mp4 --format mp4 --dry-run
+anyrepair repair-binary corrupted.wav --output fixed.wav
+
 # Validation without repair
 anyrepair validate --input input.json --format json
 ```
@@ -87,13 +92,21 @@ docker run --rm -i anyrepair anyrepair-mcp
 
 ## What's New
 
-### v0.2.9 — Current
+### v0.3.0 — Current
+
+- **Media file repair** — PNG, JPEG, WAV, MP3, MP4, MOV binary repair via `BinaryRepair` trait
+- **Binary format detection** — magic bytes auto-detection for 6 media formats with confidence scores
+- **CLI `repair-binary` subcommand** — `anyrepair repair-binary <file> [--format png] [--dry-run]`
+- **API**: `repair_binary()`, `repair_binary_with_format()`, `create_binary_repairer()`, `detect_binary_format()`
+- **513 tests**, all passing
+
+### v0.2.9
 
 - **`detect_format_with_confidence`** — format detection returns a confidence score (`DetectionResult`)
 - **Docker image** — multi-stage `Dockerfile` for CLI and MCP binaries
 - **MCP version** — `anyrepair-mcp` reports `CARGO_PKG_VERSION` (no more stale hardcoded version)
 - Integration tests for smart quotes, boolean variants, and prose extraction
-- **432 tests**, all passing
+- **450 tests**, all passing
 
 ### v0.2.8
 
@@ -132,14 +145,15 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 
 **Key features:**
 
-- Auto-detects format for all 10 formats
+- Auto-detects format for all 10 text formats + 6 binary media formats
 - Deterministic heuristic repairs (no network, no ML)
 - Small dependency footprint (four runtime crates)
 - MCP server for Claude and other MCP clients
 - Streaming for large files
+- Binary media repair (PNG, JPEG, WAV, MP3, MP4, MOV)
 - Python-compatible JSON API
 - Optional `strict` feature for full `serde_json` parser validation
-- 450 tests (`cargo test`)
+- 578 tests (`cargo test`)
 
 ## Dependencies
 
@@ -214,6 +228,25 @@ let processor = StreamingRepair::with_buffer_size(65536);
 processor.process(input, &mut output, Some("json"))?;
 ```
 
+### Binary Media Repair
+
+```rust
+use anyrepair::repair_binary;
+
+// Auto-detect and repair
+let repaired = repair_binary(&damaged_png_bytes)?;
+
+// Explicit format
+use anyrepair::repair_binary_with_format;
+let repaired = repair_binary_with_format(&damaged_mp4_bytes, "mp4")?;
+
+// Using the BinaryRepair trait
+use anyrepair::{create_binary_repairer, BinaryRepair};
+let mut repairer = create_binary_repairer("png")?;
+let repaired = repairer.repair(&damaged_png_bytes)?;
+let confidence = repairer.confidence(&damaged_png_bytes);
+```
+
 ### MCP Server Integration
 
 ```bash
@@ -251,6 +284,12 @@ See [MCP_SERVER.md](docs/MCP_SERVER.md) for setup details.
 | **Diff** | Hunk headers, line prefixes | Yes |
 | **Properties** | `key=value`, escaping, continuations | Yes |
 | **Env** | `KEY=value`, comments, quoting | Yes |
+| **PNG** | Chunk CRC, missing IEND, corrupted signature | Yes |
+| **JPEG** | Missing SOI/EOI, trailing garbage, entropy data | Yes |
+| **WAV** | RIFF/WAVE tags, chunk sizes, truncated data | Yes |
+| **MP3** | ID3v2 headers, frame sync, trailing nulls | Yes |
+| **MP4** | Box sizes, missing ftyp, truncated mdat | Yes |
+| **MOV** | Box sizes, missing ftyp, QuickTime brand | Yes |
 
 ## Performance
 
@@ -272,17 +311,20 @@ cargo test
 
 | Suite | Tests |
 |-------|------:|
-| Library / modules | 177 |
-| Completions / CLI extras | 19 |
+| Library / modules | 217 |
+| Completions / CLI extras | 20 |
 | CLI | 15 |
 | Integration | 21 |
+| Binary integration | 23 |
+| Binary comprehensive | 65 |
 | Diff | 35 |
 | Fuzz (proptest) | 34 |
 | Streaming | 26 |
 | Properties/env | 25 |
 | Golden master | 26 |
+| Corpus | 17 |
 | Damage + complex damage + complex streaming | 54 |
-| **Total** | **432** |
+| **Total** | **578** |
 
 See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 
@@ -290,8 +332,9 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 
 | Feature | AnyRepair | json-repair-rs | json5 | Python jsonrepair |
 |---------|-----------|----------------|-------|-------------------|
-| **Multi-format** | 10 formats | JSON only | JSON only | JSON only |
-| **Auto-detection** | 10 formats | No | No | No |
+| **Multi-format** | 16 formats (10 text + 6 media) | JSON only | JSON only | JSON only |
+| **Auto-detection** | 16 formats | No | No | No |
+| **Media repair** | PNG, JPEG, WAV, MP3, MP4, MOV | No | No | No |
 | **Lean deps** | 3 runtime crates | Varies | Varies | N/A |
 | **MCP** | Yes (12 tools) | No | No | No |
 | **Streaming** | Yes | No | No | No |
@@ -324,7 +367,7 @@ See [examples/](examples/) and [examples/README.md](examples/README.md).
 
 ## Roadmap
 
-See [TODO.md](TODO.md) for planned work (Protobuf, CLI polish, web/API, format-preserving repairs, and more).
+See [TODO.md](TODO.md) for planned work (WebP, FLAC, WebM, Protobuf, CLI polish, web/API, format-preserving repairs, and more).
 
 ## License
 

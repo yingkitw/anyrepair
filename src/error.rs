@@ -28,6 +28,9 @@ pub enum RepairError {
 
     #[error("Generic error: {0}")]
     Generic(String),
+
+    #[error("Binary repair failed: {0}")]
+    BinaryRepair(String),
 }
 
 /// Result type alias for repair operations

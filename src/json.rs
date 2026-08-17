@@ -515,6 +515,10 @@ impl RepairStrategy for FixMalformedNumbersStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
+        // Fast path: all four sub-fixes only trigger on ASCII digits.
+        if !content.bytes().any(|b| b.is_ascii_digit()) {
+            return Ok(content.to_string());
+        }
         let mut result = content.to_string();
         result = fix_leading_zeros(&result);
         result = fix_trailing_dots(&result);

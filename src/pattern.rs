@@ -16,41 +16,74 @@ pub(crate) fn is_word_char(c: char) -> bool {
 /// and any other char (or the start/end of the string). At each scan
 /// position, `words` are tried in order and the first match wins, mirroring
 /// regex alternation (leftmost-first).
+///
+/// All `words` must be ASCII; the content may contain UTF-8. Non-ASCII
+/// content is passed through verbatim.
 pub fn replace_word_any<F: Fn(&str) -> String>(
     content: &str,
     words: &[&str],
     map: F,
 ) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    // Fast path: if no word appears as a substring, no whole-word match is possible.
+    // `str::contains` is backed by memchr and much faster than the full scan.
+    if !words.iter().any(|w| content.contains(w)) {
+        return content.to_string();
+    }
+
+    let bytes = content.as_bytes();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
-    while i < n {
-        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
+    while i < bytes.len() {
+        let b = bytes[i];
+        // Non-ASCII byte: copy the full UTF-8 sequence verbatim.
+        if b >= 0x80 {
+            let cl = utf8_char_len(b);
+            let end = (i + cl).min(bytes.len());
+            out.push_str(&content[i..end]);
+            i = end;
+            continue;
+        }
+        let boundary_before = i == 0 || !is_word_char_byte(bytes[i - 1]);
         if boundary_before
-            && let Some((w, len)) = match_word(&chars, i, words) {
-                out.push_str(&map(w));
-                i += len;
+            && let Some((w_idx, end)) = match_word_bytes(bytes, i, words) {
+                out.push_str(&map(words[w_idx]));
+                i = end;
                 continue;
             }
-        out.push(chars[i]);
+        out.push(b as char);
         i += 1;
     }
     out
 }
 
-/// If a word from `words` starts at `i` and is followed by a word boundary,
-/// return `(word, char_count)`.
-fn match_word<'a>(chars: &[char], i: usize, words: &[&'a str]) -> Option<(&'a str, usize)> {
-    let n = chars.len();
-    for w in words {
-        let wc: Vec<char> = w.chars().collect();
-        let len = wc.len();
-        if i + len <= n && chars[i..i + len] == wc[..] {
+/// Byte-level word character check (ASCII only).
+#[inline]
+fn is_word_char_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// UTF-8 sequence length from the leading byte.
+#[inline]
+fn utf8_char_len(b: u8) -> usize {
+    if b < 0x80 { 1 }
+    else if b < 0xC0 { 1 } // continuation byte (shouldn't be first)
+    else if b < 0xE0 { 2 }
+    else if b < 0xF0 { 3 }
+    else { 4 }
+}
+
+/// If an ASCII word from `words` starts at byte `i` and is followed by a word
+/// boundary, return `(word_index, end_byte)`.
+fn match_word_bytes(bytes: &[u8], i: usize, words: &[&str]) -> Option<(usize, usize)> {
+    let n = bytes.len();
+    for (idx, w) in words.iter().enumerate() {
+        let wb = w.as_bytes();
+        let len = wb.len();
+        if i + len <= n && &bytes[i..i + len] == wb {
             let after = i + len;
-            let boundary_after = after == n || !is_word_char(chars[after]);
+            let boundary_after = after == n || !is_word_char_byte(bytes[after]);
             if boundary_after {
-                return Some((w, len));
+                return Some((idx, after));
             }
         }
     }

@@ -141,7 +141,7 @@ Common issues, error messages, and fixes when using anyrepair.
 
 **Cause:** The MCP server expects newline-delimited JSON on stdin/stdout. Ensure your client is sending properly formatted JSON-RPC messages.
 
-**Fix:** Test with: `echo '{"tool":"repair","input":{"content":"{\"key\":\"value\"}"}}' | anyrepair mcp`
+**Fix:** Test with: `echo '{"tool":"repair","input":{"content":"{\"key\":\"value\"}"}}' | anyrepair-mcp`
 
 ### MCP repair returns "missing 'content' field"
 

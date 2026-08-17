@@ -14,8 +14,9 @@ examples/
 │   ├── toml/         # TOML test files
 │   ├── csv/          # CSV test files
 │   ├── ini/          # INI test files
-│   └── diff/         # Unified diff test files
-├── *.rs              # Rust code examples
+│   ├── diff/         # Unified diff test files
+│   └── corpus/       # Real-world LLM/API damage samples
+├── *.rs              # Rust code examples (incl. binary_repair.rs)
 └── README.md         # This file
 ```
 
@@ -132,16 +133,14 @@ Complete reference for the MCP server protocol:
 
 ```rust
 use anyrepair::AnyrepairMcpServer;
-use serde_json::json;
 
 fn main() {
     let server = AnyrepairMcpServer::new();
-    
-    let input = json!({
-        "content": r#"{"key": "value",}"#
-    });
-    
-    match server.process_tool_call("repair_json", &input) {
+
+    // process_tool_call takes the tool name and the input as a JSON string
+    let input = r#"{"content": "{\"key\": \"value\",}"}"#;
+
+    match server.process_tool_call("repair_json", input) {
         Ok(result) => println!("Result: {}", result),
         Err(e) => eprintln!("Error: {}", e),
     }
@@ -202,16 +201,15 @@ echo '{"tool": "repair_json", "input": {"content": "{\"key\": \"value\",}"}}' | 
 ### Scenario 1: Repair LLM JSON Output
 
 ```rust
-let malformed = r#"{"response": "Hello", "status": "ok",}"#;
-let input = json!({"content": malformed});
-server.process_tool_call("repair_json", &input)?;
+let input = r#"{"content": "{\"response\": \"Hello\", \"status\": \"ok\",}"}"#;
+server.process_tool_call("repair_json", input)?;
 ```
 
 ### Scenario 2: Validate Configuration Files
 
 ```rust
 let config = "name = \"app\"\nversion = \"1.0\"";
-let input = json!({"content": config, "format": "toml"});
+let input = r#"{"content": "name = \"app\"\nversion = \"1.0\"", "format": "toml"}"#;
 server.process_tool_call("validate", &input)?;
 ```
 
@@ -219,13 +217,13 @@ server.process_tool_call("validate", &input)?;
 
 ```rust
 let items = vec![
-    r#"{"id": 1,}"#,
+    r#"{\"id\": 1,}"#,   // inner quotes escaped for the JSON envelope
     r#"{'id': 2}"#,
     r#"{id: 3}"#,
 ];
 
 for item in items {
-    let input = json!({"content": item});
+    let input = format!(r#"{{"content": "{}"}}"#, item);
     server.process_tool_call("repair_json", &input)?;
 }
 ```
@@ -233,8 +231,7 @@ for item in items {
 ### Scenario 4: Auto-Detect and Repair
 
 ```rust
-let content = "[1, 2, 3,]";  // Could be JSON or YAML
-let input = json!({"content": content});
+let input = r#"{"content": "[1, 2, 3,]"}"#;  // Could be JSON or YAML
 server.process_tool_call("repair", &input)?;  // Auto-detects format
 ```
 
@@ -243,11 +240,10 @@ server.process_tool_call("repair", &input)?;  // Auto-detects format
 All examples include proper error handling:
 
 ```rust
-match server.process_tool_call("repair_json", &input) {
+match server.process_tool_call("repair_json", input) {
     Ok(result) => {
-        // Parse and use result
-        let parsed: Value = serde_json::from_str(&result)?;
-        println!("Repaired: {}", parsed["repaired"]);
+        // `result` is a JSON string: {"repaired": "...", "confidence": ...}
+        println!("Result: {}", result);
     }
     Err(e) => {
         eprintln!("Error: {}", e);
@@ -270,12 +266,7 @@ Run all examples:
 cargo run --example mcp_repair_json
 cargo run --example mcp_multi_format
 cargo run --example mcp_server_usage
-```
-
-Run with output:
-
-```bash
-cargo run --example mcp_repair_json -- --nocapture
+cargo run --example binary_repair
 ```
 
 ## Integration Examples

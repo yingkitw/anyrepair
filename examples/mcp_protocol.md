@@ -155,6 +155,9 @@ echo '{"tool": "repair_json", "input": {}}' | ./target/release/anyrepair-mcp
 - `repair_toml` - Repair TOML
 - `repair_csv` - Repair CSV
 - `repair_ini` - Repair INI
+- `repair_diff` - Repair unified diff
+- `repair_properties` - Repair Java properties
+- `repair_env` - Repair .env files
 
 ### Validation Tool
 
@@ -186,7 +189,7 @@ echo '{"tool": "repair_json", "input": {}}' | ./target/release/anyrepair-mcp
 ```json
 {
   "content": "string",       // Required: content to validate
-  "format": "string"         // Required: format (json, yaml, markdown, xml, toml, csv, ini)
+  "format": "string"         // Required: format (json, yaml, markdown, xml, toml, csv, ini, diff, properties, env)
 }
 ```
 

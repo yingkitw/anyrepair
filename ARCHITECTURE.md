@@ -12,7 +12,7 @@ anyrepair/
 ├── Cargo.toml
 ├── src/
 │   ├── lib.rs                 # Public API, format registry
-│   ├── main.rs                # CLI (clap)
+│   ├── main.rs                # CLI (hand-rolled arg parser)
 │   ├── bin/mcp_server.rs      # MCP binary entry
 │   ├── format_detection.rs    # Auto-detect heuristics
 │   ├── traits.rs              # Repair, RepairStrategy, Validator
@@ -20,9 +20,12 @@ anyrepair/
 │   ├── error.rs
 │   ├── json.rs, yaml.rs, markdown.rs, xml.rs, toml.rs, csv.rs, diff.rs
 │   ├── key_value.rs           # INI, .properties, .env
+│   ├── image.rs, audio.rs, video.rs      # binary media (PNG/JPEG, WAV/MP3, MP4/MOV)
+│   ├── binary_detection.rs    # magic-bytes detection for binary media
+│   ├── binary_traits.rs       # BinaryRepair, BinaryValidator
 │   ├── streaming.rs
 │   ├── mcp_server.rs
-│   └── cli/                   # repair, validate, batch, stream, completions
+│   └── cli/                   # repair, validate, batch, stream, repair-binary
 ├── tests/                     # Integration, fuzz, streaming, CLI, diff
 ├── examples/                  # MCP and sample data
 └── docs/                      # CHANGELOG, MCP guide, test summary, index
@@ -36,7 +39,8 @@ Single source of truth for supported formats, factories, and top-level helpers:
 
 | Constant / function | Role |
 |---------------------|------|
-| `SUPPORTED_FORMATS` | Canonical format names (10 formats) |
+| `SUPPORTED_FORMATS` | Canonical format names (10 text formats) |
+| `BINARY_FORMATS` | Canonical binary media format names (6 formats) |
 | `normalize_format` | Aliases: `yml` → `yaml`, `md` → `markdown` |
 | `create_repairer` / `create_validator` | `Box<dyn …>` factories |
 | `detect_format` | Delegates to `format_detection` |
@@ -60,10 +64,12 @@ Heuristic order (trimmed input):
 4. XML  
 5. TOML  
 6. CSV  
-7. INI — `[section]`, `key=value` without YAML/TOML signals  
-8. Markdown — `#`, fences, emphasis  
+7. Env — `KEY=value` with uppercase keys (`is_env_like`)  
+8. Properties — `key=value` with dot keys / mixed case (`is_properties_like`)  
+9. INI — `[section]`, `key=value` without YAML/TOML signals  
+10. Markdown — `#`, fences, emphasis  
 
-`properties` and `env` are **not** auto-detected; use `repair_with_format` or `repair --format properties|env`.
+Binary media formats are detected separately by magic bytes in `binary_detection.rs` (`detect_binary_format`).
 
 Unknown auto-detect in `repair()` falls back to the Markdown repairer.
 
@@ -105,7 +111,7 @@ Each format repairer typically wraps `GenericRepairer`:
 | `validate` | Validate without repair |
 | `batch` | Directory copy/repair with pattern and `--recursive` |
 | `stream` | Line-oriented large-file repair |
-| `completions` | Generate shell completions (bash/zsh/fish/elvish/powershell) |
+| `repair-binary` | Repair binary/media files (PNG, JPEG, WAV, MP3, MP4, MOV) |
 
 Global flags: `--verbose`, `--quiet`.
 
@@ -169,13 +175,7 @@ Run: `cargo test`. Benchmarks: `benches/repair_benchmarks.rs` (criterion).
 
 ## Dependencies (runtime)
 
-| Crate | Use |
-|-------|-----|
-| `regex` | Repair patterns |
-| `thiserror` | `RepairError` |
-| `clap` | CLI |
-| `clap_complete` | Shell completions |
-| `serde_json` (optional) | Strict JSON validation (`strict` feature) |
+No runtime crate dependencies — `anyrepair` uses only the Rust standard library. `RepairError` implements `std::error::Error` and `Display` by hand; the CLI arg parser is hand-rolled.
 
 Edition **2024**. Release profile favors small binaries (`opt-level = "z"`, LTO, strip).
 

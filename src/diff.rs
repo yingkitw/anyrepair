@@ -2,47 +2,81 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
-use regex::Regex;
-use std::sync::OnceLock;
 
-/// Cached regex patterns for diff performance optimization
-#[allow(dead_code)]
-struct DiffRegexCache {
-    hunk_header: Regex,
-    file_header: Regex,
-    context_line: Regex,
-    added_line: Regex,
-    removed_line: Regex,
-    malformed_hunk: Regex,
-    missing_newline: Regex,
-}
+/// Test whether a line is a valid unified-diff hunk header.
+///
+/// Mirrors the regex `^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@`
+/// (applied to a single line, so `^` is the line start).
+fn is_hunk_header(line: &str) -> bool {
+    let mut it = line.char_indices().peekable();
 
-impl DiffRegexCache {
-    fn new() -> Result<Self> {
-        Ok(Self {
-            // Hunk header: @@ -start,count +start,count @@
-            hunk_header: Regex::new(r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@")?,
-            // File header: --- a/file or +++ b/file
-            file_header: Regex::new(r"^(?:---|\+\+\+)\s+[^\s]+")?,
-            // Context line: starts with space
-            context_line: Regex::new(r"^ (.*)$")?,
-            // Added line: starts with +
-            added_line: Regex::new(r"^\+(.*)$")?,
-            // Removed line: starts with -
-            removed_line: Regex::new(r"^-(.*)$")?,
-            // Malformed hunk (missing @@ or incorrect format)
-            malformed_hunk: Regex::new(r"^@@[^@]*$")?,
-            // Missing newline at end
-            missing_newline: Regex::new(r".$")?,
-        })
+    // Helper: consume one or more whitespace chars; return true if >=1 consumed.
+    fn consume_ws(it: &mut std::iter::Peekable<std::str::CharIndices<'_>>) -> bool {
+        let mut count = 0;
+        while let Some(&(_, c)) = it.peek() {
+            if c.is_whitespace() {
+                it.next();
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        count > 0
     }
-}
+    // Helper: consume one or more ASCII digits; return true if >=1 consumed.
+    fn consume_digits(it: &mut std::iter::Peekable<std::str::CharIndices<'_>>) -> bool {
+        let mut count = 0;
+        while let Some(&(_, c)) = it.peek() {
+            if c.is_ascii_digit() {
+                it.next();
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        count > 0
+    }
+    fn expect(it: &mut std::iter::Peekable<std::str::CharIndices<'_>>, ch: char) -> bool {
+        matches!(it.next(), Some((_, c)) if c == ch)
+    }
 
-static DIFF_REGEX_CACHE: OnceLock<DiffRegexCache> = OnceLock::new();
-
-fn get_diff_regex_cache() -> &'static DiffRegexCache {
-    DIFF_REGEX_CACHE
-        .get_or_init(|| DiffRegexCache::new().expect("Failed to initialize diff regex cache"))
+    if !expect(&mut it, '@') || !expect(&mut it, '@') {
+        return false;
+    }
+    if !consume_ws(&mut it) {
+        return false;
+    }
+    if !expect(&mut it, '-') {
+        return false;
+    }
+    if !consume_digits(&mut it) {
+        return false;
+    }
+    if matches!(it.peek(), Some(&(_, c)) if c == ',') {
+        it.next();
+        if !consume_digits(&mut it) {
+            return false;
+        }
+    }
+    if !consume_ws(&mut it) {
+        return false;
+    }
+    if !expect(&mut it, '+') {
+        return false;
+    }
+    if !consume_digits(&mut it) {
+        return false;
+    }
+    if matches!(it.peek(), Some(&(_, c)) if c == ',') {
+        it.next();
+        if !consume_digits(&mut it) {
+            return false;
+        }
+    }
+    if !consume_ws(&mut it) {
+        return false;
+    }
+    expect(&mut it, '@') && expect(&mut it, '@')
 }
 
 /// Diff repairer that can fix common unified diff issues
@@ -143,7 +177,7 @@ impl Repair for DiffRepairer {
             .filter(|line| {
                 line.starts_with("@@")
                     && line.contains("@@")
-                    && get_diff_regex_cache().hunk_header.is_match(line)
+                    && is_hunk_header(line)
             })
             .count();
         if valid_hunk_count > 0 && hunk_count > 0 {
@@ -172,7 +206,7 @@ impl Validator for DiffValidator {
         let has_hunk = lines.iter().any(|line| {
             line.starts_with("@@")
                 && line.contains("@@")
-                && get_diff_regex_cache().hunk_header.is_match(line)
+                && is_hunk_header(line)
         });
 
         if !has_hunk {
@@ -194,7 +228,7 @@ impl Validator for DiffValidator {
             if line.starts_with("@@") {
                 in_hunk = true;
                 // Validate hunk header format
-                if !get_diff_regex_cache().hunk_header.is_match(line) {
+                if !is_hunk_header(line) {
                     return false;
                 }
                 // Check for excessive spacing (double spaces)
@@ -238,7 +272,7 @@ impl Validator for DiffValidator {
         // Validate hunk headers
         for (line_num, line) in lines.iter().enumerate() {
             if line.starts_with("@@")
-                && !get_diff_regex_cache().hunk_header.is_match(line) {
+                && !is_hunk_header(line) {
                     errors.push(format!(
                         "Invalid hunk header at line {}: {}",
                         line_num + 1,
@@ -441,8 +475,7 @@ impl RepairStrategy for FixMalformedHunkRangesStrategy {
         for line in lines {
             if line.starts_with("@@") {
                 // Try to fix malformed hunk headers
-                let hunk_regex = &get_diff_regex_cache().hunk_header;
-                if !hunk_regex.is_match(line) {
+                if !is_hunk_header(line) {
                     // Try to extract numbers and rebuild
                     let numbers: Vec<i32> = line
                         .split(|c: char| !c.is_ascii_digit() && c != '-')

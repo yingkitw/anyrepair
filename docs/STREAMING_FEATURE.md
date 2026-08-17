@@ -174,6 +174,6 @@ let bytes = processor.process(
 ## Related Files
 
 - **Implementation**: `src/streaming.rs`
-- **CLI Integration**: `src/main.rs` (Stream command)
-- **Tests**: `tests/streaming_tests.rs`
+- **CLI Integration**: `src/cli/stream_cmd.rs` (Stream subcommand)
+- **Tests**: `tests/streaming_tests.rs`, `tests/complex_streaming_tests.rs`
 - **Documentation**: `README.md` (Streaming section)

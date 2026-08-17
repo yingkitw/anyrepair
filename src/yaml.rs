@@ -1,35 +1,72 @@
 //! YAML repair functionality
 
 use crate::error::Result;
+use crate::pattern::replace_single_quotes;
 use crate::traits::{Repair, RepairStrategy, Validator};
-use regex::Regex;
-use std::sync::OnceLock;
 
-/// Cached regex patterns for YAML performance optimization
-#[allow(dead_code)]
-struct YamlRegexCache {
-    missing_colons: Regex,
-    list_items: Regex,
-    quoted_strings: Regex,
-}
-
-impl YamlRegexCache {
-    fn new() -> Result<Self> {
-        Ok(Self {
-            missing_colons: Regex::new(r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s+([^:].*)$"#)?,
-            list_items: Regex::new(r#"^\s*-\s*(.+)$"#)?,
-            quoted_strings: Regex::new(
-                r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([^'"].*[^'"])\s*$"#,
-            )?,
-        })
+/// Match `^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s+([^:].*)$` against a single line.
+///
+/// Returns `(indent, key, rest)` on success. Used to add a missing colon
+/// between a key and its value.
+fn match_missing_colons(line: &str) -> Option<(String, String, String)> {
+    let chars: Vec<char> = line.chars().collect();
+    let n = chars.len();
+    let mut j = 0;
+    // (\s*)
+    let indent_start = j;
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
     }
+    let indent: String = chars[indent_start..j].iter().collect();
+    // ([a-zA-Z_][a-zA-Z0-9_]*)
+    if j >= n || !(chars[j].is_ascii_alphabetic() || chars[j] == '_') {
+        return None;
+    }
+    let key_start = j;
+    j += 1;
+    while j < n && (chars[j].is_ascii_alphanumeric() || chars[j] == '_') {
+        j += 1;
+    }
+    let key: String = chars[key_start..j].iter().collect();
+    // \s+ (at least one whitespace)
+    let ws_start = j;
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
+    }
+    if j == ws_start {
+        return None;
+    }
+    // ([^:].*)  — first char must not be ':', then the rest of the line.
+    if j >= n || chars[j] == ':' {
+        return None;
+    }
+    let rest: String = chars[j..].iter().collect();
+    Some((indent, key, rest))
 }
 
-static YAML_REGEX_CACHE: OnceLock<YamlRegexCache> = OnceLock::new();
-
-fn get_yaml_regex_cache() -> &'static YamlRegexCache {
-    YAML_REGEX_CACHE
-        .get_or_init(|| YamlRegexCache::new().expect("Failed to initialize YAML regex cache"))
+/// Match `^\s*-\s*(.+)$` against a single line.
+///
+/// Returns the content after the list marker.
+fn match_list_item(line: &str) -> Option<String> {
+    let chars: Vec<char> = line.chars().collect();
+    let n = chars.len();
+    let mut j = 0;
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
+    }
+    if j >= n || chars[j] != '-' {
+        return None;
+    }
+    j += 1;
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
+    }
+    // (.+) — at least one char
+    if j >= n {
+        return None;
+    }
+    let content: String = chars[j..].iter().collect();
+    Some(content)
 }
 
 /// YAML repairer that can fix common YAML issues
@@ -232,14 +269,12 @@ struct AddMissingColonsStrategy;
 
 impl RepairStrategy for AddMissingColonsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_yaml_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
 
         for line in lines {
-            if cache.missing_colons.is_match(line) {
-                let fixed = cache.missing_colons.replace(line, "$1$2: $3");
-                result.push(fixed.to_string());
+            if let Some((indent, key, rest)) = match_missing_colons(line) {
+                result.push(format!("{}{}: {}", indent, key, rest));
             } else {
                 result.push(line.to_string());
             }
@@ -262,14 +297,12 @@ struct FixListFormattingStrategy;
 
 impl RepairStrategy for FixListFormattingStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_yaml_regex_cache();
         let lines: Vec<&str> = content.lines().collect();
         let mut result = Vec::new();
 
         for line in lines {
-            if cache.list_items.is_match(line) {
-                let fixed = cache.list_items.replace(line, "- $1");
-                result.push(fixed.to_string());
+            if let Some(content) = match_list_item(line) {
+                result.push(format!("- {}", content));
             } else {
                 result.push(line.to_string());
             }
@@ -315,9 +348,7 @@ struct FixQuotedStringsStrategy;
 impl RepairStrategy for FixQuotedStringsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
         // Convert single quotes to double quotes
-        let single_quote_re = Regex::new(r"'([^']*)'")?;
-        let result = single_quote_re.replace_all(content, r#""$1""#);
-        Ok(result.to_string())
+        Ok(replace_single_quotes(content))
     }
 
     fn priority(&self) -> u8 {

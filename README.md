@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across **10 text formats** 
 
 ```toml
 [dependencies]
-anyrepair = "0.3.0"
+anyrepair = "0.2.11"
 ```
 
 ### Basic Usage
@@ -58,11 +58,6 @@ anyrepair repair input.json --format json --min-confidence 0.8
 # Show which repair strategies were applied
 anyrepair repair input.json --format json --explain --dry-run
 
-# Generate shell completions
-anyrepair completions bash > /etc/bash_completion.d/anyrepair
-anyrepair completions zsh > _anyrepair
-anyrepair completions fish > ~/.config/fish/completions/anyrepair.fish
-
 # Batch process multiple files
 anyrepair batch --input ./data --output ./repaired --recursive
 
@@ -92,13 +87,13 @@ docker run --rm -i anyrepair anyrepair-mcp
 
 ## What's New
 
-### v0.3.0 — Current
+### v0.2.10–v0.2.11 — Current
 
 - **Media file repair** — PNG, JPEG, WAV, MP3, MP4, MOV binary repair via `BinaryRepair` trait
 - **Binary format detection** — magic bytes auto-detection for 6 media formats with confidence scores
 - **CLI `repair-binary` subcommand** — `anyrepair repair-binary <file> [--format png] [--dry-run]`
 - **API**: `repair_binary()`, `repair_binary_with_format()`, `create_binary_repairer()`, `detect_binary_format()`
-- **513 tests**, all passing
+- **578 tests**, all passing
 
 ### v0.2.9
 
@@ -111,9 +106,7 @@ docker run --rm -i anyrepair anyrepair-mcp
 ### v0.2.8
 
 - CLI: `--diff`, `--dry-run`, `--json`, `--min-confidence`, `--explain`, `--color`
-- Shell completions: `anyrepair completions <shell>`
 - LLM JSON strategies: smart quotes, boolean variants (`yes`/`no`/`on`/`off`), prose/preamble extraction
-- Optional `strict` feature for `serde_json`-backed JSON validation
 - Golden master + properties/env integration tests
 
 ### v0.2.7
@@ -147,28 +140,21 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 
 - Auto-detects format for all 10 text formats + 6 binary media formats
 - Deterministic heuristic repairs (no network, no ML)
-- Small dependency footprint (four runtime crates)
+- Zero runtime dependencies (pure standard library)
 - MCP server for Claude and other MCP clients
 - Streaming for large files
 - Binary media repair (PNG, JPEG, WAV, MP3, MP4, MOV)
 - Python-compatible JSON API
-- Optional `strict` feature for full `serde_json` parser validation
 - 578 tests (`cargo test`)
 
 ## Dependencies
 
 | Kind | Crates |
 |------|--------|
-| **Runtime** | `regex`, `thiserror`, `clap`, `clap_complete` |
-| **Optional** | `serde_json` (via `strict` feature) |
+| **Runtime** | _(none — pure standard library)_ |
 | **Dev** | `criterion`, `arbitrary`, `proptest` |
 
-Parsing and validation for JSON, XML, TOML, CSV, and YAML use in-crate heuristics and `json_util` rather than heavyweight parser dependencies. Enable the `strict` feature for `serde_json`-backed JSON validation:
-
-```bash
-cargo build --features strict
-cargo test --features strict
-```
+Parsing, validation, and error handling are implemented entirely with the Rust standard library — no runtime crate dependencies.
 
 ## Usage Examples
 
@@ -194,12 +180,15 @@ let env = repair_with_format("API_KEY = secret", "env")?;
 ### Python-Compatible JSON API
 
 ```rust
-use anyrepair::{jsonrepair, JsonRepair};
+use anyrepair::jsonrepair;
 
 let repaired = jsonrepair(r#"{"name": "John", age: 30,}"#)?;
 
-let mut jr = JsonRepair::new();
-let repaired = jr.jsonrepair(r#"{name: "John"}"#)?;
+// Or through the generic repairer API:
+use anyrepair::{create_repairer, traits::Repair};
+
+let mut jr = create_repairer("json")?;
+let repaired = jr.repair(r#"{name: "John"}"#)?;
 ```
 
 ### Format-Specific Repairers
@@ -335,7 +324,7 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 | **Multi-format** | 16 formats (10 text + 6 media) | JSON only | JSON only | JSON only |
 | **Auto-detection** | 16 formats | No | No | No |
 | **Media repair** | PNG, JPEG, WAV, MP3, MP4, MOV | No | No | No |
-| **Lean deps** | 3 runtime crates | Varies | Varies | N/A |
+| **Lean deps** | 0 runtime crates | Varies | Varies | N/A |
 | **MCP** | Yes (12 tools) | No | No | No |
 | **Streaming** | Yes | No | No | No |
 | **Python JSON API** | Compatible | No | No | Native |

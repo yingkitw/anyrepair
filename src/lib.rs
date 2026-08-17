@@ -16,6 +16,7 @@ pub mod json;
 pub mod key_value;
 pub mod markdown;
 pub mod mcp_server;
+mod pattern;
 pub mod repairer_base;
 pub mod streaming;
 pub mod toml;

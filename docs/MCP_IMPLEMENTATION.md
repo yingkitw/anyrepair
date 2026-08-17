@@ -35,9 +35,8 @@ AnyRepair now exposes its repair functionality as an MCP (Model Context Protocol
 ### 3. Cargo Configuration
 
 **Added:**
-- `rmcp = "0.14"` dependency
 - `[[bin]]` entry for `anyrepair-mcp`
-- Fixed edition from "2024" to "2021"
+- No new dependencies — the JSON-line protocol is hand-rolled on std I/O (crate has zero runtime deps; edition remains 2024)
 
 ### 4. Documentation
 
@@ -263,7 +262,7 @@ To add a new tool:
 
 ### Versioning
 
-- MCP Server version: 0.2.9 (matches anyrepair version)
+- MCP Server version: 0.2.11 (matches anyrepair version)
 - Protocol version: 1.0
 - Backward compatible with previous versions
 
@@ -271,7 +270,7 @@ To add a new tool:
 
 - [MCP Protocol Specification](https://modelcontextprotocol.io/)
 - [Claude Integration Guide](https://claude.ai/docs/mcp)
-- [AnyRepair Documentation](README.md)
+- [AnyRepair Documentation](../README.md)
 - [MCP Server Documentation](MCP_SERVER.md)
 
 ## License

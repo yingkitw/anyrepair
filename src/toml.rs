@@ -2,44 +2,311 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
-use regex::Regex;
-use std::sync::OnceLock;
 
-/// Cached regex patterns for TOML performance optimization
-#[allow(dead_code)]
-struct TomlRegexCache {
-    missing_quotes: Regex,
-    malformed_arrays: Regex,
-    malformed_tables: Regex,
-    malformed_strings: Regex,
-    malformed_numbers: Regex,
-    malformed_dates: Regex,
-}
-
-impl TomlRegexCache {
-    fn new() -> Result<Self> {
-        Ok(Self {
-            missing_quotes: Regex::new(
-                r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^"'\s].*[^"'\s])\s*$"#,
-            )?,
-            malformed_arrays: Regex::new(r#"\[([^,\]]+),\]"#)?,
-            malformed_tables: Regex::new(r#"^(\s*)\[([^]]+)\]\s*$"#)?,
-            malformed_strings: Regex::new(r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*'([^']*)'\s*$"#)?,
-            malformed_numbers: Regex::new(
-                r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(\d+\.\d*\.\d+)"#,
-            )?,
-            malformed_dates: Regex::new(
-                r#"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"#,
-            )?,
-        })
+/// Effective end index for a `^...$` match: the end of the string, or just
+/// before a single trailing newline (which regex `$` treats as the end).
+fn effective_end(chars: &[char]) -> usize {
+    let n = chars.len();
+    if n > 0 && chars[n - 1] == '\n' {
+        n - 1
+    } else {
+        n
     }
 }
 
-static TOML_REGEX_CACHE: OnceLock<TomlRegexCache> = OnceLock::new();
+/// Consume `[a-zA-Z_][a-zA-Z0-9_]*` at `pos` (capped at `end`). Returns the
+/// identifier and advances `pos`, or returns `None` without advancing.
+fn eat_ident(chars: &[char], pos: &mut usize, end: usize) -> Option<String> {
+    if *pos >= end {
+        return None;
+    }
+    let c = chars[*pos];
+    if !(c.is_ascii_alphabetic() || c == '_') {
+        return None;
+    }
+    let start = *pos;
+    *pos += 1;
+    while *pos < end && (chars[*pos].is_ascii_alphanumeric() || chars[*pos] == '_') {
+        *pos += 1;
+    }
+    Some(chars[start..*pos].iter().collect())
+}
 
-fn get_toml_regex_cache() -> &'static TomlRegexCache {
-    TOML_REGEX_CACHE
-        .get_or_init(|| TomlRegexCache::new().expect("Failed to initialize TOML regex cache"))
+/// Consume `\s*` (whitespace, including newlines) up to `end`.
+fn eat_ws(chars: &[char], pos: &mut usize, end: usize) {
+    while *pos < end && chars[*pos].is_whitespace() {
+        *pos += 1;
+    }
+}
+
+/// `^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^"'\s].*[^"'\s])\s*$` → `indent + key + " = \"" + value + "\""`
+fn fix_toml_missing_quotes(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let eff_end = effective_end(&chars);
+    let mut pos = 0;
+    eat_ws(&chars, &mut pos, eff_end);
+    let indent: String = chars[..pos].iter().collect();
+    let key = match eat_ident(&chars, &mut pos, eff_end) {
+        Some(k) => k,
+        None => return content.to_string(),
+    };
+    eat_ws(&chars, &mut pos, eff_end);
+    if pos >= eff_end || chars[pos] != '=' {
+        return content.to_string();
+    }
+    pos += 1;
+    eat_ws(&chars, &mut pos, eff_end);
+    let vchar = |c: char| c != '"' && c != '\'' && !c.is_whitespace();
+    if pos >= eff_end || !vchar(chars[pos]) {
+        return content.to_string();
+    }
+    let value_start = pos;
+    // `.*` cannot cross a newline; the value's line must be the last line.
+    let mut line_end = pos;
+    while line_end < eff_end && chars[line_end] != '\n' {
+        line_end += 1;
+    }
+    if line_end != eff_end {
+        return content.to_string();
+    }
+    // Trim trailing whitespace; the last char must be a non-quote, non-ws char.
+    let mut value_end = line_end;
+    while value_end > value_start && chars[value_end - 1].is_whitespace() {
+        value_end -= 1;
+    }
+    if value_end == value_start || !vchar(chars[value_end - 1]) {
+        return content.to_string();
+    }
+    let value: String = chars[value_start..value_end].iter().collect();
+    let mut out = format!("{}{} = \"{}\"", indent, key, value);
+    if eff_end < n {
+        out.push('\n');
+    }
+    out
+}
+
+/// `\[([^,\]]+),\]` → `[content]` (remove trailing comma in single-element array).
+fn fix_toml_malformed_arrays(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        if chars[i] == '[' {
+            // [^,\]]+ (content with no comma or ])
+            let mut j = i + 1;
+            let content_start = j;
+            while j < n && chars[j] != ',' && chars[j] != ']' {
+                j += 1;
+            }
+            if j > content_start && j < n && chars[j] == ',' {
+                // ,]
+                if j + 1 < n && chars[j + 1] == ']' {
+                    let inner: String = chars[content_start..j].iter().collect();
+                    out.push('[');
+                    out.push_str(&inner);
+                    out.push(']');
+                    i = j + 2;
+                    continue;
+                }
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// `^(\s*)\[([^]]+)\]\s*$` → `indent + "[" + name + "]"` (trims trailing whitespace after `]`).
+fn fix_toml_malformed_tables(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let eff_end = effective_end(&chars);
+    let mut pos = 0;
+    eat_ws(&chars, &mut pos, eff_end);
+    let indent: String = chars[..pos].iter().collect();
+    if pos >= eff_end || chars[pos] != '[' {
+        return content.to_string();
+    }
+    pos += 1;
+    // [^]]+ (one or more chars that are not ']')
+    let name_start = pos;
+    while pos < eff_end && chars[pos] != ']' {
+        pos += 1;
+    }
+    if pos == name_start || pos >= eff_end || chars[pos] != ']' {
+        return content.to_string();
+    }
+    let name: String = chars[name_start..pos].iter().collect();
+    pos += 1; // consume ']'
+    eat_ws(&chars, &mut pos, eff_end);
+    if pos != eff_end {
+        return content.to_string();
+    }
+    let mut out = format!("{}[{}]", indent, name);
+    if eff_end < n {
+        out.push('\n');
+    }
+    out
+}
+
+/// `^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*'([^']*)'\s*$` → `indent + key + " = \"" + value + "\""`
+fn fix_toml_malformed_strings(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let eff_end = effective_end(&chars);
+    let mut pos = 0;
+    eat_ws(&chars, &mut pos, eff_end);
+    let indent: String = chars[..pos].iter().collect();
+    let key = match eat_ident(&chars, &mut pos, eff_end) {
+        Some(k) => k,
+        None => return content.to_string(),
+    };
+    eat_ws(&chars, &mut pos, eff_end);
+    if pos >= eff_end || chars[pos] != '=' {
+        return content.to_string();
+    }
+    pos += 1;
+    eat_ws(&chars, &mut pos, eff_end);
+    if pos >= eff_end || chars[pos] != '\'' {
+        return content.to_string();
+    }
+    pos += 1;
+    // [^']* (zero or more non-' chars)
+    let value_start = pos;
+    while pos < eff_end && chars[pos] != '\'' {
+        pos += 1;
+    }
+    if pos >= eff_end || chars[pos] != '\'' {
+        return content.to_string();
+    }
+    let value: String = chars[value_start..pos].iter().collect();
+    pos += 1; // consume closing '
+    eat_ws(&chars, &mut pos, eff_end);
+    if pos != eff_end {
+        return content.to_string();
+    }
+    let mut out = format!("{}{} = \"{}\"", indent, key, value);
+    if eff_end < n {
+        out.push('\n');
+    }
+    out
+}
+
+/// `^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(\d+\.\d*\.\d+)` → `indent + key + " = " + fixed`
+/// (prefix match; `fixed` collapses `..` into `.`).
+fn fix_toml_malformed_numbers(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut pos = 0;
+    eat_ws(&chars, &mut pos, n);
+    let indent: String = chars[..pos].iter().collect();
+    let key = match eat_ident(&chars, &mut pos, n) {
+        Some(k) => k,
+        None => return content.to_string(),
+    };
+    eat_ws(&chars, &mut pos, n);
+    if pos >= n || chars[pos] != '=' {
+        return content.to_string();
+    }
+    pos += 1;
+    eat_ws(&chars, &mut pos, n);
+    let num_start = pos;
+    // \d+
+    let d1 = pos;
+    while pos < n && chars[pos].is_ascii_digit() {
+        pos += 1;
+    }
+    if pos == d1 {
+        return content.to_string();
+    }
+    if pos >= n || chars[pos] != '.' {
+        return content.to_string();
+    }
+    pos += 1;
+    // \d*
+    while pos < n && chars[pos].is_ascii_digit() {
+        pos += 1;
+    }
+    if pos >= n || chars[pos] != '.' {
+        return content.to_string();
+    }
+    pos += 1;
+    // \d+
+    let d3 = pos;
+    while pos < n && chars[pos].is_ascii_digit() {
+        pos += 1;
+    }
+    if pos == d3 {
+        return content.to_string();
+    }
+    let number: String = chars[num_start..pos].iter().collect();
+    let fixed = number.replace("..", ".");
+    let mut out = format!("{}{} = {}", indent, key, fixed);
+    out.push_str(&chars[pos..].iter().collect::<String>());
+    out
+}
+
+/// `^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})` → `indent + key + " = \"" + date + "\""`
+/// (prefix match).
+fn fix_toml_malformed_dates(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut pos = 0;
+    eat_ws(&chars, &mut pos, n);
+    let indent: String = chars[..pos].iter().collect();
+    let key = match eat_ident(&chars, &mut pos, n) {
+        Some(k) => k,
+        None => return content.to_string(),
+    };
+    eat_ws(&chars, &mut pos, n);
+    if pos >= n || chars[pos] != '=' {
+        return content.to_string();
+    }
+    pos += 1;
+    eat_ws(&chars, &mut pos, n);
+    let date_start = pos;
+    // \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}
+    if !eat_n_digits_then(&chars, &mut pos, n, 4, '-')
+        || !eat_n_digits_then(&chars, &mut pos, n, 2, '-')
+        || !eat_n_digits_then(&chars, &mut pos, n, 2, 'T')
+        || !eat_n_digits_then(&chars, &mut pos, n, 2, ':')
+        || !eat_n_digits_then(&chars, &mut pos, n, 2, ':')
+        || !eat_n_digits(&chars, &mut pos, n, 2)
+    {
+        return content.to_string();
+    }
+    let date: String = chars[date_start..pos].iter().collect();
+    let mut out = format!("{}{} = \"{}\"", indent, key, date);
+    out.push_str(&chars[pos..].iter().collect::<String>());
+    out
+}
+
+/// Consume exactly `count` ASCII digits then `sep` (if non-null). Returns false on mismatch.
+fn eat_n_digits_then(chars: &[char], pos: &mut usize, n: usize, count: usize, sep: char) -> bool {
+    if !eat_n_digits(chars, pos, n, count) {
+        return false;
+    }
+    if *pos >= n || chars[*pos] != sep {
+        return false;
+    }
+    *pos += 1;
+    true
+}
+
+/// Consume exactly `count` ASCII digits.
+fn eat_n_digits(chars: &[char], pos: &mut usize, n: usize, count: usize) -> bool {
+    if *pos + count > n {
+        return false;
+    }
+    for k in 0..count {
+        if !chars[*pos + k].is_ascii_digit() {
+            return false;
+        }
+    }
+    *pos += count;
+    true
 }
 
 /// TOML repairer that can fix common TOML issues
@@ -179,17 +446,7 @@ struct FixMissingQuotesStrategy;
 
 impl RepairStrategy for FixMissingQuotesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_toml_regex_cache();
-        let result = cache
-            .missing_quotes
-            .replace_all(content, |caps: &regex::Captures| {
-                let indent = &caps[1];
-                let key = &caps[2];
-                let value = &caps[3];
-                format!("{}{} = \"{}\"", indent, key, value)
-            });
-
-        Ok(result.to_string())
+        Ok(fix_toml_missing_quotes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -206,15 +463,7 @@ struct FixMalformedArraysStrategy;
 
 impl RepairStrategy for FixMalformedArraysStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_toml_regex_cache();
-        let result = cache
-            .malformed_arrays
-            .replace_all(content, |caps: &regex::Captures| {
-                let content = &caps[1];
-                format!("[{content}]")
-            });
-
-        Ok(result.to_string())
+        Ok(fix_toml_malformed_arrays(content))
     }
 
     fn priority(&self) -> u8 {
@@ -231,16 +480,7 @@ struct FixMalformedTablesStrategy;
 
 impl RepairStrategy for FixMalformedTablesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_toml_regex_cache();
-        let result = cache
-            .malformed_tables
-            .replace_all(content, |caps: &regex::Captures| {
-                let indent = &caps[1];
-                let table_name = &caps[2];
-                format!("{}[{}]", indent, table_name)
-            });
-
-        Ok(result.to_string())
+        Ok(fix_toml_malformed_tables(content))
     }
 
     fn priority(&self) -> u8 {
@@ -257,17 +497,7 @@ struct FixMalformedStringsStrategy;
 
 impl RepairStrategy for FixMalformedStringsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_toml_regex_cache();
-        let result = cache
-            .malformed_strings
-            .replace_all(content, |caps: &regex::Captures| {
-                let indent = &caps[1];
-                let key = &caps[2];
-                let value = &caps[3];
-                format!("{}{} = \"{}\"", indent, key, value)
-            });
-
-        Ok(result.to_string())
+        Ok(fix_toml_malformed_strings(content))
     }
 
     fn priority(&self) -> u8 {
@@ -284,19 +514,7 @@ struct FixMalformedNumbersStrategy;
 
 impl RepairStrategy for FixMalformedNumbersStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_toml_regex_cache();
-        let result = cache
-            .malformed_numbers
-            .replace_all(content, |caps: &regex::Captures| {
-                let indent = &caps[1];
-                let key = &caps[2];
-                let number = &caps[3];
-                // Remove extra decimal points
-                let fixed_number = number.replace("..", ".");
-                format!("{}{} = {}", indent, key, fixed_number)
-            });
-
-        Ok(result.to_string())
+        Ok(fix_toml_malformed_numbers(content))
     }
 
     fn priority(&self) -> u8 {
@@ -313,17 +531,7 @@ struct FixMalformedDatesStrategy;
 
 impl RepairStrategy for FixMalformedDatesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_toml_regex_cache();
-        let result = cache
-            .malformed_dates
-            .replace_all(content, |caps: &regex::Captures| {
-                let indent = &caps[1];
-                let key = &caps[2];
-                let date = &caps[3];
-                format!("{}{} = \"{}\"", indent, key, date)
-            });
-
-        Ok(result.to_string())
+        Ok(fix_toml_malformed_dates(content))
     }
 
     fn priority(&self) -> u8 {

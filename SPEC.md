@@ -4,7 +4,7 @@
 
 AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing malformed structured data. It uses pattern matching and ordered repair strategies—no machine learning and no external API calls.
 
-**Current version:** 0.2.9 (Rust edition 2024).
+**Current version:** 0.2.11 (Rust edition 2024).
 
 ## Supported formats
 
@@ -20,19 +20,32 @@ AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing
 | Diff | `diff.rs` | — | Yes |
 | Properties | `key_value.rs` | — | Yes |
 | Env | `key_value.rs` | `.env` | Yes |
+| PNG | `image.rs` | — | Yes (magic bytes) |
+| JPEG | `image.rs` | `jpg` | Yes (magic bytes) |
+| WAV | `audio.rs` | — | Yes (magic bytes) |
+| MP3 | `audio.rs` | — | Yes (magic bytes) |
+| MP4 | `video.rs` | — | Yes (magic bytes) |
+| MOV | `video.rs` | — | Yes (magic bytes) |
+
+Binary media formats are repaired via `BinaryRepair`/`BinaryValidator` (`binary_traits.rs`) with byte-level detection in `binary_detection.rs` (`detect_binary_format`).
 
 ## Public API (`src/lib.rs`)
 
 ```rust
 pub const SUPPORTED_FORMATS: &[&str];
+pub const BINARY_FORMATS: &[&str];
 
 pub fn normalize_format(format: &str) -> &str;
 pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>>;
 pub fn create_validator(format: &str) -> Result<Box<dyn Validator>>;
+pub fn create_binary_repairer(format: &str) -> Result<Box<dyn BinaryRepair>>;
 pub fn detect_format(content: &str) -> Option<&'static str>;
 pub fn detect_format_with_confidence(content: &str) -> Option<DetectionResult>;
+pub fn detect_binary_format(data: &[u8]) -> Option<BinaryDetectionResult>;
 pub fn repair(content: &str) -> Result<String>;
 pub fn repair_with_format(content: &str, format: &str) -> Result<String>;
+pub fn repair_binary(data: &[u8]) -> Result<Vec<u8>>;
+pub fn repair_binary_with_format(data: &[u8], format: &str) -> Result<Vec<u8>>;
 pub fn jsonrepair(json_str: &str) -> Result<String>;
 pub fn repair_with_explanations(content: &str, format: &str) -> Result<(String, Vec<String>)>;
 ```
@@ -110,10 +123,10 @@ anyrepair repair [FILE] [--format <fmt>] [--confidence] [--diff] [--dry-run] [--
 anyrepair validate [--input <file>] [--format <fmt>]
 anyrepair stream [--input <file>] [--output <file>] [--format <fmt>] [--buffer-size <bytes>]
 anyrepair batch --input <dir> --output <dir> [--pattern <glob>] [--recursive]
-anyrepair completions <shell>
+anyrepair repair-binary [FILE] [--format <fmt>] [--dry-run] [--input <file>] [--output <file>]
 ```
 
-- `--format` accepts `SUPPORTED_FORMATS` plus `yml`, `md`.
+- `--format` accepts `SUPPORTED_FORMATS` plus `yml`, `md`; `repair-binary --format` accepts `BINARY_FORMATS` plus `jpg`.
 - Without `--format`, repair uses auto-detection where supported.
 - `--confidence` prints a repair confidence score (0–100%).
 - `--diff` prints a unified diff of changes to stdout.
@@ -122,7 +135,6 @@ anyrepair completions <shell>
 - `--min-confidence <float>` exits with error if repair confidence is below threshold (0.0–1.0).
 - `--explain` prints the names of repair strategies that changed the content to stderr.
 - `--color auto|always|never` controls ANSI color output for diff and explain (default: auto, detects TTY).
-- `completions` generates shell completion scripts: `bash`, `zsh`, `fish`, `elvish`, `powershell`.
 
 ## Streaming
 
@@ -135,13 +147,9 @@ processor.process(reader, &mut writer, Some("json"))?;
 
 ```rust
 pub fn jsonrepair(json_str: &str) -> Result<String>;
-
-pub struct JsonRepair { .. }
-impl JsonRepair {
-    pub fn new() -> Self;
-    pub fn jsonrepair(&mut self, json_str: &str) -> Result<String>;
-}
 ```
+
+The repairer-based equivalent is `create_repairer("json")` (a `JsonRepairer`) used via the `Repair` trait.
 
 ## MCP
 
@@ -158,8 +166,8 @@ pub enum RepairError {
     MarkdownRepair(String),
     FormatDetection(String),
     Io(std::io::Error),
-    Regex(regex::Error),
     Utf8(std::string::FromUtf8Error),
+    BinaryRepair(String),
     Generic(String),
 }
 ```
@@ -198,13 +206,7 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 
 ## Dependencies (runtime)
 
-| Crate | Purpose |
-|-------|---------|
-| `regex` | Patterns |
-| `thiserror` | Errors |
-| `clap` | CLI |
-| `clap_complete` | Shell completions |
-| `serde_json` (optional) | Strict JSON validation via `strict` feature |
+No runtime crate dependencies — `anyrepair` uses only the Rust standard library.
 
 Dev: `criterion`, `arbitrary`, `proptest`.
 
@@ -221,6 +223,9 @@ src/
 ├── error.rs
 ├── json.rs, yaml.rs, markdown.rs, xml.rs, toml.rs, csv.rs, diff.rs
 ├── key_value.rs          # ini, properties, env
+├── image.rs, audio.rs, video.rs   # binary media repairers (PNG/JPEG, WAV/MP3, MP4/MOV)
+├── binary_detection.rs   # magic-bytes detection
+├── binary_traits.rs      # BinaryRepair, BinaryValidator
 ├── streaming.rs
 ├── mcp_server.rs
 └── cli/
@@ -229,5 +234,5 @@ src/
     ├── validate_cmd.rs
     ├── batch_cmd.rs
     ├── stream_cmd.rs
-    └── completions_cmd.rs
+    ├── binary_cmd.rs
 ```

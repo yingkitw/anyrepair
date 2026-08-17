@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.11] - 2026-08-18
+
+### Added
+- **Binary media repair** — PNG, JPEG, WAV, MP3, MP4, MOV via new `BinaryRepair`/`BinaryValidator` traits (`image.rs`, `audio.rs`, `video.rs`, `binary_traits.rs`)
+- **Binary format detection** — magic-byte auto-detection: `detect_binary_format()`, `BINARY_FORMATS`
+- **CLI `repair-binary`** — `anyrepair repair-binary <file> [--format <fmt>] [--dry-run]`
+- **Real-world corpus tests** — `tests/corpus_tests.rs` with LLM/API damage samples; binary media suites (`binary_tests.rs`, `binary_comprehensive_tests.rs`)
+
+### Removed
+- **`strict` feature** — optional `serde_json` dependency dropped; heuristic JSON validation remains
+- **All runtime dependencies** — `regex`, `thiserror`, `clap`, and `clap_complete` removed; pure standard library (`std::error::Error` implemented by hand, hand-rolled CLI arg parser)
+- **`completions` subcommand** — dropped together with `clap_complete`
+
+### Changed
+- Test count **578**; documentation resynced (README, SPEC, ARCHITECTURE, TODO)
+
 ## [0.2.9] - 2026-07-20
 
 ### Added

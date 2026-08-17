@@ -34,6 +34,9 @@ data/
     └── complex/         # Complex diff files with multiple issues
 ```
 
+Plus `corpus/` — real-world damage samples collected from LLM output and API responses
+(JSON, YAML, TOML, XML, Markdown, CSV), used by `tests/corpus_tests.rs`.
+
 ## File Organization
 
 ### JSON Files (`json/`)
@@ -173,9 +176,10 @@ fn test_repair_malformed_data() {
     // Should successfully repair
     assert!(result.is_ok());
     
-    // Repaired content should be valid
+    // Repaired content should pass the crate's own validator
     let repaired = result.unwrap();
-    assert!(serde_json::from_str::<serde_json::Value>(&repaired).is_ok());
+    let validator = anyrepair::create_validator("json").unwrap();
+    assert!(validator.is_valid(&repaired));
 }
 ```
 

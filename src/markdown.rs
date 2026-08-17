@@ -5,8 +5,6 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
-use regex::Regex;
-use std::sync::OnceLock;
 
 // ============================================================================
 // Markdown Validator
@@ -118,36 +116,111 @@ mod validator_tests {
 }
 
 // ============================================================================
-// Regex Cache
+// Pattern Helpers
 // ============================================================================
 
-/// Cached regex patterns for Markdown performance optimization
-pub struct MarkdownRegexCache {
-    pub header_spacing: Regex,
-    pub code_block_fences: Regex,
-    pub list_items: Regex,
-    pub link_formatting: Regex,
-    pub bold_italic: Regex,
-}
-
-impl MarkdownRegexCache {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            header_spacing: Regex::new(r#"(?m)^(#{1,6})([^#\s])"#)?,
-            code_block_fences: Regex::new(r#"(?m)^```(\w+)?$"#)?,
-            list_items: Regex::new(r#"(?m)^(\s*)(\d+\.)([^ ])"#)?,
-            link_formatting: Regex::new(r#"\[([^\]]+)\]\(([^)]+)\)"#)?,
-            bold_italic: Regex::new(r#"\*\*([^*]+)\*\*|\*([^*]+)\*"#)?,
-        })
+/// Fix missing space after Markdown header hashes.
+///
+/// Mirrors the regex `(?m)^(#{1,6})([^#\s])` → `$1 $2`: at each line start,
+/// 1 to 6 leading `#` followed by a non-`#`-non-whitespace char get a space
+/// inserted between the hashes and that char.
+fn fix_header_spacing(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        let is_line_start = i == 0 || chars[i - 1] == '\n';
+        if is_line_start && chars[i] == '#' {
+            // Count leading '#' (capped at 6, matching {1,6} greedy).
+            let leading = chars[i..].iter().take_while(|c| **c == '#').count();
+            let max_hash = leading.min(6);
+            // Greedy: try the largest hash count <= 6 whose following char
+            // is a non-'#'-non-whitespace char.
+            let mut matched = None;
+            for k in (1..=max_hash).rev() {
+                if let Some(&c) = chars.get(i + k)
+                    && c != '#' && !c.is_whitespace() {
+                        matched = Some((k, c));
+                        break;
+                    }
+            }
+            if let Some((k, c)) = matched {
+                for _ in 0..k {
+                    out.push('#');
+                }
+                out.push(' ');
+                out.push(c);
+                i += k + 1;
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
     }
+    out
 }
 
-static MARKDOWN_REGEX_CACHE: OnceLock<MarkdownRegexCache> = OnceLock::new();
+/// Fix missing space after a numbered list marker.
+///
+/// Mirrors the regex `(?m)^(\s*)(\d+\.)([^ ])` → `$1$2 $3`: at each line
+/// start, optional whitespace, then digits + `.`, then a non-space char get
+/// a space inserted between the marker and that char.
+fn fix_list_items(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        let is_line_start = i == 0 || chars[i - 1] == '\n';
+        if is_line_start
+            && let Some((indent, marker, ch, end)) = match_list_item(&chars, i) {
+                out.push_str(&indent);
+                out.push_str(&marker);
+                out.push(' ');
+                out.push(ch);
+                i = end;
+                continue;
+            }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
 
-pub fn get_markdown_regex_cache() -> &'static MarkdownRegexCache {
-    MARKDOWN_REGEX_CACHE.get_or_init(|| {
-        MarkdownRegexCache::new().expect("Failed to initialize Markdown regex cache")
-    })
+/// Match `(\s*)(\d+\.)([^ ])` starting at `i`. Returns (indent, marker, ch, end).
+fn match_list_item(chars: &[char], i: usize) -> Option<(String, String, char, usize)> {
+    let n = chars.len();
+    let mut j = i;
+    // \s*
+    let indent_start = j;
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
+    }
+    let indent: String = chars[indent_start..j].iter().collect();
+    // \d+
+    let digits_start = j;
+    while j < n && chars[j].is_ascii_digit() {
+        j += 1;
+    }
+    if j == digits_start {
+        return None;
+    }
+    // \.
+    if j >= n || chars[j] != '.' {
+        return None;
+    }
+    let marker: String = chars[digits_start..=j].iter().collect();
+    j += 1;
+    // [^ ] (any char except a single space, including newline)
+    if j >= n {
+        return None;
+    }
+    let ch = chars[j];
+    if ch == ' ' {
+        return None;
+    }
+    Some((indent, marker, ch, j + 1))
 }
 
 // ============================================================================
@@ -163,11 +236,7 @@ impl RepairStrategy for FixHeaderSpacingStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_markdown_regex_cache();
-        Ok(cache
-            .header_spacing
-            .replace_all(content, "$1 $2")
-            .to_string())
+        Ok(fix_header_spacing(content))
     }
 
     fn priority(&self) -> u8 {
@@ -215,8 +284,7 @@ impl RepairStrategy for FixListFormattingStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_markdown_regex_cache();
-        Ok(cache.list_items.replace_all(content, "$1$2 $3").to_string())
+        Ok(fix_list_items(content))
     }
 
     fn priority(&self) -> u8 {

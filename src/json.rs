@@ -4,11 +4,11 @@
 //! for fixing common JSON issues from LLM outputs.
 
 use crate::error::Result;
-use crate::traits::{Repair, RepairStrategy, Validator};
-#[cfg(not(feature = "strict"))]
 use crate::json_util::{is_valid_json, validate_json_errors};
-use regex::Regex;
-use std::sync::OnceLock;
+use crate::pattern::{
+    is_word_char, replace_single_quotes, replace_smart_quotes, replace_word_any,
+};
+use crate::traits::{Repair, RepairStrategy, Validator};
 
 // ============================================================================
 // JSON Validator
@@ -19,28 +19,11 @@ pub struct JsonValidator;
 
 impl Validator for JsonValidator {
     fn is_valid(&self, content: &str) -> bool {
-        #[cfg(feature = "strict")]
-        {
-            serde_json::from_str::<serde_json::Value>(content.trim()).is_ok()
-        }
-        #[cfg(not(feature = "strict"))]
-        {
-            is_valid_json(content)
-        }
+        is_valid_json(content)
     }
 
     fn validate(&self, content: &str) -> Vec<String> {
-        #[cfg(feature = "strict")]
-        {
-            match serde_json::from_str::<serde_json::Value>(content.trim()) {
-                Ok(_) => vec![],
-                Err(e) => vec![e.to_string()],
-            }
-        }
-        #[cfg(not(feature = "strict"))]
-        {
-            validate_json_errors(content)
-        }
+        validate_json_errors(content)
     }
 }
 
@@ -69,50 +52,276 @@ mod validator_tests {
 }
 
 // ============================================================================
-// Regex Cache
+// Pattern Helpers
 // ============================================================================
 
-/// Cached regex patterns for JSON repair
-pub struct RegexCache {
-    pub missing_quotes: Regex,
-    pub trailing_commas: Regex,
-    pub unescaped_quotes: Regex,
-    pub single_quotes: Regex,
-    pub malformed_numbers_leading_zeros: Regex,
-    pub malformed_numbers_trailing_dots: Regex,
-    pub malformed_numbers_multiple_dots: Regex,
-    pub malformed_numbers_scientific: Regex,
-    pub boolean_values: Regex,
-    pub boolean_variants: Regex,
-    pub null_values: Regex,
-    pub undefined_values: Regex,
-    pub smart_quotes: Regex,
+/// Words recognized as boolean literals (regex `\b(True|False|TRUE|FALSE|true|false)\b`).
+const BOOLEAN_WORDS: &[&str] = &["True", "False", "TRUE", "FALSE", "true", "false"];
+
+/// Words recognized as boolean variants (regex `\b(yes|no|on|off|...)\b`).
+const BOOLEAN_VARIANT_WORDS: &[&str] = &[
+    "yes", "no", "on", "off", "Yes", "No", "On", "Off", "YES", "NO", "ON", "OFF",
+];
+
+/// Words normalized to `null` (regex `\b(Null|NULL|null|None|NONE|none|nil|NIL)\b`).
+const NULL_WORDS: &[&str] = &["Null", "NULL", "null", "None", "NONE", "none", "nil", "NIL"];
+
+/// Words normalized to `null` (regex `\b(undefined|Undefined|UNDEFINED)\b`).
+const UNDEFINED_WORDS: &[&str] = &["undefined", "Undefined", "UNDEFINED"];
+
+/// `,(\s*[}\]])` → `$1`: drop a comma that precedes optional whitespace and a
+/// closing `}` or `]`.
+fn fix_trailing_commas(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        if chars[i] == ',' {
+            let mut j = i + 1;
+            while j < n && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < n && (chars[j] == '}' || chars[j] == ']') {
+                // Drop the comma; the whitespace and bracket are emitted below.
+                i += 1;
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
 }
 
-impl RegexCache {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            missing_quotes: Regex::new(r#"(^|\s|,|\{)\s*(\w+)\s*:"#)?,
-            trailing_commas: Regex::new(r#",(\s*[}\]])"#)?,
-            unescaped_quotes: Regex::new(r#""([^"\\]|\\.)*"[^,}\]]*"#)?,
-            single_quotes: Regex::new(r#"'([^']*)'"#)?,
-            malformed_numbers_leading_zeros: Regex::new(r#"\b0+(\d+)\b"#)?,
-            malformed_numbers_trailing_dots: Regex::new(r#"\b(\d+)\.\s*([,}\]])"#)?,
-            malformed_numbers_multiple_dots: Regex::new(r#"\b(\d+\.\d+)\.(\d+)\b"#)?,
-            malformed_numbers_scientific: Regex::new(r#"\b(\d+)\s*(\+|-)\s*(\d+)\b"#)?,
-            boolean_values: Regex::new(r#"\b(True|False|TRUE|FALSE|true|false)\b"#)?,
-            boolean_variants: Regex::new(r#"\b(yes|no|on|off|Yes|No|On|Off|YES|NO|ON|OFF)\b"#)?,
-            null_values: Regex::new(r#"\b(Null|NULL|null|None|NONE|none|nil|NIL)\b"#)?,
-            undefined_values: Regex::new(r#"\b(undefined|Undefined|UNDEFINED)\b"#)?,
-            smart_quotes: Regex::new(r#"[\u201c\u201d\u2018\u2019]"#)?,
-        })
+/// `(^|\s|,|\{)\s*(\w+)\s*:` → `$1"$2":`: quote an unquoted JSON key.
+fn add_missing_quotes(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        if let Some((group1, key, end)) = match_missing_quotes(&chars, i) {
+            out.push_str(&group1);
+            out.push('"');
+            out.push_str(&key);
+            out.push('"');
+            out.push(':');
+            i = end;
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// Try to match `(^|\s|,|\{)\s*(\w+)\s*:` starting at `i`.
+/// Returns `(group1, key, end_after_colon)` on success.
+fn match_missing_quotes(chars: &[char], i: usize) -> Option<(String, String, usize)> {
+    // Alternation `(^|\s|,|\{)` is tried in order: `^` first (only at i==0),
+    // then a single whitespace/comma/brace char consumed as group1.
+    if i == 0
+        && let Some((key, end)) = match_key_rest(chars, i) {
+            return Some((String::new(), key, end));
+        }
+    let c = chars[i];
+    if (c.is_whitespace() || c == ',' || c == '{')
+        && let Some((key, end)) = match_key_rest(chars, i + 1) {
+            return Some((c.to_string(), key, end));
+        }
+    None
+}
+
+/// Match `\s*(\w+)\s*:` starting at `start`. Returns `(key, end_after_colon)`.
+fn match_key_rest(chars: &[char], start: usize) -> Option<(String, usize)> {
+    let n = chars.len();
+    let mut j = start;
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
+    }
+    let key_start = j;
+    while j < n && is_word_char(chars[j]) {
+        j += 1;
+    }
+    if j == key_start {
+        return None;
+    }
+    let key: String = chars[key_start..j].iter().collect();
+    while j < n && chars[j].is_whitespace() {
+        j += 1;
+    }
+    if j < n && chars[j] == ':' {
+        Some((key, j + 1))
+    } else {
+        None
     }
 }
 
-static REGEX_CACHE: OnceLock<RegexCache> = OnceLock::new();
+/// `\b0+(\d+)\b` → `$1`: strip leading zeros from an all-digit number token.
+fn fix_leading_zeros(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
+        if boundary_before && chars[i].is_ascii_digit() {
+            let run_start = i;
+            while i < n && chars[i].is_ascii_digit() {
+                i += 1;
+            }
+            let run: String = chars[run_start..i].iter().collect();
+            let boundary_after = i == n || !is_word_char(chars[i]);
+            if boundary_after && run.len() >= 2 && run.starts_with('0') {
+                let sig = run.trim_start_matches('0');
+                out.push_str(if sig.is_empty() { "0" } else { sig });
+            } else {
+                out.push_str(&run);
+            }
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
 
-pub fn get_regex_cache() -> &'static RegexCache {
-    REGEX_CACHE.get_or_init(|| RegexCache::new().expect("Failed to initialize regex cache"))
+/// `\b(\d+)\.\s*([,}\]])` → `$1$2`: drop a trailing dot before a delimiter.
+fn fix_trailing_dots(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
+        if boundary_before && chars[i].is_ascii_digit() {
+            let d_start = i;
+            while i < n && chars[i].is_ascii_digit() {
+                i += 1;
+            }
+            let digits: String = chars[d_start..i].iter().collect();
+            if i < n && chars[i] == '.' {
+                let mut j = i + 1;
+                while j < n && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if j < n && (chars[j] == ',' || chars[j] == '}' || chars[j] == ']') {
+                    out.push_str(&digits);
+                    out.push(chars[j]);
+                    i = j + 1;
+                    continue;
+                }
+            }
+            out.push_str(&digits);
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// `\b(\d+\.\d+)\.(\d+)\b` → `$1$2`: drop the second dot in a multi-dotted number.
+fn fix_multiple_dots(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
+        if boundary_before && chars[i].is_ascii_digit() {
+            // \d+
+            let d1 = i;
+            while i < n && chars[i].is_ascii_digit() {
+                i += 1;
+            }
+            if i < n && chars[i] == '.' {
+                let after_dot = i + 1;
+                let d2 = after_dot;
+                let mut k = after_dot;
+                while k < n && chars[k].is_ascii_digit() {
+                    k += 1;
+                }
+                if k > d2 && k < n && chars[k] == '.' {
+                    let d3 = k + 1;
+                    let mut m = d3;
+                    while m < n && chars[m].is_ascii_digit() {
+                        m += 1;
+                    }
+                    if m > d3 {
+                        let boundary_after = m == n || !is_word_char(chars[m]);
+                        if boundary_after {
+                            // group1 = chars[d1..k] (digits.digits), group2 = chars[d3..m]
+                            let group1: String = chars[d1..k].iter().collect();
+                            let group2: String = chars[d3..m].iter().collect();
+                            out.push_str(&group1);
+                            out.push_str(&group2);
+                            i = m;
+                            continue;
+                        }
+                    }
+                }
+            }
+            // No match: emit the digit run we consumed.
+            let run: String = chars[d1..i].iter().collect();
+            out.push_str(&run);
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// `\b(\d+)\s*(\+|-)\s*(\d+)\b` → `$1e$2$3`: rewrite `N +/- M` as scientific notation.
+fn fix_scientific(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
+        if boundary_before && chars[i].is_ascii_digit() {
+            let d1 = i;
+            while i < n && chars[i].is_ascii_digit() {
+                i += 1;
+            }
+            let digits: String = chars[d1..i].iter().collect();
+            let mut j = i;
+            while j < n && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < n && (chars[j] == '+' || chars[j] == '-') {
+                let sign = chars[j];
+                let mut k = j + 1;
+                while k < n && chars[k].is_whitespace() {
+                    k += 1;
+                }
+                let d3 = k;
+                while k < n && chars[k].is_ascii_digit() {
+                    k += 1;
+                }
+                if k > d3 {
+                    let boundary_after = k == n || !is_word_char(chars[k]);
+                    if boundary_after {
+                        let exp: String = chars[d3..k].iter().collect();
+                        out.push_str(&digits);
+                        out.push('e');
+                        out.push(sign);
+                        out.push_str(&exp);
+                        i = k;
+                        continue;
+                    }
+                }
+            }
+            out.push_str(&digits);
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
 }
 
 // ============================================================================
@@ -255,8 +464,7 @@ impl RepairStrategy for FixTrailingCommasStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        Ok(cache.trailing_commas.replace_all(content, "$1").to_string())
+        Ok(fix_trailing_commas(content))
     }
 
     fn priority(&self) -> u8 {
@@ -273,11 +481,7 @@ impl RepairStrategy for FixSingleQuotesStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        Ok(cache
-            .single_quotes
-            .replace_all(content, "\"$1\"")
-            .to_string())
+        Ok(replace_single_quotes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -294,11 +498,7 @@ impl RepairStrategy for AddMissingQuotesStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        Ok(cache
-            .missing_quotes
-            .replace_all(content, "$1\"$2\":")
-            .to_string())
+        Ok(add_missing_quotes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -315,26 +515,11 @@ impl RepairStrategy for FixMalformedNumbersStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
         let mut result = content.to_string();
-
-        result = cache
-            .malformed_numbers_leading_zeros
-            .replace_all(&result, "$1")
-            .to_string();
-        result = cache
-            .malformed_numbers_trailing_dots
-            .replace_all(&result, "$1$2")
-            .to_string();
-        result = cache
-            .malformed_numbers_multiple_dots
-            .replace_all(&result, "$1$2")
-            .to_string();
-        result = cache
-            .malformed_numbers_scientific
-            .replace_all(&result, "$1e$2$3")
-            .to_string();
-
+        result = fix_leading_zeros(&result);
+        result = fix_trailing_dots(&result);
+        result = fix_multiple_dots(&result);
+        result = fix_scientific(&result);
         Ok(result)
     }
 
@@ -352,25 +537,14 @@ impl RepairStrategy for FixBooleanNullStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        let mut result = content.to_string();
-
-        result = cache
-            .boolean_values
-            .replace_all(&result, |caps: &regex::Captures| {
-                match caps[0].to_lowercase().as_str() {
-                    "true" | "false" => caps[0].to_lowercase(),
-                    _ => "true".to_string(),
-                }
-            })
-            .to_string();
-
-        result = cache.null_values.replace_all(&result, "null").to_string();
-        result = cache
-            .undefined_values
-            .replace_all(&result, "null")
-            .to_string();
-
+        let mut result = replace_word_any(content, BOOLEAN_WORDS, |w| {
+            match w.to_lowercase().as_str() {
+                "true" | "false" => w.to_lowercase(),
+                _ => "true".to_string(),
+            }
+        });
+        result = replace_word_any(&result, NULL_WORDS, |_| "null".to_string());
+        result = replace_word_any(&result, UNDEFINED_WORDS, |_| "null".to_string());
         Ok(result)
     }
 
@@ -388,17 +562,7 @@ impl RepairStrategy for FixSmartQuotesStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        Ok(cache
-            .smart_quotes
-            .replace_all(content, |c: &regex::Captures| {
-                match &c[0] {
-                    "\u{201c}" | "\u{201d}" => "\"".to_string(),
-                    "\u{2018}" | "\u{2019}" => "'".to_string(),
-                    other => other.to_string(),
-                }
-            })
-            .to_string())
+        Ok(replace_smart_quotes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -415,17 +579,13 @@ impl RepairStrategy for FixBooleanVariantsStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
-        Ok(cache
-            .boolean_variants
-            .replace_all(content, |caps: &regex::Captures| {
-                match caps[0].to_lowercase().as_str() {
-                    "yes" | "on" => "true".to_string(),
-                    "no" | "off" => "false".to_string(),
-                    other => other.to_string(),
-                }
-            })
-            .to_string())
+        Ok(replace_word_any(content, BOOLEAN_VARIANT_WORDS, |w| {
+            match w.to_lowercase().as_str() {
+                "yes" | "on" => "true".to_string(),
+                "no" | "off" => "false".to_string(),
+                other => other.to_string(),
+            }
+        }))
     }
 
     fn priority(&self) -> u8 {
@@ -561,18 +721,11 @@ impl RepairStrategy for FixAgenticAiResponseStrategy {
     }
 
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_regex_cache();
         let mut result = content.to_string();
 
-        result = cache
-            .undefined_values
-            .replace_all(&result, "null")
-            .to_string();
-        result = cache.trailing_commas.replace_all(&result, "$1").to_string();
-        result = cache
-            .single_quotes
-            .replace_all(&result, "\"$1\"")
-            .to_string();
+        result = replace_word_any(&result, UNDEFINED_WORDS, |_| "null".to_string());
+        result = fix_trailing_commas(&result);
+        result = replace_single_quotes(&result);
 
         Ok(result)
     }

@@ -1,36 +1,55 @@
 //! Error types for the anyrepair crate
 
-use thiserror::Error;
+use std::fmt;
 
 /// Main error type for repair operations
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum RepairError {
-    #[error("JSON repair failed: {0}")]
     JsonRepair(String),
-
-    #[error("YAML repair failed: {0}")]
     YamlRepair(String),
-
-    #[error("Markdown repair failed: {0}")]
     MarkdownRepair(String),
-
-    #[error("Format detection failed: {0}")]
     FormatDetection(String),
-
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-
-    #[error("Regex error: {0}")]
-    Regex(#[from] regex::Error),
-
-    #[error("UTF-8 error: {0}")]
-    Utf8(#[from] std::string::FromUtf8Error),
-
-    #[error("Generic error: {0}")]
+    Io(std::io::Error),
+    Utf8(std::string::FromUtf8Error),
     Generic(String),
-
-    #[error("Binary repair failed: {0}")]
     BinaryRepair(String),
+}
+
+impl fmt::Display for RepairError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RepairError::JsonRepair(msg) => write!(f, "JSON repair failed: {msg}"),
+            RepairError::YamlRepair(msg) => write!(f, "YAML repair failed: {msg}"),
+            RepairError::MarkdownRepair(msg) => write!(f, "Markdown repair failed: {msg}"),
+            RepairError::FormatDetection(msg) => write!(f, "Format detection failed: {msg}"),
+            RepairError::Io(err) => write!(f, "IO error: {err}"),
+            RepairError::Utf8(err) => write!(f, "UTF-8 error: {err}"),
+            RepairError::Generic(msg) => write!(f, "Generic error: {msg}"),
+            RepairError::BinaryRepair(msg) => write!(f, "Binary repair failed: {msg}"),
+        }
+    }
+}
+
+impl std::error::Error for RepairError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            RepairError::Io(err) => Some(err),
+            RepairError::Utf8(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for RepairError {
+    fn from(err: std::io::Error) -> Self {
+        RepairError::Io(err)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for RepairError {
+    fn from(err: std::string::FromUtf8Error) -> Self {
+        RepairError::Utf8(err)
+    }
 }
 
 /// Result type alias for repair operations

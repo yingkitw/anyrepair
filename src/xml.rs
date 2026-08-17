@@ -2,33 +2,100 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
-use regex::Regex;
-use std::sync::OnceLock;
 
-/// Cached regex patterns for XML performance optimization
-struct XmlRegexCache {
-    unclosed_tags: Regex,
-    malformed_attributes: Regex,
-    missing_quotes: Regex,
-    self_closing_tags: Regex,
-}
-
-impl XmlRegexCache {
-    fn new() -> Result<Self> {
-        Ok(Self {
-            unclosed_tags: Regex::new(r"<(\w+)([^>]*)>")?,
-            malformed_attributes: Regex::new(r#"(\w+)=([^"'\s>]+)"#)?,
-            missing_quotes: Regex::new(r#"(\w+)=([^"'\s>]+)"#)?,
-            self_closing_tags: Regex::new(r"<(\w+)([^>]*)/>")?,
-        })
+/// Find all opening tags matching `<(\w+)([^>]*)>` in order.
+///
+/// Returns `(tag_name, attributes)` for each non-overlapping leftmost match.
+/// Closing tags (`</...>`), declarations (`<?...?>`), and CDATA (`<![...]>`)
+/// do not start with a word character and are therefore skipped.
+fn find_open_tags(content: &str) -> Vec<(String, String)> {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < n {
+        if chars[i] == '<' && i + 1 < n && is_word_char(chars[i + 1]) {
+            // \w+ (tag name)
+            let name_start = i + 1;
+            let mut j = name_start;
+            while j < n && is_word_char(chars[j]) {
+                j += 1;
+            }
+            // [^>]* (attributes)
+            let attrs_start = j;
+            while j < n && chars[j] != '>' {
+                j += 1;
+            }
+            if j < n && chars[j] == '>' {
+                let name: String = chars[name_start..attrs_start].iter().collect();
+                let attrs: String = chars[attrs_start..j].iter().collect();
+                out.push((name, attrs));
+                i = j + 1;
+                continue;
+            }
+        }
+        i += 1;
     }
+    out
 }
 
-static XML_REGEX_CACHE: OnceLock<XmlRegexCache> = OnceLock::new();
+#[inline]
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
 
-fn get_xml_regex_cache() -> &'static XmlRegexCache {
-    XML_REGEX_CACHE
-        .get_or_init(|| XmlRegexCache::new().expect("Failed to initialize XML regex cache"))
+/// Quote unquoted XML attribute values.
+///
+/// Mirrors the regex `(\w+)=([^"'\s>]+)` → `name="value"`. A word run
+/// followed by `=` and a run of chars that are not quotes, whitespace, or
+/// `>` gets wrapped in double quotes.
+fn quote_attributes(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        if is_word_char(chars[i]) && (i == 0 || !is_word_char(chars[i - 1]))
+            && let Some((name, value, end)) = match_attr(&chars, i) {
+                out.push_str(&name);
+                out.push_str("=\"");
+                out.push_str(&value);
+                out.push('"');
+                i = end;
+                continue;
+            }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// Match `(\w+)=([^"'\s>]+)` starting at a word-run start `i`.
+fn match_attr(chars: &[char], i: usize) -> Option<(String, String, usize)> {
+    let n = chars.len();
+    let mut j = i;
+    while j < n && is_word_char(chars[j]) {
+        j += 1;
+    }
+    let name: String = chars[i..j].iter().collect();
+    if j >= n || chars[j] != '=' {
+        return None;
+    }
+    let vstart = j + 1;
+    if vstart >= n {
+        return None;
+    }
+    // [^"'\s>]+
+    let vchar = |c: char| c != '"' && c != '\'' && !c.is_whitespace() && c != '>';
+    if !vchar(chars[vstart]) {
+        return None;
+    }
+    let mut k = vstart;
+    while k < n && vchar(chars[k]) {
+        k += 1;
+    }
+    let value: String = chars[vstart..k].iter().collect();
+    Some((name, value, k))
 }
 
 /// XML repairer that can fix common XML issues
@@ -185,15 +252,11 @@ struct FixUnclosedTagsStrategy;
 
 impl RepairStrategy for FixUnclosedTagsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_xml_regex_cache();
         let mut result = content.to_string();
         let mut open_tags = Vec::new();
 
         // Find all opening tags
-        for cap in cache.unclosed_tags.captures_iter(&result) {
-            let tag_name = &cap[1];
-            let attributes = &cap[2];
-
+        for (tag_name, attributes) in find_open_tags(&result) {
             // Check if it's a self-closing tag
             if attributes.ends_with('/') {
                 continue;
@@ -207,7 +270,7 @@ impl RepairStrategy for FixUnclosedTagsStrategy {
                         open_tags.push(expected_tag);
                     }
             } else {
-                open_tags.push(tag_name.to_string());
+                open_tags.push(tag_name);
             }
         }
 
@@ -233,16 +296,7 @@ struct FixMalformedAttributesStrategy;
 
 impl RepairStrategy for FixMalformedAttributesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_xml_regex_cache();
-        let result = cache
-            .malformed_attributes
-            .replace_all(content, |caps: &regex::Captures| {
-                let attr_name = &caps[1];
-                let attr_value = &caps[2];
-                format!("{attr_name}=\"{attr_value}\"")
-            });
-
-        Ok(result.to_string())
+        Ok(quote_attributes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -306,16 +360,7 @@ struct FixMissingQuotesStrategy;
 
 impl RepairStrategy for FixMissingQuotesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_xml_regex_cache();
-        let result = cache
-            .missing_quotes
-            .replace_all(content, |caps: &regex::Captures| {
-                let attr_name = &caps[1];
-                let attr_value = &caps[2];
-                format!("{attr_name}=\"{attr_value}\"")
-            });
-
-        Ok(result.to_string())
+        Ok(quote_attributes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -332,16 +377,10 @@ struct FixSelfClosingTagsStrategy;
 
 impl RepairStrategy for FixSelfClosingTagsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_xml_regex_cache();
-        let result = cache
-            .self_closing_tags
-            .replace_all(content, |caps: &regex::Captures| {
-                let tag_name = &caps[1];
-                let attributes = &caps[2];
-                format!("<{tag_name}{attributes}/>")
-            });
-
-        Ok(result.to_string())
+        // The original regex `<(\w+)([^>]*)/>` reconstructed each self-closing
+        // tag verbatim from its captures, making this a no-op. Preserve that
+        // behavior by returning the content unchanged.
+        Ok(content.to_string())
     }
 
     fn priority(&self) -> u8 {

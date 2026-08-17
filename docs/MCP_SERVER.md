@@ -286,6 +286,6 @@ Apache-2.0
 
 ## See Also
 
-- [AnyRepair Documentation](README.md)
+- [AnyRepair Documentation](../README.md)
 - [MCP Protocol Specification](https://modelcontextprotocol.io/)
 - [Claude Integration Guide](https://claude.ai/docs/mcp)

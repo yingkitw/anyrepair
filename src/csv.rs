@@ -2,31 +2,112 @@
 
 use crate::error::Result;
 use crate::traits::{Repair, RepairStrategy, Validator};
-use regex::Regex;
-use std::sync::OnceLock;
 
-/// Cached regex patterns for CSV performance optimization
-struct CsvRegexCache {
-    unquoted_strings: Regex,
-    malformed_quotes: Regex,
-    extra_commas: Regex,
-}
-
-impl CsvRegexCache {
-    fn new() -> Result<Self> {
-        Ok(Self {
-            unquoted_strings: Regex::new(r#"^([^",\n]+)$"#)?,
-            malformed_quotes: Regex::new(r#""([^"]*)"([^",\n])"#)?,
-            extra_commas: Regex::new(r#",\s*,"#)?,
-        })
+/// Fix unquoted single-line fields that contain spaces.
+///
+/// Mirrors the regex `^([^",\n]+)$` (no multiline flag, so it only matches
+/// when the whole content is a single line, optionally with a trailing
+/// newline) with the closure that quotes the field when it contains a space
+/// or comma. Since the matched field cannot contain a comma (excluded by the
+/// character class), only the space check is effective.
+fn fix_unquoted_strings(content: &str) -> String {
+    let line = match content.strip_suffix('\n') {
+        Some(rest) => rest,
+        None => content,
+    };
+    // Multi-line content (an internal newline) cannot match `^...$`.
+    if line.contains('\n') {
+        return content.to_string();
+    }
+    // `[^",\n]+`: non-empty, no quotes, no commas, no newlines.
+    if line.is_empty() || line.contains('"') || line.contains(',') {
+        return content.to_string();
+    }
+    let quoted = if line.contains(' ') || line.contains(',') {
+        format!("\"{}\"", line)
+    } else {
+        line.to_string()
+    };
+    if content.ends_with('\n') {
+        format!("{}\n", quoted)
+    } else {
+        quoted
     }
 }
 
-static CSV_REGEX_CACHE: OnceLock<CsvRegexCache> = OnceLock::new();
+/// Fix malformed quotes by pulling a trailing non-delimiter char inside.
+///
+/// Mirrors the regex `"([^"]*)"([^",\n])` → `"content+extra"`. A double-quoted
+/// run followed by a single char that is not `"`, `,`, or `\n` gets that char
+/// merged into the quoted content.
+fn fix_malformed_quotes(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        if chars[i] == '"' {
+            // Collect until the closing '"'.
+            let mut inner = String::new();
+            let mut j = i + 1;
+            while j < n && chars[j] != '"' {
+                inner.push(chars[j]);
+                j += 1;
+            }
+            if j < n && chars[j] == '"' {
+                // Closing quote found at j; check the following char.
+                if let Some(&extra) = chars.get(j + 1)
+                    && extra != '"' && extra != ',' && extra != '\n' {
+                        out.push('"');
+                        out.push_str(&inner);
+                        out.push(extra);
+                        out.push('"');
+                        i = j + 2;
+                        continue;
+                    }
+                // No merge: emit the quoted string verbatim.
+                out.push('"');
+                out.push_str(&inner);
+                out.push('"');
+                i = j + 1;
+                continue;
+            }
+            // No closing quote: emit the opening quote and continue.
+            out.push('"');
+            i += 1;
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
 
-fn get_csv_regex_cache() -> &'static CsvRegexCache {
-    CSV_REGEX_CACHE
-        .get_or_init(|| CsvRegexCache::new().expect("Failed to initialize CSV regex cache"))
+/// Collapse `, ,` (comma, optional whitespace, comma) into a single comma.
+///
+/// Mirrors the regex `,\s*,` → `,`.
+fn fix_extra_commas(content: &str) -> String {
+    let chars: Vec<char> = content.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(content.len());
+    let mut i = 0;
+    while i < n {
+        if chars[i] == ',' {
+            // Look ahead: skip whitespace, then expect another comma.
+            let mut j = i + 1;
+            while j < n && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < n && chars[j] == ',' {
+                out.push(',');
+                i = j + 1;
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
 }
 
 /// CSV repairer that can fix common CSV issues
@@ -216,20 +297,7 @@ struct FixUnquotedStringsStrategy;
 
 impl RepairStrategy for FixUnquotedStringsStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_csv_regex_cache();
-        let result = cache
-            .unquoted_strings
-            .replace_all(content, |caps: &regex::Captures| {
-                let content = &caps[1];
-                // Only quote if it contains spaces or special characters
-                if content.contains(' ') || content.contains(',') {
-                    format!("\"{}\"", content)
-                } else {
-                    content.to_string()
-                }
-            });
-
-        Ok(result.to_string())
+        Ok(fix_unquoted_strings(content))
     }
 
     fn priority(&self) -> u8 {
@@ -246,16 +314,7 @@ struct FixMalformedQuotesStrategy;
 
 impl RepairStrategy for FixMalformedQuotesStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_csv_regex_cache();
-        let result = cache
-            .malformed_quotes
-            .replace_all(content, |caps: &regex::Captures| {
-                let content = &caps[1];
-                let extra = &caps[2];
-                format!("\"{}{}\"", content, extra)
-            });
-
-        Ok(result.to_string())
+        Ok(fix_malformed_quotes(content))
     }
 
     fn priority(&self) -> u8 {
@@ -307,10 +366,7 @@ struct FixExtraCommasStrategy;
 
 impl RepairStrategy for FixExtraCommasStrategy {
     fn apply(&self, content: &str) -> Result<String> {
-        let cache = get_csv_regex_cache();
-        let result = cache.extra_commas.replace_all(content, ",");
-
-        Ok(result.to_string())
+        Ok(fix_extra_commas(content))
     }
 
     fn priority(&self) -> u8 {

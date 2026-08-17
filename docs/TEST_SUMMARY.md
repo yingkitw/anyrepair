@@ -18,8 +18,9 @@ AnyRepair includes **578 comprehensive tests** covering all formats, damage patt
 - **`tests/cli_tests.rs`** - CLI functionality tests (15 tests)
 - **`tests/golden_master_tests.rs`** - Golden master / snapshot tests (26 tests)
 - **`tests/properties_env_tests.rs`** - Properties/env format tests (25 tests)
-- **`tests/strict_validation_tests.rs`** - Strict validation tests (0 tests, feature-gated)
 - **`tests/corpus_tests.rs`** - Real-world corpus tests (17 tests)
+- **`tests/binary_tests.rs`** - Binary media integration tests (23 tests)
+- **`tests/binary_comprehensive_tests.rs`** - Exhaustive binary media tests (65 tests)
 
 ### Test Coverage by Format
 
@@ -37,8 +38,8 @@ AnyRepair includes **578 comprehensive tests** covering all formats, damage patt
 
 - **Total Tests**: 578 tests
 - **Pass Rate**: 100%
-- **Test Files**: 11
-- **Coverage**: All 10 formats and major features
+- **Test Files**: 13
+- **Coverage**: All 16 formats (10 text + 6 binary media) and major features
 
 ## Test Suite Breakdown
 
@@ -291,7 +292,6 @@ cargo test --test integration_tests -- --nocapture
 ### Test Documentation
 - `TEST_SUMMARY.md` - This file (comprehensive test overview)
 - `STREAMING_FEATURE.md` - Streaming feature overview
-- Historical test detail files archived in `docs/archive/`
 
 ### Code Documentation
 - `README.md` - Main documentation

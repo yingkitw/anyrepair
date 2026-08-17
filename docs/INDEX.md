@@ -17,7 +17,7 @@
 - **[STREAMING_FEATURE.md](STREAMING_FEATURE.md)** - Streaming repair for large files
 
 ### Testing
-- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (432 tests)
+- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (578 tests)
 
 ### Version History
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
@@ -65,11 +65,12 @@ anyrepair/
 │   ├── main.rs          # CLI entry point
 │   ├── bin/mcp_server.rs # MCP server
 │   ├── diff.rs         # Diff repairer
+│   ├── image.rs, audio.rs, video.rs  # Binary media repairers
 │   └── ...              # Other modules
 ├── examples/            # Usage examples
 │   ├── README.md
 │   └── data/           # Test data files
-├── tests/               # Test suites (513 tests)
+├── tests/               # Test suites (578 tests)
 ├── docs/                # Documentation (this folder)
 │   ├── INDEX.md        # This file
 │   ├── ARCHITECTURE.md # System design
@@ -79,10 +80,10 @@ anyrepair/
 
 ## Last Updated
 
-August 9, 2026
+August 18, 2026
 
 ## Status
 
 ✅ **PRODUCTION READY**
 
-All features implemented, tested, and documented. Version 0.3.0 with 10 text formats, 6 binary media formats, MCP server, streaming, and 578 tests.
+All features implemented, tested, and documented. Version 0.2.11 with 10 text formats, 6 binary media formats, MCP server, streaming, and 578 tests.

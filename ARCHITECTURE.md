@@ -25,6 +25,7 @@ anyrepair/
 │   ├── binary_traits.rs       # BinaryRepair, BinaryValidator
 │   ├── streaming.rs
 │   ├── mcp_server.rs
+│   ├── pattern.rs          # shared pattern-matching helpers (internal)
 │   └── cli/                   # repair, validate, batch, stream, repair-binary
 ├── tests/                     # Integration, fuzz, streaming, CLI, diff
 ├── examples/                  # MCP and sample data

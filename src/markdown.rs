@@ -431,7 +431,7 @@ impl RepairStrategy for FixNestedListsStrategy {
 
             // Fix list item formatting
             if trimmed.starts_with('-') || trimmed.starts_with('*') || trimmed.starts_with('+') {
-                let marker = trimmed.chars().next().unwrap();
+                let marker = trimmed.as_bytes()[0] as char;
                 let content_part = trimmed.trim_start_matches([marker, ' ']);
                 result.push_str(&format!(
                     "{}{} {}",

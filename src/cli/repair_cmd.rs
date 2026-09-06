@@ -18,29 +18,45 @@ fn should_use_color(color: &str) -> bool {
     }
 }
 
+/// Options for the repair subcommand, grouped to keep `handle_repair` signature small.
+pub struct RepairOptions<'a> {
+    pub input: Option<&'a str>,
+    pub output: Option<&'a str>,
+    pub format: Option<&'a str>,
+    pub show_confidence: bool,
+    pub show_diff: bool,
+    pub dry_run: bool,
+    pub json_output: bool,
+    pub min_confidence: Option<f64>,
+    pub explain: bool,
+    pub color: &'a str,
+}
+
+/// Fields needed to build the machine-readable JSON result, grouped to keep
+/// `build_json_result` signature small.
+struct JsonResultInput<'a> {
+    format: &'a str,
+    confidence: f64,
+    detection_confidence: f64,
+    repaired_needed: bool,
+    original_len: usize,
+    repaired_len: usize,
+    output: Option<&'a str>,
+    repaired_content: &'a str,
+}
+
 /// Unified repair handler for all formats.
-/// When format is Some, uses that format directly via the registry.
-/// When format is None, uses auto-detection.
-pub fn handle_repair(
-    input: Option<&str>,
-    output: Option<&str>,
-    show_confidence: bool,
-    verbose: bool,
-    format: Option<&str>,
-    show_diff: bool,
-    dry_run: bool,
-    json_output: bool,
-    min_confidence: Option<f64>,
-    explain: bool,
-    color: &str,
-) -> io::Result<()> {
-    let content = super::read_input(input)?;
+/// When `opts.format` is Some, uses that format directly via the registry.
+/// When `opts.format` is None, uses auto-detection.
+pub fn handle_repair(opts: &RepairOptions<'_>, verbose: bool) -> io::Result<()> {
+    let content = super::read_input(opts.input)?;
+    let format = opts.format;
 
     let (repaired, confidence, detected_format, explanations, detection_confidence) = if let Some(fmt) = format {
         if verbose {
             eprintln!("Repairing content as {}...", fmt);
         }
-        if explain {
+        if opts.explain {
             let (r, names) = anyrepair::repair_with_explanations(&content, fmt)
                 .map_err(|e| io::Error::other(e.to_string()))?;
             let c = anyrepair::create_validator(fmt)
@@ -65,7 +81,7 @@ pub fn handle_repair(
             Some(dr) => {
                 let fmt = dr.format;
                 let det_conf = dr.confidence;
-                if explain {
+                if opts.explain {
                     let (r, names) = anyrepair::repair_with_explanations(&content, fmt)
                         .map_err(|e| io::Error::other(e.to_string()))?;
                     let c = anyrepair::create_validator(fmt)
@@ -90,7 +106,7 @@ pub fn handle_repair(
         eprintln!("Repair completed");
     }
 
-    if let Some(threshold) = min_confidence
+    if let Some(threshold) = opts.min_confidence
         && confidence < threshold {
             eprintln!(
                 "Confidence {:.2}% is below threshold {:.2}%",
@@ -108,9 +124,9 @@ pub fn handle_repair(
 
     let had_changes = content != repaired;
 
-    let use_color = should_use_color(color);
+    let use_color = should_use_color(opts.color);
 
-    if explain {
+    if opts.explain {
         if explanations.is_empty() {
             eprintln!("No strategies were applied (content was already valid or no changes needed).");
         } else {
@@ -125,29 +141,29 @@ pub fn handle_repair(
         }
     }
 
-    if json_output {
-        let json = build_json_result(
-            detected_format,
+    if opts.json_output {
+        let json = build_json_result(&JsonResultInput {
+            format: detected_format,
             confidence,
             detection_confidence,
-            had_changes,
-            content.len(),
-            repaired.len(),
-            output,
-            &repaired,
-        );
+            repaired_needed: had_changes,
+            original_len: content.len(),
+            repaired_len: repaired.len(),
+            output: opts.output,
+            repaired_content: &repaired,
+        });
         println!("{}", json);
-        if !dry_run {
-            super::write_output(&repaired, output)?;
+        if !opts.dry_run {
+            super::write_output(&repaired, opts.output)?;
         }
         return Ok(());
     }
 
-    if show_confidence {
+    if opts.show_confidence {
         println!("Confidence: {:.2}%", confidence * 100.0);
     }
 
-    if show_diff {
+    if opts.show_diff {
         let diff = generate_diff(&content, &repaired, use_color);
         if diff.is_empty() {
             eprintln!("No changes needed.");
@@ -156,14 +172,14 @@ pub fn handle_repair(
         }
     }
 
-    if dry_run {
-        if !show_diff && !explain {
+    if opts.dry_run {
+        if !opts.show_diff && !opts.explain {
             eprintln!("Dry run — no output written.");
         }
         return Ok(());
     }
 
-    super::write_output(&repaired, output)
+    super::write_output(&repaired, opts.output)
 }
 
 /// Repair content with a specific format, returning (repaired, confidence)
@@ -177,34 +193,25 @@ fn repair_format(content: &str, format: &str) -> io::Result<(String, f64)> {
 }
 
 /// Build a machine-readable JSON result string for CI usage.
-fn build_json_result(
-    format: &str,
-    confidence: f64,
-    detection_confidence: f64,
-    repaired_needed: bool,
-    original_len: usize,
-    repaired_len: usize,
-    output: Option<&str>,
-    repaired_content: &str,
-) -> String {
-    let output_field = match output {
+fn build_json_result(d: &JsonResultInput<'_>) -> String {
+    let output_field = match d.output {
         Some(p) => anyrepair::json_util::json_string(p),
         None => "null".to_string(),
     };
-    let content_field = if output.is_none() {
-        format!(r#","content":{}"#, anyrepair::json_util::json_string(repaired_content))
+    let content_field = if d.output.is_none() {
+        format!(r#","content":{}"#, anyrepair::json_util::json_string(d.repaired_content))
     } else {
         String::new()
     };
 
     format!(
         r#"{{"format":{},"confidence":{},"detection_confidence":{},"repaired":{},"original_length":{},"repaired_length":{},"output":{}{}}}"#,
-        anyrepair::json_util::json_string(format),
-        confidence,
-        detection_confidence,
-        repaired_needed,
-        original_len,
-        repaired_len,
+        anyrepair::json_util::json_string(d.format),
+        d.confidence,
+        d.detection_confidence,
+        d.repaired_needed,
+        d.original_len,
+        d.repaired_len,
         output_field,
         content_field,
     )
@@ -326,17 +333,19 @@ mod tests {
         let out_path = out.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            Some(out_path),
+            &RepairOptions {
+                input: Some(path),
+                output: Some(out_path),
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: false,
+                dry_run: true,
+                json_output: false,
+                min_confidence: None,
+                explain: false,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            false,
-            true,
-            false,
-            None,
-            false,
-            "never",
         );
         assert!(result.is_ok());
         assert!(!out.exists(), "dry_run should not write output file");
@@ -352,17 +361,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: true,
+                dry_run: true,
+                json_output: false,
+                min_confidence: None,
+                explain: false,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            true,
-            true,
-            false,
-            None,
-            false,
-            "never",
         );
         assert!(result.is_ok());
         let _ = std::fs::remove_file(&tmp);
@@ -376,17 +387,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: true,
+                dry_run: true,
+                json_output: false,
+                min_confidence: None,
+                explain: false,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            true,
-            true,
-            false,
-            None,
-            false,
-            "never",
         );
         assert!(result.is_ok());
         let _ = std::fs::remove_file(&tmp);
@@ -400,17 +413,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: false,
+                dry_run: true,
+                json_output: true,
+                min_confidence: None,
+                explain: false,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            false,
-            true,
-            true,
-            None,
-            false,
-            "never",
         );
         assert!(result.is_ok());
         let _ = std::fs::remove_file(&tmp);
@@ -424,17 +439,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: false,
+                dry_run: true,
+                json_output: false,
+                min_confidence: Some(0.0),
+                explain: false,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            false,
-            true,
-            false,
-            Some(0.0),
-            false,
-            "never",
         );
         assert!(result.is_ok());
         let _ = std::fs::remove_file(&tmp);
@@ -448,17 +465,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: false,
+                dry_run: true,
+                json_output: false,
+                min_confidence: Some(2.0),
+                explain: false,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            false,
-            true,
-            false,
-            Some(2.0),
-            false,
-            "never",
         );
         assert!(result.is_err());
         let _ = std::fs::remove_file(&tmp);
@@ -466,7 +485,16 @@ mod tests {
 
     #[test]
     fn test_build_json_result_with_output() {
-        let json = build_json_result("json", 0.95, 0.9, true, 20, 18, Some("out.json"), "{}");
+        let json = build_json_result(&JsonResultInput {
+            format: "json",
+            confidence: 0.95,
+            detection_confidence: 0.9,
+            repaired_needed: true,
+            original_len: 20,
+            repaired_len: 18,
+            output: Some("out.json"),
+            repaired_content: "{}",
+        });
         assert!(json.contains(r#""format":"json""#));
         assert!(json.contains(r#""confidence":0.95"#));
         assert!(json.contains(r#""detection_confidence":0.9"#));
@@ -479,7 +507,16 @@ mod tests {
 
     #[test]
     fn test_build_json_result_without_output() {
-        let json = build_json_result("yaml", 0.8, 0.75, false, 10, 10, None, "key: val");
+        let json = build_json_result(&JsonResultInput {
+            format: "yaml",
+            confidence: 0.8,
+            detection_confidence: 0.75,
+            repaired_needed: false,
+            original_len: 10,
+            repaired_len: 10,
+            output: None,
+            repaired_content: "key: val",
+        });
         assert!(json.contains(r#""format":"yaml""#));
         assert!(json.contains(r#""detection_confidence":0.75"#));
         assert!(json.contains(r#""repaired":false"#));
@@ -490,7 +527,16 @@ mod tests {
     #[test]
     fn test_build_json_result_explicit_format_detection_confidence() {
         // When format is explicitly specified, detection_confidence should be 1.0
-        let json = build_json_result("json", 0.9, 1.0, true, 15, 14, None, "{}");
+        let json = build_json_result(&JsonResultInput {
+            format: "json",
+            confidence: 0.9,
+            detection_confidence: 1.0,
+            repaired_needed: true,
+            original_len: 15,
+            repaired_len: 14,
+            output: None,
+            repaired_content: "{}",
+        });
         assert!(json.contains(r#""detection_confidence":1"#));
     }
 
@@ -502,17 +548,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: false,
+                dry_run: true,
+                json_output: false,
+                min_confidence: None,
+                explain: true,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            false,
-            true,
-            false,
-            None,
-            true,
-            "never",
         );
         assert!(result.is_ok());
         let _ = std::fs::remove_file(&tmp);
@@ -526,17 +574,19 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         let result = handle_repair(
-            Some(path),
-            None,
+            &RepairOptions {
+                input: Some(path),
+                output: None,
+                format: Some("json"),
+                show_confidence: false,
+                show_diff: false,
+                dry_run: true,
+                json_output: false,
+                min_confidence: None,
+                explain: true,
+                color: "never",
+            },
             false,
-            false,
-            Some("json"),
-            false,
-            true,
-            false,
-            None,
-            true,
-            "never",
         );
         assert!(result.is_ok());
         let _ = std::fs::remove_file(&tmp);

@@ -134,8 +134,8 @@ let bytes = processor.process(
 - Whitespace handling
 
 ### Test Results
-- **Total Tests**: 34 (8 unit + 26 integration)
-- **Pass Rate**: 100% (34/34)
+- **Total Tests**: 52 (8 unit + 26 integration + 18 complex streaming)
+- **Pass Rate**: 100% (52/52)
 - **Formats Covered**: 10/10 (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
 
 ## Advantages Over Non-Streaming

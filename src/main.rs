@@ -92,17 +92,19 @@ fn dispatch(cli: Cli) -> Result<(), u8> {
         Command::Repair(a) => {
             let input_path = a.file.as_deref().or(a.input.as_deref());
             cli::repair_cmd::handle_repair(
-                input_path,
-                a.output.as_deref(),
-                a.confidence,
+                &cli::repair_cmd::RepairOptions {
+                    input: input_path,
+                    output: a.output.as_deref(),
+                    format: a.format.as_deref(),
+                    show_confidence: a.confidence,
+                    show_diff: a.diff,
+                    dry_run: a.dry_run,
+                    json_output: a.json,
+                    min_confidence: a.min_confidence,
+                    explain: a.explain,
+                    color: &a.color,
+                },
                 cli.verbose,
-                a.format.as_deref(),
-                a.diff,
-                a.dry_run,
-                a.json,
-                a.min_confidence,
-                a.explain,
-                &a.color,
             )
             .map_err(|e| {
                 eprintln!("{e}");

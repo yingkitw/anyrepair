@@ -16,11 +16,24 @@ examples/
 │   ├── ini/          # INI test files
 │   ├── diff/         # Unified diff test files
 │   └── corpus/       # Real-world LLM/API damage samples
-├── *.rs              # Rust code examples (incl. binary_repair.rs)
+├── *.rs              # Rust code examples (incl. binary_repair.rs, repair_json.rs)
 └── README.md         # This file
 ```
 
 See [data/README.md](data/README.md) for detailed information about test data files.
+
+## Library API Examples
+
+### Minimal JSON Repair
+
+**File**: `repair_json.rs`
+
+Demonstrates the core library API (`anyrepair::repair` and `repair_with_explanations`) for fixing malformed JSON without the MCP server.
+
+**Run:**
+```bash
+cargo run --example repair_json
+```
 
 ## MCP Server Examples
 
@@ -263,6 +276,7 @@ match server.process_tool_call("repair_json", input) {
 Run all examples:
 
 ```bash
+cargo run --example repair_json
 cargo run --example mcp_repair_json
 cargo run --example mcp_multi_format
 cargo run --example mcp_server_usage

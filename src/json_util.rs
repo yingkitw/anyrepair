@@ -123,7 +123,16 @@ pub fn validate_response(valid: bool, format: &str) -> String {
     )
 }
 
-fn extract_object_string_field(json: &str, key: &str) -> Result<Option<String>, String> {
+/// Iterate the fields of a JSON object until `key` is found, then hand the raw
+/// field value to `on_match`. Returns `Ok(None)` if the key is absent.
+fn scan_object_fields<F>(
+    json: &str,
+    key: &str,
+    on_match: F,
+) -> Result<Option<String>, String>
+where
+    F: Fn(&str) -> Result<Option<String>, String>,
+{
     let bytes = json.trim().as_bytes();
     if bytes.first() != Some(&b'{') {
         return Err("expected JSON object".to_string());
@@ -157,14 +166,7 @@ fn extract_object_string_field(json: &str, key: &str) -> Result<Option<String>, 
             let value_end = parse_value(bytes, value_start)?;
             let raw = std::str::from_utf8(&bytes[value_start..value_end])
                 .map_err(|_| "invalid UTF-8 in JSON value".to_string())?;
-            let raw = raw.trim();
-            if raw == "null" {
-                return Ok(None);
-            }
-            if !raw.starts_with('"') {
-                return Err(format!("field '{}' must be a JSON string", key));
-            }
-            return parse_json_string(raw).map(Some);
+            return on_match(raw.trim());
         }
 
         i = parse_value(bytes, value_start)?;
@@ -180,57 +182,20 @@ fn extract_object_string_field(json: &str, key: &str) -> Result<Option<String>, 
     }
 }
 
+fn extract_object_string_field(json: &str, key: &str) -> Result<Option<String>, String> {
+    scan_object_fields(json, key, |raw| {
+        if raw == "null" {
+            return Ok(None);
+        }
+        if !raw.starts_with('"') {
+            return Err(format!("field '{}' must be a JSON string", key));
+        }
+        parse_json_string(raw).map(Some)
+    })
+}
+
 fn extract_object_value_field(json: &str, key: &str) -> Result<Option<String>, String> {
-    let bytes = json.trim().as_bytes();
-    if bytes.first() != Some(&b'{') {
-        return Err("expected JSON object".to_string());
-    }
-    let mut i = 1;
-    i = skip_whitespace(bytes, i);
-    if i < bytes.len() && bytes[i] == b'}' {
-        return Ok(None);
-    }
-    loop {
-        i = skip_whitespace(bytes, i);
-        if i >= bytes.len() || bytes[i] != b'"' {
-            return Err(format!("missing field '{}'", key));
-        }
-        let key_start = i;
-        let key_end = parse_string(bytes, i)?;
-        let field_key = parse_json_string(
-            std::str::from_utf8(&bytes[key_start..key_end])
-                .map_err(|_| "invalid UTF-8 in JSON key".to_string())?,
-        )?;
-
-        i = key_end;
-
-        i = skip_whitespace(bytes, i);
-        if i >= bytes.len() || bytes[i] != b':' {
-            return Err(format!("invalid field '{}'", key));
-        }
-        i += 1;
-        let value_start = skip_whitespace(bytes, i);
-
-        if field_key == key {
-            let value_end = parse_value(bytes, value_start)?;
-            return Ok(Some(
-                std::str::from_utf8(&bytes[value_start..value_end])
-                    .map_err(|_| "invalid UTF-8 in JSON value".to_string())?
-                    .to_string(),
-            ));
-        }
-
-        i = parse_value(bytes, value_start)?;
-        i = skip_whitespace(bytes, i);
-        if i >= bytes.len() {
-            return Err(format!("missing field '{}'", key));
-        }
-        match bytes[i] {
-            b'}' => return Ok(None),
-            b',' => i += 1,
-            _ => return Err(format!("invalid object after field '{}'", field_key)),
-        }
-    }
+    scan_object_fields(json, key, |raw| Ok(Some(raw.to_string())))
 }
 
 fn parse_json_string(s: &str) -> Result<String, String> {

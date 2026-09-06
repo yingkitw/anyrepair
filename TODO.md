@@ -2,6 +2,14 @@
 
 ## Recently Completed ✅
 
+### Optimization pass (post-v0.2.11)
+- [x] **Lean cleanup** — removed unused `arbitrary` dev-dep; dedup JSON trailing-prose scan (`src/json.rs`), object-field extraction (`src/json_util.rs`), diff hunk validation (`src/diff.rs`)
+- [x] **JSON hot-path performance** — replaced `Vec<char>` scanners with byte-oriented `&[u8]` scanning via shared helpers in `src/pattern.rs`; UTF-8-aware advancement; reduced `to_lowercase()` allocations in boolean/null normalization
+- [x] **Structural dedup** — macro-generated text-format dispatch in `src/lib.rs` (constructor/validator/explain paths register in one place)
+- [x] **`GenericRepairer`** internals: `&mut self` → `&self` (never mutated)
+- [x] **Repo hygiene** — `mutants.out/` ignored; docs synced (README, SPEC, ARCHITECTURE, docs/INDEX, docs/TEST_SUMMARY, docs/STREAMING_FEATURE, docs/CHANGELOG)
+- [x] **Verification** — 596 tests pass; clippy 0 warnings; release build clean; benches confirm no regression on valid-input paths and ~19% improvement on malformed-input hot path
+
 ### v0.2.10–v0.2.11 (binary media)
 - [x] **Media file repair** — PNG, JPEG, WAV, MP3, MP4, MOV binary repair
 - [x] **BinaryRepair trait** — byte-level repair with BinaryValidator

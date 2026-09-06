@@ -79,6 +79,17 @@ fn is_hunk_header(line: &str) -> bool {
     expect(&mut it, '@') && expect(&mut it, '@')
 }
 
+/// True if a line inside a hunk is a valid diff content line: it starts with
+/// `+`, `-`, or a context space, or is a blank line or a file header.
+fn is_valid_hunk_line(line: &str) -> bool {
+    line.starts_with('+')
+        || line.starts_with('-')
+        || line.starts_with(' ')
+        || line.trim().is_empty()
+        || line.starts_with("---")
+        || line.starts_with("+++")
+}
+
 /// Diff repairer that can fix common unified diff issues
 ///
 /// Uses trait-based composition with GenericRepairer for better modularity
@@ -237,13 +248,7 @@ impl Validator for DiffValidator {
                 }
             } else if in_hunk {
                 // In a hunk, lines should start with +, -, or space
-                if !line.starts_with('+')
-                    && !line.starts_with('-')
-                    && !line.starts_with(' ')
-                    && !line.trim().is_empty()
-                    && !line.starts_with("---")
-                    && !line.starts_with("+++")
-                {
+                if !is_valid_hunk_line(line) {
                     return false;
                 }
             }
@@ -286,18 +291,12 @@ impl Validator for DiffValidator {
         for (line_num, line) in lines.iter().enumerate() {
             if line.starts_with("@@") {
                 in_hunk = true;
-            } else if in_hunk && !line.trim().is_empty()
-                && !line.starts_with('+')
-                    && !line.starts_with('-')
-                    && !line.starts_with(' ')
-                    && !line.starts_with("---")
-                    && !line.starts_with("+++")
-                {
-                    errors.push(format!(
-                        "Invalid diff line prefix at line {}: expected +, -, or space",
-                        line_num + 1
-                    ));
-                }
+            } else if in_hunk && !is_valid_hunk_line(line) {
+                errors.push(format!(
+                    "Invalid diff line prefix at line {}: expected +, -, or space",
+                    line_num + 1
+                ));
+            }
         }
 
         errors

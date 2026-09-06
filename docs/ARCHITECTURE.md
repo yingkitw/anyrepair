@@ -4,7 +4,7 @@ The canonical architecture document lives at the repository root:
 
 **[../ARCHITECTURE.md](../ARCHITECTURE.md)**
 
-That file is kept in sync with the current codebase (v0.2.11, 10 text + 6 binary media formats, `key_value` module, 578 tests, CLI and MCP layout, Docker).
+That file is kept in sync with the current codebase (v0.2.11, 10 text + 6 binary media formats, `key_value` + `pattern` modules, 578 tests, CLI and MCP layout, Docker, zero runtime deps).
 
 For additional detail, see:
 

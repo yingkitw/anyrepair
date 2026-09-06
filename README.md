@@ -152,7 +152,7 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 | Kind | Crates |
 |------|--------|
 | **Runtime** | _(none — pure standard library)_ |
-| **Dev** | `criterion`, `arbitrary`, `proptest` |
+| **Dev** | `criterion`, `proptest` |
 
 Parsing, validation, and error handling are implemented entirely with the Rust standard library — no runtime crate dependencies.
 
@@ -338,6 +338,8 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 | [SPEC.md](SPEC.md) | Technical specification |
 | [TODO.md](TODO.md) | Roadmap |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures and fixes |
+| [AGENTS.md](AGENTS.md) | Development loop and workflow |
+| [MEMORY.md](MEMORY.md) | Institutional knowledge and patterns |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history |
 | [docs/MCP_SERVER.md](docs/MCP_SERVER.md) | MCP integration |
 | [docs/TEST_SUMMARY.md](docs/TEST_SUMMARY.md) | Test breakdown |

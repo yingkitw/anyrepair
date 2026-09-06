@@ -10,6 +10,11 @@
 *.a
 *.lib
 AGENTS.md
+MEMORY.md
+
+# cargo-mutants output
+/mutants.out/
+/mutants.out.old/
 
 # Cargo.lock should be committed for binaries but not for libraries
 # Since this is primarily a library, we ignore it

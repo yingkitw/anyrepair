@@ -208,7 +208,7 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 
 No runtime crate dependencies — `anyrepair` uses only the Rust standard library.
 
-Dev: `criterion`, `arbitrary`, `proptest`.
+Dev: `criterion`, `proptest`.
 
 ## Source layout
 
@@ -228,6 +228,7 @@ src/
 ├── binary_traits.rs      # BinaryRepair, BinaryValidator
 ├── streaming.rs
 ├── mcp_server.rs
+├── pattern.rs          # shared pattern-matching helpers (internal)
 └── cli/
     ├── mod.rs
     ├── repair_cmd.rs

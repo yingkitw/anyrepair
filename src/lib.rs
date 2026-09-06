@@ -91,49 +91,67 @@ fn parse_supported_format(format: &str) -> Result<&'static str> {
         .ok_or_else(|| RepairError::FormatDetection(format!("Unknown format: {}", n)))
 }
 
-/// Create a boxed [`Repair`] instance for the given format.
-/// Accepts canonical names and aliases (e.g. `yml`, `md`).
-/// Returns `RepairError::FormatDetection` if the format is unknown.
-pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
-    match parse_supported_format(format)? {
-        "json" => Ok(Box::new(json::JsonRepairer::new())),
-        "yaml" => Ok(Box::new(yaml::YamlRepairer::new())),
-        "markdown" => Ok(Box::new(markdown::MarkdownRepairer::new())),
-        "xml" => Ok(Box::new(xml::XmlRepairer::new())),
-        "toml" => Ok(Box::new(toml::TomlRepairer::new())),
-        "csv" => Ok(Box::new(csv::CsvRepairer::new())),
-        "ini" => Ok(Box::new(key_value::IniRepairer::new())),
-        "diff" => Ok(Box::new(diff::DiffRepairer::new())),
-        "properties" => Ok(Box::new(key_value::PropertiesRepairer::new())),
-        "env" => Ok(Box::new(key_value::EnvRepairer::new())),
-        other => Err(RepairError::FormatDetection(format!(
-            "Unknown format: {}",
-            other
-        ))),
-    }
+/// Generate `create_repairer`, `create_validator`, and `repair_with_explanations`
+/// from a single list of `(format, repairer, validator)`. New text formats are
+/// registered here in exactly one place.
+macro_rules! gen_text_format_dispatch {
+    ($(($fmt:ident, $repairer:ty, $validator:path)),* $(,)?) => {
+        /// Create a boxed [`Repair`] instance for the given format.
+        /// Accepts canonical names and aliases (e.g. `yml`, `md`).
+        /// Returns `RepairError::FormatDetection` if the format is unknown.
+        pub fn create_repairer(format: &str) -> Result<Box<dyn Repair>> {
+            match parse_supported_format(format)? {
+                $(stringify!($fmt) => Ok(Box::new(<$repairer>::new())),)*
+                other => Err(RepairError::FormatDetection(format!(
+                    "Unknown format: {}",
+                    other
+                ))),
+            }
+        }
+
+        /// Create a boxed [`Validator`](traits::Validator) for the given format.
+        /// Accepts canonical names and aliases (e.g. `yml`, `md`).
+        /// Returns `RepairError::FormatDetection` if the format is unknown.
+        pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
+            match parse_supported_format(format)? {
+                $(stringify!($fmt) => Ok(Box::new($validator)),)*
+                other => Err(RepairError::FormatDetection(format!(
+                    "Unknown format: {}",
+                    other
+                ))),
+            }
+        }
+
+        /// Repair content with a specific format and return the list of strategies that changed it.
+        /// Returns `(repaired_content, applied_strategy_names)`.
+        pub fn repair_with_explanations(
+            content: &str,
+            format: &str,
+        ) -> Result<(String, Vec<String>)> {
+            let trimmed = content.trim();
+            match parse_supported_format(format)? {
+                $(stringify!($fmt) => <$repairer>::new().inner.repair_with_explanations(trimmed),)*
+                other => Err(RepairError::FormatDetection(format!(
+                    "Unknown format: {}",
+                    other
+                ))),
+            }
+        }
+    };
 }
 
-/// Create a boxed [`Validator`](traits::Validator) for the given format.
-/// Accepts canonical names and aliases (e.g. `yml`, `md`).
-/// Returns `RepairError::FormatDetection` if the format is unknown.
-pub fn create_validator(format: &str) -> Result<Box<dyn traits::Validator>> {
-    match parse_supported_format(format)? {
-        "json" => Ok(Box::new(json::JsonValidator)),
-        "yaml" => Ok(Box::new(yaml::YamlValidator)),
-        "markdown" => Ok(Box::new(markdown::MarkdownValidator)),
-        "xml" => Ok(Box::new(xml::XmlValidator)),
-        "toml" => Ok(Box::new(toml::TomlValidator)),
-        "csv" => Ok(Box::new(csv::CsvValidator)),
-        "ini" => Ok(Box::new(key_value::IniValidator)),
-        "diff" => Ok(Box::new(diff::DiffValidator)),
-        "properties" => Ok(Box::new(key_value::PropertiesValidator)),
-        "env" => Ok(Box::new(key_value::EnvValidator)),
-        other => Err(RepairError::FormatDetection(format!(
-            "Unknown format: {}",
-            other
-        ))),
-    }
-}
+gen_text_format_dispatch!(
+    (json, json::JsonRepairer, json::JsonValidator),
+    (yaml, yaml::YamlRepairer, yaml::YamlValidator),
+    (markdown, markdown::MarkdownRepairer, markdown::MarkdownValidator),
+    (xml, xml::XmlRepairer, xml::XmlValidator),
+    (toml, toml::TomlRepairer, toml::TomlValidator),
+    (csv, csv::CsvRepairer, csv::CsvValidator),
+    (ini, key_value::IniRepairer, key_value::IniValidator),
+    (diff, diff::DiffRepairer, diff::DiffValidator),
+    (properties, key_value::PropertiesRepairer, key_value::PropertiesValidator),
+    (env, key_value::EnvRepairer, key_value::EnvValidator),
+);
 
 /// Repair content using an explicit format.
 /// Convenience wrapper around `create_repairer` + `Repair::repair`.
@@ -231,30 +249,6 @@ pub fn repair_binary(data: &[u8]) -> Result<Vec<u8>> {
 pub fn jsonrepair(json_str: &str) -> Result<String> {
     let mut repairer = json::JsonRepairer::new();
     repairer.repair(json_str)
-}
-
-/// Repair content with a specific format and return the list of strategies that changed it.
-/// Returns `(repaired_content, applied_strategy_names)`.
-pub fn repair_with_explanations(content: &str, format: &str) -> Result<(String, Vec<String>)> {
-    let trimmed = content.trim();
-    match parse_supported_format(format)? {
-        "json" => json::JsonRepairer::new().inner.repair_with_explanations(trimmed),
-        "yaml" => yaml::YamlRepairer::new().inner.repair_with_explanations(trimmed),
-        "markdown" => markdown::MarkdownRepairer::new().inner.repair_with_explanations(trimmed),
-        "xml" => xml::XmlRepairer::new().inner.repair_with_explanations(trimmed),
-        "toml" => toml::TomlRepairer::new().inner.repair_with_explanations(trimmed),
-        "csv" => csv::CsvRepairer::new().inner.repair_with_explanations(trimmed),
-        "ini" => key_value::IniRepairer::new().inner.repair_with_explanations(trimmed),
-        "diff" => diff::DiffRepairer::new().inner.repair_with_explanations(trimmed),
-        "properties" => {
-            key_value::PropertiesRepairer::new().inner.repair_with_explanations(trimmed)
-        }
-        "env" => key_value::EnvRepairer::new().inner.repair_with_explanations(trimmed),
-        other => Err(RepairError::FormatDetection(format!(
-            "Unknown format: {}",
-            other
-        ))),
-    }
 }
 
 #[cfg(test)]

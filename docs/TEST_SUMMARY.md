@@ -151,15 +151,15 @@ TOTAL:                   578 ✅
 - **All Features**: Streaming, MCP integration, format auto-detection, validation, key-value repair
 
 ### Test Execution Time
-- **Total**: ~25 seconds
-- **Unit Tests**: 0.23s
-- **Damage Scenarios**: 0.10s
-- **Complex Damage**: 0.04s
-- **Complex Streaming**: 0.20s
-- **Fuzz Tests**: 7.50s (property-based)
-- **Integration Tests**: 12.19s (performance)
-- **Streaming Tests**: 0.06s
-- **Diff Tests**: 0.01s
+- **Total**: ~8 seconds
+- **Unit Tests**: <1s
+- **Damage Scenarios**: <1s
+- **Complex Damage**: <1s
+- **Complex Streaming**: <1s
+- **Fuzz Tests**: ~2s (property-based)
+- **Integration Tests**: ~5s (includes performance/memory regression guard)
+- **Streaming Tests**: <1s
+- **Diff Tests**: <1s
 
 ## Coverage by Damage Type
 
@@ -277,7 +277,7 @@ cargo test --test integration_tests -- --nocapture
 - ✅ 100% pass rate
 - ✅ No flaky tests
 - ✅ Deterministic results
-- ✅ Fast execution (<20s)
+- ✅ Fast execution (~8s)
 - ✅ Comprehensive error handling
 
 ### Maintainability

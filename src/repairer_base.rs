@@ -25,7 +25,7 @@ impl GenericRepairer {
     }
 
     /// Apply all repair strategies to the content, tracking which ones changed it.
-    fn apply_strategies_with_explanations(&mut self, content: &str) -> Result<(String, Vec<String>)> {
+    fn apply_strategies_with_explanations(&self, content: &str) -> Result<(String, Vec<String>)> {
         let mut repaired = content.to_string();
         let mut applied = Vec::new();
 
@@ -41,7 +41,7 @@ impl GenericRepairer {
     }
 
     /// Apply all repair strategies to the content
-    fn apply_strategies_internal(&mut self, content: &str) -> Result<String> {
+    fn apply_strategies_internal(&self, content: &str) -> Result<String> {
         let (repaired, _) = self.apply_strategies_with_explanations(content)?;
         Ok(repaired)
     }
@@ -49,7 +49,7 @@ impl GenericRepairer {
     /// Repair content and return the list of strategy names that changed it.
     /// Returns `(repaired_content, applied_strategy_names)`.
     /// If the content is already valid, returns `(content, [])`.
-    pub fn repair_with_explanations(&mut self, content: &str) -> Result<(String, Vec<String>)> {
+    pub fn repair_with_explanations(&self, content: &str) -> Result<(String, Vec<String>)> {
         let trimmed = content.trim();
 
         if trimmed.is_empty() {
@@ -104,5 +104,100 @@ impl Repair for GenericRepairer {
         } else {
             0.0
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Simple validator that considers content valid if it equals "ok".
+    struct MockValidator;
+    impl Validator for MockValidator {
+        fn is_valid(&self, content: &str) -> bool {
+            content == "ok"
+        }
+        fn validate(&self, content: &str) -> Vec<String> {
+            if content == "ok" {
+                Vec::new()
+            } else {
+                vec!["not ok".to_string()]
+            }
+        }
+    }
+
+    /// No-op strategy that returns content unchanged.
+    struct NoopStrategy;
+    impl RepairStrategy for NoopStrategy {
+        fn apply(&self, content: &str) -> Result<String> {
+            Ok(content.to_string())
+        }
+        fn priority(&self) -> u8 {
+            0
+        }
+        fn name(&self) -> &str {
+            "Noop"
+        }
+    }
+
+    fn make_repairer() -> GenericRepairer {
+        GenericRepairer::new(
+            Box::new(MockValidator),
+            vec![Box::new(NoopStrategy)],
+        )
+    }
+
+    #[test]
+    fn test_confidence_valid_content() {
+        let repairer = make_repairer();
+        assert_eq!(repairer.confidence("ok"), 1.0);
+    }
+
+    #[test]
+    fn test_confidence_invalid_content() {
+        let repairer = make_repairer();
+        assert_eq!(repairer.confidence("broken"), 0.0);
+    }
+
+    #[test]
+    fn test_needs_repair_valid() {
+        let repairer = make_repairer();
+        assert!(!repairer.needs_repair("ok"));
+    }
+
+    #[test]
+    fn test_needs_repair_invalid() {
+        let repairer = make_repairer();
+        assert!(repairer.needs_repair("broken"));
+    }
+
+    #[test]
+    fn test_repair_valid_passthrough() {
+        let mut repairer = make_repairer();
+        let result = repairer.repair("ok").unwrap();
+        assert_eq!(result, "ok");
+    }
+
+    #[test]
+    fn test_repair_empty_input() {
+        let mut repairer = make_repairer();
+        let result = repairer.repair("").unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_repair_with_explanations_valid() {
+        let repairer = make_repairer();
+        let (result, applied) = repairer.repair_with_explanations("ok").unwrap();
+        assert_eq!(result, "ok");
+        assert!(applied.is_empty());
+    }
+
+    #[test]
+    fn test_repair_with_explanations_empty() {
+        let repairer = make_repairer();
+        let (result, applied) = repairer.repair_with_explanations("").unwrap();
+        assert_eq!(result, "");
+        assert!(applied.is_empty());
     }
 }

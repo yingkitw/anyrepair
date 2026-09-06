@@ -5,9 +5,7 @@
 
 use crate::error::Result;
 use crate::json_util::{is_valid_json, validate_json_errors};
-use crate::pattern::{
-    is_word_char, replace_single_quotes, replace_smart_quotes, replace_word_any,
-};
+use crate::pattern::{replace_single_quotes, replace_smart_quotes, replace_word_any};
 use crate::traits::{Repair, RepairStrategy, Validator};
 
 // ============================================================================
@@ -72,87 +70,98 @@ const UNDEFINED_WORDS: &[&str] = &["undefined", "Undefined", "UNDEFINED"];
 /// `,(\s*[}\]])` → `$1`: drop a comma that precedes optional whitespace and a
 /// closing `}` or `]`.
 fn fix_trailing_commas(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    let bytes = content.as_bytes();
+    let n = bytes.len();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     while i < n {
-        if chars[i] == ',' {
-            let mut j = i + 1;
-            while j < n && chars[j].is_whitespace() {
-                j += 1;
-            }
-            if j < n && (chars[j] == '}' || chars[j] == ']') {
+        if bytes[i] == b',' {
+            let j = crate::pattern::skip_whitespace_bytes(content, bytes, i + 1);
+            if j < n && (bytes[j] == b'}' || bytes[j] == b']') {
                 // Drop the comma; the whitespace and bracket are emitted below.
                 i += 1;
                 continue;
             }
         }
-        out.push(chars[i]);
-        i += 1;
+        i = crate::pattern::push_char(content, bytes, &mut out, i);
     }
     out
 }
 
 /// `(^|\s|,|\{)\s*(\w+)\s*:` → `$1"$2":`: quote an unquoted JSON key.
 fn add_missing_quotes(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    let bytes = content.as_bytes();
+    let n = bytes.len();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     while i < n {
-        if let Some((group1, key, end)) = match_missing_quotes(&chars, i) {
-            out.push_str(&group1);
+        if let Some((g1_start, g1_end, key_start, key_end)) =
+            match_missing_quotes(content, bytes, i)
+        {
+            out.push_str(&content[g1_start..g1_end]);
             out.push('"');
-            out.push_str(&key);
+            out.push_str(&content[key_start..key_end]);
             out.push('"');
             out.push(':');
-            i = end;
+            i = key_end + 1;
             continue;
         }
-        out.push(chars[i]);
-        i += 1;
+        i = crate::pattern::push_char(content, bytes, &mut out, i);
     }
     out
 }
 
-/// Try to match `(^|\s|,|\{)\s*(\w+)\s*:` starting at `i`.
-/// Returns `(group1, key, end_after_colon)` on success.
-fn match_missing_quotes(chars: &[char], i: usize) -> Option<(String, String, usize)> {
+/// Try to match `(^|\s|,|\{)\s*(\w+)\s*:` starting at byte `i`.
+/// Returns `(group1_start, group1_end, key_start, key_end)` where `key_end`
+/// is the index of the `:`; the caller emits the `:` itself.
+fn match_missing_quotes(content: &str, bytes: &[u8], i: usize) -> Option<(usize, usize, usize, usize)> {
     // Alternation `(^|\s|,|\{)` is tried in order: `^` first (only at i==0),
     // then a single whitespace/comma/brace char consumed as group1.
     if i == 0
-        && let Some((key, end)) = match_key_rest(chars, i) {
-            return Some((String::new(), key, end));
+        && let Some((key_start, key_end)) = match_key_rest(content, bytes, i)
+    {
+        return Some((0, 0, key_start, key_end));
+    }
+    let b = bytes[i];
+    let group1_len = if b == b',' || b == b'{' || b.is_ascii_whitespace() {
+        1
+    } else if b >= 0x80 {
+        let c = content[i..].chars().next().unwrap();
+        if c.is_whitespace() {
+            c.len_utf8()
+        } else {
+            0
         }
-    let c = chars[i];
-    if (c.is_whitespace() || c == ',' || c == '{')
-        && let Some((key, end)) = match_key_rest(chars, i + 1) {
-            return Some((c.to_string(), key, end));
-        }
+    } else {
+        0
+    };
+    if group1_len > 0
+        && let Some((key_start, key_end)) = match_key_rest(content, bytes, i + group1_len)
+    {
+        return Some((i, i + group1_len, key_start, key_end));
+    }
     None
 }
 
-/// Match `\s*(\w+)\s*:` starting at `start`. Returns `(key, end_after_colon)`.
-fn match_key_rest(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let n = chars.len();
-    let mut j = start;
-    while j < n && chars[j].is_whitespace() {
-        j += 1;
-    }
+/// Match `\s*(\w+)\s*:` starting at byte `start`. Returns `(key_start, colon_index)`.
+fn match_key_rest(content: &str, bytes: &[u8], start: usize) -> Option<(usize, usize)> {
+    use crate::pattern::{skip_whitespace_bytes, word_char_len_at};
+
+    let n = bytes.len();
+    let mut j = skip_whitespace_bytes(content, bytes, start);
     let key_start = j;
-    while j < n && is_word_char(chars[j]) {
-        j += 1;
+    while j < n {
+        match word_char_len_at(content, bytes, j) {
+            Some(len) => j += len,
+            None => break,
+        }
     }
     if j == key_start {
         return None;
     }
-    let key: String = chars[key_start..j].iter().collect();
-    while j < n && chars[j].is_whitespace() {
-        j += 1;
-    }
-    if j < n && chars[j] == ':' {
-        Some((key, j + 1))
+    j = skip_whitespace_bytes(content, bytes, j);
+    if j < n && bytes[j] == b':' {
+        Some((key_start, j))
     } else {
         None
     }
@@ -160,103 +169,101 @@ fn match_key_rest(chars: &[char], start: usize) -> Option<(String, usize)> {
 
 /// `\b0+(\d+)\b` → `$1`: strip leading zeros from an all-digit number token.
 fn fix_leading_zeros(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    use crate::pattern::{prev_char_is_word, push_char, word_char_len_at};
+
+    let bytes = content.as_bytes();
+    let n = bytes.len();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     while i < n {
-        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
-        if boundary_before && chars[i].is_ascii_digit() {
+        let boundary_before = i == 0 || !prev_char_is_word(content, bytes, i);
+        if boundary_before && bytes[i].is_ascii_digit() {
             let run_start = i;
-            while i < n && chars[i].is_ascii_digit() {
+            while i < n && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            let run: String = chars[run_start..i].iter().collect();
-            let boundary_after = i == n || !is_word_char(chars[i]);
+            let run = &content[run_start..i];
+            let boundary_after = i == n || word_char_len_at(content, bytes, i).is_none();
             if boundary_after && run.len() >= 2 && run.starts_with('0') {
                 let sig = run.trim_start_matches('0');
                 out.push_str(if sig.is_empty() { "0" } else { sig });
             } else {
-                out.push_str(&run);
+                out.push_str(run);
             }
             continue;
         }
-        out.push(chars[i]);
-        i += 1;
+        i = push_char(content, bytes, &mut out, i);
     }
     out
 }
 
 /// `\b(\d+)\.\s*([,}\]])` → `$1$2`: drop a trailing dot before a delimiter.
 fn fix_trailing_dots(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    use crate::pattern::{prev_char_is_word, push_char, skip_whitespace_bytes};
+
+    let bytes = content.as_bytes();
+    let n = bytes.len();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     while i < n {
-        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
-        if boundary_before && chars[i].is_ascii_digit() {
+        let boundary_before = i == 0 || !prev_char_is_word(content, bytes, i);
+        if boundary_before && bytes[i].is_ascii_digit() {
             let d_start = i;
-            while i < n && chars[i].is_ascii_digit() {
+            while i < n && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            let digits: String = chars[d_start..i].iter().collect();
-            if i < n && chars[i] == '.' {
-                let mut j = i + 1;
-                while j < n && chars[j].is_whitespace() {
-                    j += 1;
-                }
-                if j < n && (chars[j] == ',' || chars[j] == '}' || chars[j] == ']') {
-                    out.push_str(&digits);
-                    out.push(chars[j]);
+            if i < n && bytes[i] == b'.' {
+                let j = skip_whitespace_bytes(content, bytes, i + 1);
+                if j < n && (bytes[j] == b',' || bytes[j] == b'}' || bytes[j] == b']') {
+                    out.push_str(&content[d_start..i]);
+                    out.push(bytes[j] as char);
                     i = j + 1;
                     continue;
                 }
             }
-            out.push_str(&digits);
+            out.push_str(&content[d_start..i]);
             continue;
         }
-        out.push(chars[i]);
-        i += 1;
+        i = push_char(content, bytes, &mut out, i);
     }
     out
 }
 
 /// `\b(\d+\.\d+)\.(\d+)\b` → `$1$2`: drop the second dot in a multi-dotted number.
 fn fix_multiple_dots(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    use crate::pattern::{prev_char_is_word, push_char, word_char_len_at};
+
+    let bytes = content.as_bytes();
+    let n = bytes.len();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     while i < n {
-        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
-        if boundary_before && chars[i].is_ascii_digit() {
+        let boundary_before = i == 0 || !prev_char_is_word(content, bytes, i);
+        if boundary_before && bytes[i].is_ascii_digit() {
             // \d+
             let d1 = i;
-            while i < n && chars[i].is_ascii_digit() {
+            while i < n && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            if i < n && chars[i] == '.' {
+            if i < n && bytes[i] == b'.' {
                 let after_dot = i + 1;
                 let d2 = after_dot;
                 let mut k = after_dot;
-                while k < n && chars[k].is_ascii_digit() {
+                while k < n && bytes[k].is_ascii_digit() {
                     k += 1;
                 }
-                if k > d2 && k < n && chars[k] == '.' {
+                if k > d2 && k < n && bytes[k] == b'.' {
                     let d3 = k + 1;
                     let mut m = d3;
-                    while m < n && chars[m].is_ascii_digit() {
+                    while m < n && bytes[m].is_ascii_digit() {
                         m += 1;
                     }
                     if m > d3 {
-                        let boundary_after = m == n || !is_word_char(chars[m]);
+                        let boundary_after = m == n || word_char_len_at(content, bytes, m).is_none();
                         if boundary_after {
-                            // group1 = chars[d1..k] (digits.digits), group2 = chars[d3..m]
-                            let group1: String = chars[d1..k].iter().collect();
-                            let group2: String = chars[d3..m].iter().collect();
-                            out.push_str(&group1);
-                            out.push_str(&group2);
+                            // group1 = bytes[d1..k] (digits.digits), group2 = bytes[d3..m]
+                            out.push_str(&content[d1..k]);
+                            out.push_str(&content[d3..m]);
                             i = m;
                             continue;
                         }
@@ -264,64 +271,87 @@ fn fix_multiple_dots(content: &str) -> String {
                 }
             }
             // No match: emit the digit run we consumed.
-            let run: String = chars[d1..i].iter().collect();
-            out.push_str(&run);
+            out.push_str(&content[d1..i]);
             continue;
         }
-        out.push(chars[i]);
-        i += 1;
+        i = push_char(content, bytes, &mut out, i);
     }
     out
 }
 
 /// `\b(\d+)\s*(\+|-)\s*(\d+)\b` → `$1e$2$3`: rewrite `N +/- M` as scientific notation.
 fn fix_scientific(content: &str) -> String {
-    let chars: Vec<char> = content.chars().collect();
-    let n = chars.len();
+    use crate::pattern::{prev_char_is_word, push_char, skip_whitespace_bytes, word_char_len_at};
+
+    let bytes = content.as_bytes();
+    let n = bytes.len();
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     while i < n {
-        let boundary_before = i == 0 || !is_word_char(chars[i - 1]);
-        if boundary_before && chars[i].is_ascii_digit() {
+        let boundary_before = i == 0 || !prev_char_is_word(content, bytes, i);
+        if boundary_before && bytes[i].is_ascii_digit() {
             let d1 = i;
-            while i < n && chars[i].is_ascii_digit() {
+            while i < n && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            let digits: String = chars[d1..i].iter().collect();
-            let mut j = i;
-            while j < n && chars[j].is_whitespace() {
-                j += 1;
-            }
-            if j < n && (chars[j] == '+' || chars[j] == '-') {
-                let sign = chars[j];
-                let mut k = j + 1;
-                while k < n && chars[k].is_whitespace() {
-                    k += 1;
-                }
-                let d3 = k;
-                while k < n && chars[k].is_ascii_digit() {
+            let j = skip_whitespace_bytes(content, bytes, i);
+            if j < n && (bytes[j] == b'+' || bytes[j] == b'-') {
+                let sign = bytes[j];
+                let d3 = skip_whitespace_bytes(content, bytes, j + 1);
+                let mut k = d3;
+                while k < n && bytes[k].is_ascii_digit() {
                     k += 1;
                 }
                 if k > d3 {
-                    let boundary_after = k == n || !is_word_char(chars[k]);
+                    let boundary_after = k == n || word_char_len_at(content, bytes, k).is_none();
                     if boundary_after {
-                        let exp: String = chars[d3..k].iter().collect();
-                        out.push_str(&digits);
+                        out.push_str(&content[d1..i]);
                         out.push('e');
-                        out.push(sign);
-                        out.push_str(&exp);
+                        out.push(sign as char);
+                        out.push_str(&content[d3..k]);
                         i = k;
                         continue;
                     }
                 }
             }
-            out.push_str(&digits);
+            out.push_str(&content[d1..i]);
             continue;
         }
-        out.push(chars[i]);
-        i += 1;
+        i = push_char(content, bytes, &mut out, i);
     }
     out
+}
+
+/// After a closing `}` or `]`, decide whether the remaining content is
+/// trailing prose (returns `true` → strip) or more structured data (`false`).
+fn closing_bracket_ends_json(chars: &[char], after: usize) -> bool {
+    let mut j = after;
+    let mut crossed_newline = false;
+    while j < chars.len()
+        && (chars[j] == ' ' || chars[j] == '\n' || chars[j] == '\t' || chars[j] == '\r')
+    {
+        if chars[j] == '\n' {
+            crossed_newline = true;
+        }
+        j += 1;
+    }
+
+    if j < chars.len() && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
+        false
+    } else if j >= chars.len() || (!chars[j].is_alphanumeric() && chars[j] != '"') {
+        true
+    } else if crossed_newline && chars[j].is_alphanumeric() {
+        // After a newline, alphanumeric text could be trailing prose. But only
+        // strip if the remaining content has no structural characters
+        // ({, [, =, :) that indicate structured data (e.g. TOML).
+        let remaining = &chars[j..];
+        let has_structure = remaining
+            .iter()
+            .any(|&c| c == '{' || c == '[' || c == '=' || c == ':');
+        !has_structure
+    } else {
+        false
+    }
 }
 
 // ============================================================================
@@ -372,35 +402,7 @@ impl RepairStrategy for StripTrailingContentStrategy {
                     result.push(ch);
                     brace_count -= 1;
                     if brace_count == 0 && bracket_count == 0 {
-                        let mut j = i + 1;
-                        let mut crossed_newline = false;
-                        while j < len
-                            && (chars[j] == ' '
-                                || chars[j] == '\n'
-                                || chars[j] == '\t'
-                                || chars[j] == '\r')
-                        {
-                            if chars[j] == '\n' {
-                                crossed_newline = true;
-                            }
-                            j += 1;
-                        }
-
-                        if j < len && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
-                            found_json_end = false;
-                        } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
-                            found_json_end = true;
-                        } else if crossed_newline && chars[j].is_alphanumeric() {
-                            // After a newline, alphanumeric text could be trailing prose.
-                            // But only strip if the remaining content has no structural
-                            // characters ({, [, =, :) that indicate structured data (e.g. TOML).
-                            let remaining = &content[j..];
-                            let has_structure = remaining.contains('{')
-                                || remaining.contains('[')
-                                || remaining.contains('=')
-                                || remaining.contains(':');
-                            found_json_end = !has_structure;
-                        }
+                        found_json_end = closing_bracket_ends_json(&chars, i + 1);
                     }
                 }
                 '[' if !in_string => {
@@ -411,32 +413,7 @@ impl RepairStrategy for StripTrailingContentStrategy {
                     result.push(ch);
                     bracket_count -= 1;
                     if brace_count == 0 && bracket_count == 0 {
-                        let mut j = i + 1;
-                        let mut crossed_newline = false;
-                        while j < len
-                            && (chars[j] == ' '
-                                || chars[j] == '\n'
-                                || chars[j] == '\t'
-                                || chars[j] == '\r')
-                        {
-                            if chars[j] == '\n' {
-                                crossed_newline = true;
-                            }
-                            j += 1;
-                        }
-
-                        if j < len && (chars[j] == ',' || chars[j] == '{' || chars[j] == '[') {
-                            found_json_end = false;
-                        } else if j >= len || (!chars[j].is_alphanumeric() && chars[j] != '"') {
-                            found_json_end = true;
-                        } else if crossed_newline && chars[j].is_alphanumeric() {
-                            let remaining = &content[j..];
-                            let has_structure = remaining.contains('{')
-                                || remaining.contains('[')
-                                || remaining.contains('=')
-                                || remaining.contains(':');
-                            found_json_end = !has_structure;
-                        }
+                        found_json_end = closing_bracket_ends_json(&chars, i + 1);
                     }
                 }
                 _ => {
@@ -542,9 +519,11 @@ impl RepairStrategy for FixBooleanNullStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         let mut result = replace_word_any(content, BOOLEAN_WORDS, |w| {
-            match w.to_lowercase().as_str() {
-                "true" | "false" => w.to_lowercase(),
-                _ => "true".to_string(),
+            // All BOOLEAN_WORDS are true/false case variants; map by case.
+            if w.eq_ignore_ascii_case("true") {
+                "true".to_string()
+            } else {
+                "false".to_string()
             }
         });
         result = replace_word_any(&result, NULL_WORDS, |_| "null".to_string());
@@ -584,10 +563,11 @@ impl RepairStrategy for FixBooleanVariantsStrategy {
 
     fn apply(&self, content: &str) -> Result<String> {
         Ok(replace_word_any(content, BOOLEAN_VARIANT_WORDS, |w| {
-            match w.to_lowercase().as_str() {
-                "yes" | "on" => "true".to_string(),
-                "no" | "off" => "false".to_string(),
-                other => other.to_string(),
+            // All BOOLEAN_VARIANT_WORDS are yes/no/on/off case variants.
+            if w.eq_ignore_ascii_case("yes") || w.eq_ignore_ascii_case("on") {
+                "true".to_string()
+            } else {
+                "false".to_string()
             }
         }))
     }

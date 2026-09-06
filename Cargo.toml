@@ -1,6 +1,6 @@
 [package]
 name = "anyrepair"
-version = "0.2.11"
+version = "0.2.12"
 edition = "2024"
 authors = ["Ying Kit WONG"]
 description = "A comprehensive Rust crate for repairing malformed structured data (JSON, YAML, XML, TOML, CSV, INI, Markdown, Diff, Properties, Env) and binary media files (PNG, JPEG, WAV, MP3, MP4, MOV) with format auto-detection"
@@ -14,7 +14,6 @@ categories = ["text-processing", "parser-implementations", "development-tools", 
 
 [dev-dependencies]
 criterion = "0.5"
-arbitrary = "1.4"
 proptest = "1.4"
 
 [[bench]]

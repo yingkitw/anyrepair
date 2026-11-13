@@ -4,7 +4,7 @@
 
 AnyRepair is a deterministic, heuristic-based Rust library and CLI for repairing malformed structured data. It uses pattern matching and ordered repair strategies—no machine learning and no external API calls.
 
-**Current version:** 0.2.11 (Rust edition 2024).
+**Current version:** 0.2.12 (Rust edition 2024).
 
 ## Supported formats
 
@@ -202,7 +202,7 @@ Public functions return `crate::Result<T>` (`Result<T, RepairError>`).
 | Binary integration | 23 | `tests/binary_tests.rs` |
 | Binary comprehensive | 65 | `tests/binary_comprehensive_tests.rs` |
 | Golden master | 26 | `tests/golden_master_tests.rs` |
-| **Total** | **578** | `cargo test` |
+| **Total** | **596** | `cargo test` |
 
 ## Dependencies (runtime)
 

@@ -2,6 +2,11 @@
 
 ## Recently Completed ✅
 
+### Docs hub & doc sync (2026-11-13)
+- [x] **`docs/index.html`** — crate-first HTML hub (crates.io, docs.rs, library hero, lib/CLI/MCP surfaces)
+- [x] **Doc alignment** — README, `docs/INDEX.md`, `docs/TEST_SUMMARY.md`, SPEC version/test counts → **0.2.12** / **596 tests**
+- [x] **Verification** — `cargo test` and `cargo clippy --all-targets` green
+
 ### Optimization pass (post-v0.2.11)
 - [x] **Lean cleanup** — removed unused `arbitrary` dev-dep; dedup JSON trailing-prose scan (`src/json.rs`), object-field extraction (`src/json_util.rs`), diff hunk validation (`src/diff.rs`)
 - [x] **JSON hot-path performance** — replaced `Vec<char>` scanners with byte-oriented `&[u8]` scanning via shared helpers in `src/pattern.rs`; UTF-8-aware advancement; reduced `to_lowercase()` allocations in boolean/null normalization
@@ -39,11 +44,10 @@
 ## Current Priorities 🚀
 
 ### High
-- [ ] **Mutation testing** — `cargo-mutants` on critical repair paths
+- [x] **Mutation testing (scoped)** — `.cargo/mutants.toml`, `docs/MUTATION_TESTING.md`; `repairer_base` 0 missed; `format_detection` `mutation_guard_*` tests; re-run JSON/pattern/json_util when disk allows
 - [x] **Real-world corpus** — checked-in samples from LLM / API failures
 
 ### Medium
-- [ ] **Publish Docker image** — GHCR / Docker Hub CI workflow
 - [x] **Expose detection confidence in CLI** — `repair --json` includes `detection_confidence`
 
 ## Planned Features 📋
@@ -62,11 +66,15 @@
 ### Platform
 - [ ] **Web UI** — Browser-based repair
 - [ ] **REST API** — HTTP `POST /api/repair`
-- [x] **Docker image** — Containerized CLI/MCP (`Dockerfile` in repo)
+- [x] **Docker image** — Containerized CLI/MCP (`Dockerfile` in repo; local build only — **no registry/CI publish**, out of scope)
 
 ### Testing
-- [ ] **Mutation testing** — `cargo-mutants` on critical paths
+- [x] **Mutation testing (scoped)** — see `docs/MUTATION_TESTING.md`; expand to `json.rs` / `json_util.rs` / `pattern.rs` on a machine with free disk
 - [x] Golden master + properties/env suites
+
+## Out of scope (explicit)
+
+- **Docker registry / CI image publish** — keep `Dockerfile` for optional local use only; do not add GHCR, Docker Hub, or image-promotion workflows unless the user asks.
 
 ## Ideas 💡
 

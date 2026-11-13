@@ -1,5 +1,9 @@
 # Documentation Index
 
+## Docs hub (HTML)
+
+- **[index.html](index.html)** — Crate-focused landing (crates.io, docs.rs, library API, CLI, MCP)
+
 ## Quick Start
 
 - **[README.md](../README.md)** - Project overview, features, and usage
@@ -21,7 +25,8 @@
 - **[STREAMING_FEATURE.md](STREAMING_FEATURE.md)** - Streaming repair for large files
 
 ### Testing
-- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (578 tests)
+- **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Test coverage and organization (596 tests)
+- **[MUTATION_TESTING.md](MUTATION_TESTING.md)** - `cargo-mutants` scope and commands
 
 ### Troubleshooting
 - **[../TROUBLESHOOTING.md](../TROUBLESHOOTING.md)** - Common failures and fixes
@@ -57,7 +62,7 @@
 ## Project Statistics
 
 - **Formats Supported**: 16 (10 text + 6 binary media: JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env, PNG, JPEG, WAV, MP3, MP4, MOV)
-- **Test Coverage**: 578 tests (100% pass rate)
+- **Test Coverage**: 596 tests (100% pass rate)
 - **Binary Size**: ~490 KB (release, opt-level "z", LTO, strip)
 - **MCP Tools**: 12 available
 - **Runtime Dependencies**: 0 (pure standard library)
@@ -85,8 +90,9 @@ anyrepair/
 ├── examples/             # Usage examples
 │   ├── README.md
 │   └── data/            # Test data files
-├── tests/                # Test suites (578 tests)
+├── tests/                # Test suites (596 tests)
 ├── docs/                 # Documentation (this folder)
+│   ├── index.html       # HTML docs hub (crate positioning)
 │   ├── INDEX.md         # This file
 │   ├── ARCHITECTURE.md  # Redirect to root ARCHITECTURE.md
 │   └── ...              # Other docs
@@ -95,10 +101,10 @@ anyrepair/
 
 ## Last Updated
 
-September 5, 2026
+November 13, 2026
 
 ## Status
 
 ✅ **PRODUCTION READY**
 
-All features implemented, tested, and documented. Version 0.2.11 with 10 text formats, 6 binary media formats, MCP server, streaming, and 578 tests.
+All features implemented, tested, and documented. Version 0.2.12 with 10 text formats, 6 binary media formats, MCP server, streaming, and 596 tests.

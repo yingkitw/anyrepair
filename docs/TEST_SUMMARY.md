@@ -2,7 +2,7 @@
 
 ## Overview
 
-AnyRepair includes **578 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
+AnyRepair includes **596 comprehensive tests** covering all formats, damage patterns, streaming scenarios, and edge cases with 100% pass rate.
 
 ## Test Organization
 
@@ -36,14 +36,14 @@ AnyRepair includes **578 comprehensive tests** covering all formats, damage patt
 
 ## Test Statistics
 
-- **Total Tests**: 578 tests
+- **Total Tests**: 596 tests
 - **Pass Rate**: 100%
 - **Test Files**: 13
 - **Coverage**: All 16 formats (10 text + 6 binary media) and major features
 
 ## Test Suite Breakdown
 
-### 1. Unit Tests (217 tests)
+### 1. Unit Tests (235 tests)
 **Location**: `src/lib.rs` and format-specific modules
 
 **Coverage**:
@@ -125,7 +125,7 @@ AnyRepair includes **578 comprehensive tests** covering all formats, damage patt
 
 ### Total Coverage
 ```
-Unit Tests:              217 ✅
+Unit Tests:              235 ✅
 Binary (CLI handlers):    20 ✅
 Damage Scenarios:         18 ✅
 Complex Damage:           18 ✅
@@ -142,11 +142,11 @@ Corpus:                  17 ✅
 Binary Integration:      23 ✅
 Binary Comprehensive:    65 ✅
 ─────────────────────────────
-TOTAL:                   578 ✅
+TOTAL:                   596 ✅
 ```
 
 ### Pass Rate
-- **Overall**: 100% (578/578 passing)
+- **Overall**: 100% (596/596 passing)
 - **All Formats**: 10/10 covered (JSON, YAML, Markdown, XML, TOML, CSV, INI, Diff, Properties, Env)
 - **All Features**: Streaming, MCP integration, format auto-detection, validation, key-value repair
 

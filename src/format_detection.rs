@@ -553,4 +553,61 @@ mod tests {
             assert_eq!(plain, scored);
         }
     }
+
+    // --- cargo-mutants guards (format_detection.rs) ---
+
+    #[test]
+    fn mutation_guard_json_confidence_bracketed_vs_fragment() {
+        let full = detect_format_with_confidence(r#"{"a":1}"#).unwrap();
+        assert_eq!(full.confidence, 0.95);
+        let frag = detect_format_with_confidence(r#"{"a":1"#).unwrap();
+        assert_eq!(frag.confidence, 0.75);
+    }
+
+    #[test]
+    fn mutation_guard_xml_confidence_declaration_vs_bare_tag() {
+        let decl = detect_format_with_confidence(r#"<?xml version="1.0"?><r/>"#).unwrap();
+        assert_eq!(decl.format, "xml");
+        assert_eq!(decl.confidence, 0.9);
+        let bare = detect_format_with_confidence("<item>open").unwrap();
+        assert_eq!(bare.format, "xml");
+        assert_eq!(bare.confidence, 0.7);
+    }
+
+    #[test]
+    fn mutation_guard_toml_confidence_table_and_equals() {
+        let table = detect_format_with_confidence("name = \"x\"\n[app]\nversion = 1").unwrap();
+        assert_eq!(table.format, "toml");
+        assert_eq!(table.confidence, 0.85);
+        let weak = detect_format_with_confidence("key = 'value'").unwrap();
+        assert_eq!(weak.format, "toml");
+        assert_eq!(weak.confidence, 0.7);
+    }
+
+    #[test]
+    fn mutation_guard_markdown_confidence_hash_vs_weak_signal() {
+        let strong = detect_format_with_confidence("# Title\n\nbody").unwrap();
+        assert_eq!(strong.format, "markdown");
+        assert_eq!(strong.confidence, 0.8);
+        let weak = detect_format_with_confidence("* lone emphasis").unwrap();
+        assert_eq!(weak.format, "markdown");
+        assert_eq!(weak.confidence, 0.6);
+    }
+
+    #[test]
+    fn mutation_guard_is_json_like_array_signals() {
+        assert!(is_json_like("[1, 2]"));
+        assert!(is_json_like(r#"["a"]"#));
+        assert!(!is_json_like("[no comma or quote]"));
+    }
+
+    #[test]
+    fn mutation_guard_is_yaml_like_rejects_json_and_braced_lines() {
+        assert!(!is_yaml_like(r#"{"k":1}"#));
+        assert!(!is_yaml_like("[1,2]"));
+        assert!(!is_yaml_like("{key: value}"));
+        assert!(is_yaml_like("title: Hello"));
+        // Colon inside quotes still counts via `contains(":")` — kills `&&` on line 131.
+        assert!(is_yaml_like("\"key: value\""));
+    }
 }

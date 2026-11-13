@@ -10,7 +10,7 @@ A Rust crate for repairing malformed structured data across **10 text formats** 
 
 ```toml
 [dependencies]
-anyrepair = "0.2.11"
+anyrepair = "0.2.12"
 ```
 
 ### Basic Usage
@@ -87,13 +87,13 @@ docker run --rm -i anyrepair anyrepair-mcp
 
 ## What's New
 
-### v0.2.10–v0.2.11 — Current
+### v0.2.10–v0.2.12 — Current
 
 - **Media file repair** — PNG, JPEG, WAV, MP3, MP4, MOV binary repair via `BinaryRepair` trait
 - **Binary format detection** — magic bytes auto-detection for 6 media formats with confidence scores
 - **CLI `repair-binary` subcommand** — `anyrepair repair-binary <file> [--format png] [--dry-run]`
 - **API**: `repair_binary()`, `repair_binary_with_format()`, `create_binary_repairer()`, `detect_binary_format()`
-- **578 tests**, all passing
+- **596 tests**, all passing
 
 ### v0.2.9
 
@@ -145,7 +145,7 @@ Structured data from LLMs, APIs, or manual editing is often malformed. AnyRepair
 - Streaming for large files
 - Binary media repair (PNG, JPEG, WAV, MP3, MP4, MOV)
 - Python-compatible JSON API
-- 578 tests (`cargo test`)
+- 596 tests (`cargo test`)
 
 ## Dependencies
 
@@ -313,7 +313,7 @@ cargo test
 | Golden master | 26 |
 | Corpus | 17 |
 | Damage + complex damage + complex streaming | 54 |
-| **Total** | **578** |
+| **Total** | **596** |
 
 See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 
@@ -343,6 +343,7 @@ See [TEST_SUMMARY.md](docs/TEST_SUMMARY.md) for more detail.
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history |
 | [docs/MCP_SERVER.md](docs/MCP_SERVER.md) | MCP integration |
 | [docs/TEST_SUMMARY.md](docs/TEST_SUMMARY.md) | Test breakdown |
+| [docs/index.html](docs/index.html) | HTML docs hub (crate + links) |
 | [docs/INDEX.md](docs/INDEX.md) | Documentation index |
 
 **Links:** [GitHub Issues](https://github.com/yingkitw/anyrepair/issues) · [crates.io](https://crates.io/crates/anyrepair) · [docs.rs](https://docs.rs/anyrepair)

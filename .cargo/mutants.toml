@@ -1,0 +1,10 @@
+# See docs/MUTATION_TESTING.md. Low disk: --in-place with -- --lib (no -j).
+test_workspace = true
+
+examine_globs = [
+    "src/json.rs",
+    "src/json_util.rs",
+    "src/repairer_base.rs",
+    "src/format_detection.rs",
+    "src/pattern.rs",
+]
